@@ -420,6 +420,10 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
   def submission_description_edit_fill(submission, selected_categories:)
     wait_for '[name="submission[description]"]'
 
+    assert_selector '#submissionhomepage_from_group_input .text-input-helper-text', text: I18n.t('submission_inputs.homepage_help')
+    assert_selector '#submissiondocumentation_from_group_input .text-input-helper-text', text: I18n.t('submission_inputs.documentation_help')
+    assert_selector '#submissionpublication_from_group_input .text-input-helper-text', text: I18n.t('submission_inputs.publication_help')
+
     fill_in 'submission[description]', with: submission.description
     fill_in 'submission[abstract]', with: submission.abstract
     fill_in 'submission[homepage]', with: submission.homepage
@@ -500,6 +504,8 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
   def submission_links_edit_fill(submission)
     wait_for_text "Location"
 
+    assert_selector '#submissionsource_from_group_input .text-input-helper-text', text: I18n.t('submission_inputs.related_resource_help')
+
     choose 'submission[isRemote]', option: '1'
     fill_in 'submission[pullLocation]', with: submission.pullLocation
     list_inputs "#submissionsource_from_group_input",
@@ -566,6 +572,8 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
 
   def submission_relations_edit_fill(submission)
     wait_for_text "Prior version"
+
+    assert_selector '#submissionassociatedResource_from_group_input .text-input-helper-text', text: I18n.t('submission_inputs.related_resource_help')
 
     # TODO ontology view check in
 

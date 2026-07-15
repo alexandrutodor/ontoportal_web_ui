@@ -501,7 +501,7 @@ module SubmissionInputsHelper
     is_relation = ontology_relation?(attr.attr_key)
     if attr.type?('list')
       if is_relation
-        generate_ontology_select_input(name, label, values, true)
+        generate_ontology_select_input(name, label, values, true, helper_text: helper_text)
       else
         generate_list_field_input(attr, name, label, values, helper_text: helper_text) do |value, row_name, id|
           url_input(label: '', name: row_name, value: value)
@@ -509,14 +509,14 @@ module SubmissionInputsHelper
       end
     else
       if is_relation
-        generate_ontology_select_input(name, label, values, false)
+        generate_ontology_select_input(name, label, values, false, helper_text: helper_text)
       else
         url_input(label: label, name: name, value: values, help: helper_text)
       end
     end
   end
 
-  def generate_ontology_select_input(name, label, selected, multiple, reject_ontology: @ontology)
+  def generate_ontology_select_input(name, label, selected, multiple, reject_ontology: @ontology, helper_text: nil)
     unless @ontology_acronyms
       @ontology_acronyms = LinkedData::Client::Models::Ontology.all(include: 'acronym,name', display_links: false, display_context: false, include_views: true)
                                                                .map { |x| ["#{x.name} (#{x.acronym})", x.id.to_s] }
@@ -532,7 +532,7 @@ module SubmissionInputsHelper
     input + select_input(id: name, name: name,
                          label: label, values: @ontology_acronyms + Array(selected),
                          selected: selected, multiple: multiple,
-                         open_to_add: true)
+                         open_to_add: true, help: helper_text)
   end
 
   def generate_list_text_input(attr, helper_text: nil, long_text: false)

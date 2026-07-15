@@ -56,6 +56,21 @@ module SubmissionsHelper
     end
   end
 
+  def resource_link_helper_text(attribute)
+    key = case attribute.to_s
+          when 'homepage'
+            :homepage_help
+          when 'documentation'
+            :documentation_help
+          when 'publication'
+            :publication_help
+          when 'associatedResource', 'source'
+            :related_resource_help
+          end
+
+    t("submission_inputs.#{key}") if key
+  end
+
   def ontology_submission_id_label(acronym, submission_id)
     [acronym, submission_id].join('#')
   end
@@ -389,7 +404,7 @@ module SubmissionsHelper
 
     submission_metadata.reject { |attr| reject_metadata.include?(attr['attribute']) || !selected_attribute?(attr['attribute']) }.each do |attr|
       output += attribute_form_group_container(attr['attribute']) do
-        raw attribute_input(attr['attribute'], label: label)
+        raw attribute_input(attr['attribute'], label: label, help: resource_link_helper_text(attr['attribute']))
       end
     end
 
