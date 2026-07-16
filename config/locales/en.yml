@@ -1569,7 +1569,7 @@ en:
     help_text: Help text
     homepage_help: Enter the public homepage for the ontology or its project. Use a complete URL, for example https://example.org/ontology.
     documentation_help: Enter a public documentation URL, such as a user guide, format guide, API page, or tutorial for this ontology.
-    publication_help: Add one publication, paper, DOI URL, or citation per row. Prefer persistent identifiers such as DOI URLs when available.
+    publication_help: Add one publication URL or citation per row. Prefer persistent identifiers such as DOI URLs when available.
     related_resource_help: Add one related source or resource URL per row, such as a source repository, download page, or canonical distribution.
     known_usage_help: Consider also declaring %{metadata_knownUsage_help}
     known_usage_help_link: the projects that are using the ontology
