@@ -64,6 +64,21 @@ class MappingsControllerAuthenticatedTest < ActionController::TestCase
     @request.session[:user] = Object.new
   end
 
+  test 'authenticated upload redirects leave the Turbo frame' do
+    mapping_counts = Struct.new(:members) do
+      def to_h = {}
+    end.new([])
+
+    LinkedData::Client::HTTP.stub(:get, mapping_counts) do
+      LinkedData::Client::Models::Ontology.stub(:all, []) do
+        get :index
+      end
+    end
+
+    assert_response :success
+    assert_select 'form[data-turbo-frame="_top"]'
+  end
+
   test 'authenticated users can upload mappings' do
     response = ResponseStub.new(errors: nil, created: [])
     upload = fixture_file_upload('annotator.yml', 'application/json')
