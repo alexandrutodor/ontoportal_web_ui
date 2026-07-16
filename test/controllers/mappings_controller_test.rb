@@ -4,6 +4,21 @@ require 'test_helper'
 require 'minitest/mock'
 
 class MappingsAuthenticationRoutesTest < ActionDispatch::IntegrationTest
+  test 'anonymous users do not see the mapping upload tab' do
+    mapping_counts = Struct.new(:members) do
+      def to_h = {}
+    end.new([])
+
+    LinkedData::Client::HTTP.stub(:get, mapping_counts) do
+      LinkedData::Client::Models::Ontology.stub(:all, []) do
+        get '/mappings'
+      end
+    end
+
+    assert_response :success
+    assert_select '.nav-item', text: I18n.t('mappings.tabs.upload_mappings'), count: 0
+  end
+
   test 'anonymous users are redirected from the new mapping form' do
     get '/mappings/new'
 
@@ -51,17 +66,18 @@ class MappingsControllerAuthenticatedTest < ActionController::TestCase
 
   test 'authenticated users can upload mappings' do
     response = ResponseStub.new(errors: nil, created: [])
+    upload = fixture_file_upload('annotator.yml', 'application/json')
     call = nil
 
     LinkedData::Client::HTTP.stub(:post, ->(*args, **kwargs) {
       call = [args, kwargs]
       response
     }) do
-      post :loader_process
+      post :loader_process, params: { file: upload }
     end
 
     assert_redirected_to '/mappings'
     assert_equal ['/mappings/load'], call.first
-    assert_equal({ file: nil }, call.last)
+    assert_equal upload.original_filename, call.last[:file].original_filename
   end
 end
