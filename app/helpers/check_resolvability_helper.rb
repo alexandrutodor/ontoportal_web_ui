@@ -1,51 +1,13 @@
 require 'benchmark'
-require 'ipaddr'
 require 'net/http'
-require 'resolv'
+require 'ssrf_filter'
 require 'timeout'
 require 'uri'
 
 module CheckResolvabilityHelper
 
-  RESOLVABILITY_ALLOWED_SCHEMES = %w[http https].freeze
   RESOLVABILITY_ALLOWED_PORT_RANGE = 1..65_535
   RESOLVABILITY_BLOCKED_HOSTNAMES = %w[localhost localhost.localdomain].freeze
-  RESOLVABILITY_BLOCKED_IP_RANGES = %w[
-    0.0.0.0/8
-    10.0.0.0/8
-    100.64.0.0/10
-    127.0.0.0/8
-    169.254.0.0/16
-    172.16.0.0/12
-    192.0.0.0/24
-    192.0.2.0/24
-    192.88.99.0/24
-    192.168.0.0/16
-    198.18.0.0/15
-    198.51.100.0/24
-    203.0.113.0/24
-    224.0.0.0/4
-    240.0.0.0/4
-    255.255.255.255/32
-    ::/128
-    ::1/128
-    ::/96
-    ::ffff:0:0/96
-    64:ff9b::/96
-    64:ff9b:1::/48
-    100::/64
-    100:0:0:1::/64
-    2001::/23
-    2001:2::/48
-    2001:db8::/32
-    2002::/16
-    3fff::/20
-    5f00::/16
-    fc00::/7
-    fe80::/10
-    fec0::/10
-    ff00::/8
-  ].map { |range| IPAddr.new(range) }.freeze
 
   def formats_equivalents(format = nil)
     all = {
@@ -89,89 +51,78 @@ module CheckResolvabilityHelper
     { result: result, status: status, allowed_format: supported_format, response_time: response_time, redirections: redirections }
   end
 
-  def check_resolvability_error(key)
-    I18n.t("check_resolvability.errors.#{key}")
-  end
-
-  def public_resolvability_uri(url)
-    raw_url = url.to_s.strip
-    raise ArgumentError, check_resolvability_error(:url_required) if raw_url.empty?
-
-    uri = URI.parse(raw_url)
-    unless uri.is_a?(URI::HTTP) && RESOLVABILITY_ALLOWED_SCHEMES.include?(uri.scheme)
-      raise ArgumentError, check_resolvability_error(:http_only)
-    end
-
-    raise ArgumentError, check_resolvability_error(:host_required) if uri.hostname.to_s.empty?
-    raise ArgumentError, check_resolvability_error(:credentials_forbidden) if uri.userinfo
-    raise ArgumentError, check_resolvability_error(:invalid_port) unless RESOLVABILITY_ALLOWED_PORT_RANGE.cover?(uri.port)
-
-    uri
-  rescue URI::Error
-    raise ArgumentError, check_resolvability_error(:invalid_url)
+  # Every rejection reports the same opaque message. Saying which check refused a URL
+  # would let a caller read back internal DNS and network layout one request at a time.
+  def check_resolvability_blocked
+    I18n.t('check_resolvability.blocked')
   end
 
   def public_resolvability_hostname(uri)
     uri.hostname.to_s.downcase.delete_suffix('.')
   end
 
-  def public_resolvability_connection_ip(uri, timeout_seconds = resolvability_timeout)
+  def public_resolvability_uri?(uri)
+    return false unless uri.is_a?(URI::HTTP) && SsrfFilter::DEFAULT_SCHEME_WHITELIST.include?(uri.scheme)
+    return false if uri.userinfo
+    return false unless RESOLVABILITY_ALLOWED_PORT_RANGE.cover?(uri.port)
+
     host = public_resolvability_hostname(uri)
-    raise ArgumentError, check_resolvability_error(:host_required) if host.empty?
+    return false if host.empty?
+    return false if RESOLVABILITY_BLOCKED_HOSTNAMES.include?(host) || host.end_with?('.localhost')
 
-    if RESOLVABILITY_BLOCKED_HOSTNAMES.include?(host) || host.end_with?('.localhost')
-      raise ArgumentError, check_resolvability_error(:non_public_host)
-    end
-
-    ip_literal = parse_resolvability_ip(host)
-    addresses = ip_literal ? [ip_literal.to_s] : public_resolvability_dns_addresses(host, timeout_seconds)
-
-    if addresses.empty? || addresses.any? { |address| !public_resolvability_ip_address?(address) }
-      raise ArgumentError, check_resolvability_error(:non_public_address)
-    end
-
-    addresses.first.to_s
+    # A bare label can resolve through the resolver's search domains onto an intranet host.
+    host.match?(/[.:]/)
   end
 
-  def public_resolvability_dns_addresses(host, timeout_seconds = resolvability_timeout)
-    if host !~ /[.:]/
-      raise ArgumentError, check_resolvability_error(:single_label_host)
-    end
+  def public_resolvability_uri(url)
+    raw_url = url.to_s.strip
+    raise ArgumentError, check_resolvability_blocked if raw_url.empty?
 
-    Timeout.timeout(timeout_seconds) { Array(Resolv.getaddresses(host)) }
-  rescue Resolv::ResolvError, Timeout::Error
-    []
-  end
+    uri = URI.parse(raw_url)
+    raise ArgumentError, check_resolvability_blocked unless public_resolvability_uri?(uri)
 
-  def public_resolvability_ip_address?(address)
-    ip = address.is_a?(IPAddr) ? address : IPAddr.new(address)
-    RESOLVABILITY_BLOCKED_IP_RANGES.none? { |range| range.include?(ip) }
-  rescue IPAddr::Error
-    false
-  end
-
-  def parse_resolvability_ip(address)
-    IPAddr.new(address)
-  rescue IPAddr::Error
-    nil
+    uri
+  rescue URI::Error
+    raise ArgumentError, check_resolvability_blocked
   end
 
   def public_resolvability_redirect_uri(uri, location)
     location = location.to_s.strip
-    raise ArgumentError, check_resolvability_error(:invalid_redirect) if location.empty?
+    raise ArgumentError, check_resolvability_blocked if location.empty?
 
     joined_uri = begin
       URI.join(uri, location)
     rescue URI::Error
-      raise ArgumentError, check_resolvability_error(:invalid_redirect)
+      raise ArgumentError, check_resolvability_blocked
     end
 
     public_resolvability_uri(joined_uri.to_s)
   end
 
-  def resolvability_request_uri(uri)
-    request_uri = uri.request_uri
-    request_uri.nil? || request_uri.empty? ? '/' : request_uri
+  def resolvability_ssrf_options(format, timeout_seconds)
+    {
+      headers: { 'Accept' => format },
+      # Redirects are followed here rather than by SsrfFilter so that every hop can be
+      # reported, and so that relative locations resolve through URI.join.
+      max_redirects: 0,
+      allow_unfollowed_redirects: true,
+      http_options: {
+        open_timeout: timeout_seconds,
+        read_timeout: timeout_seconds,
+        # Net::HTTP.start proxies from the environment unless told otherwise, which would
+        # connect to the proxy instead of the address SsrfFilter validated and pinned.
+        proxy_from_env: false
+      }
+    }
+  end
+
+  def resolvability_head(uri, format, timeout_seconds)
+    # Guards the DNS lookup, which no Net::HTTP timeout covers.
+    Timeout.timeout(timeout_seconds) do
+      SsrfFilter.head(uri.to_s, resolvability_ssrf_options(format, timeout_seconds))
+    end
+  rescue SsrfFilter::Error
+    raise ArgumentError, check_resolvability_blocked
   end
 
   def follow_redirection(url, format, timeout_seconds, redirect_limit = resolvability_max_redirections)
@@ -182,18 +133,9 @@ module CheckResolvabilityHelper
 
     total_time = Benchmark.measure do
       until (!response.nil? && !response.is_a?(Net::HTTPRedirection)) || redirect_count >= redirect_limit
-        connection_ip = public_resolvability_connection_ip(uri, timeout_seconds)
-        http = Net::HTTP.new(public_resolvability_hostname(uri), uri.port, nil)
-        unless http.respond_to?(:ipaddr=)
-          raise ArgumentError, check_resolvability_error(:ip_pinning_unavailable)
-        end
-        http.ipaddr = connection_ip
-        http.use_ssl = (uri.scheme == 'https')
-        http.open_timeout = timeout_seconds
-        http.read_timeout = timeout_seconds if http.respond_to?(:read_timeout=)
         begin
-          response = Timeout.timeout(timeout_seconds) { http.request_head(resolvability_request_uri(uri), 'Accept' => format) }
-        rescue Timeout::Error, Net::OpenTimeout
+          response = resolvability_head(uri, format, timeout_seconds)
+        rescue Timeout::Error
           return resolvability_status('Timeout', [], redirections, result: 0, response_time: timeout_seconds)
         end
 
@@ -201,7 +143,6 @@ module CheckResolvabilityHelper
           break if response['location'].to_s.strip.empty?
 
           uri = public_resolvability_redirect_uri(uri, response['location'])
-          public_resolvability_connection_ip(uri, timeout_seconds)
           redirections << uri
           redirect_count += 1
         end
