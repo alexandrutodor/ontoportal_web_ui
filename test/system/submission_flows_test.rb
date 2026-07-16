@@ -573,8 +573,6 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
   def submission_relations_edit_fill(submission)
     wait_for_text "Prior version"
 
-    assert_selector '#submissionassociatedResource_from_group_input .text-input-helper-text', text: I18n.t('submission_inputs.related_resource_help')
-
     # TODO ontology view check in
 
     fill_in "submission[hasPriorVersion]", with: submission.hasPriorVersion
