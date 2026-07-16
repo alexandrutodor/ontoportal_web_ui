@@ -1,6 +1,8 @@
-# OntoPanel Visualizer
+# OntoPortal BioMixer Visualizer
 
-A standalone BioMixer replacement for OntoPortal concept visualization. It is intentionally dependency-light and ships as static HTML/CSS/JavaScript so the Rails UI can serve it directly from `public/biomixer-visualizer` without a Node build step.
+This directory vendors the built-in copy of the maintained [OntoPortal BioMixer Visualizer](https://github.com/ontoportal/biomixer-visualizer). The new standalone repository is the source of truth; it replaces the legacy BioMixer project rather than continuing that project's history.
+
+The dependency-light HTML, CSS, and JavaScript can be served directly by Rails from `public/biomixer-visualizer` without a Node build step.
 
 ## Supported embed parameters
 
@@ -37,7 +39,7 @@ Additional optional parameters:
 
 The Rails partial `app/views/concepts/_biomixer` and the public widget at `/widgets/visualization/` keep the legacy BioMixer embed by default. They switch to this app only when the `biomixer_replacement` Flipper feature is enabled.
 
-The visualizer is served from `/biomixer-visualizer` on the same UI host unless an external deployment URL is configured with:
+The vendored copy is served from `/biomixer-visualizer` on the same UI host unless the standalone deployment is configured with:
 
 ```ruby
 $ONTOPANEL_VISUALIZER_URL = ENV["ONTOPANEL_VISUALIZER_URL"]
