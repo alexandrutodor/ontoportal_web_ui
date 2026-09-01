@@ -56,9 +56,11 @@ class ApplicationHelperTest < ActionView::TestCase
   private
 
   def with_memory_flipper
+    original_flipper = Flipper.instance
     memory_flipper = Flipper.new(Flipper::Adapters::Memory.new)
-    Flipper.stub(:enabled?, ->(feature_name, actor = nil) { memory_flipper.enabled?(feature_name, actor) }) do
-      yield memory_flipper
-    end
+    Flipper.instance = memory_flipper
+    yield memory_flipper
+  ensure
+    Flipper.instance = original_flipper
   end
 end
