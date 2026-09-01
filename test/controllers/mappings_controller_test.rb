@@ -61,7 +61,13 @@ class MappingsControllerAuthenticatedTest < ActionController::TestCase
   ResponseStub = Struct.new(:errors, :created, keyword_init: true)
 
   setup do
-    @request.session[:user] = Object.new
+    user = Struct.new(:apikey, :username) do
+      def admin? = false
+      def flipper_id = username
+      def to_hash = to_h
+    end.new('test-api-key', 'test-user')
+
+    @request.session[:user] = user
   end
 
   test 'authenticated upload redirects leave the Turbo frame' do
@@ -81,7 +87,7 @@ class MappingsControllerAuthenticatedTest < ActionController::TestCase
 
   test 'authenticated users can upload mappings' do
     response = ResponseStub.new(errors: nil, created: [])
-    upload = fixture_file_upload('annotator.yml', 'application/json')
+    upload = fixture_file_upload(Rails.root.join('test/fixtures/annotator.yml'), 'application/json')
     call = nil
 
     LinkedData::Client::HTTP.stub(:post, ->(*args, **kwargs) {
