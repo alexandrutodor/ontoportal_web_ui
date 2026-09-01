@@ -58,10 +58,7 @@ module AnalyticsHelper
   end
 
   def analytics_consent_cookie_name
-    name = analytics_configuration_value('ANALYTICS_CONSENT_COOKIE_NAME',
-                                         (defined?($ANALYTICS_CONSENT_COOKIE_NAME) ? $ANALYTICS_CONSENT_COOKIE_NAME : nil),
-                                         :consent_cookie_name).to_s.strip
-    name.match?(/\A[A-Za-z0-9_-]+\z/) ? name : DEFAULT_CONSENT_COOKIE_NAME
+    DEFAULT_CONSENT_COOKIE_NAME
   end
 
   def analytics_consent_cookie_domain
@@ -72,7 +69,12 @@ module AnalyticsHelper
     return nil unless domain.length <= 253 && domain.match?(/\A\.?[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?\z/)
     return nil if domain.include?('..')
 
-    domain
+    normalized_domain = domain.downcase
+    cookie_domain = normalized_domain.delete_prefix('.')
+    host = request.host.to_s.downcase
+    return nil unless host == cookie_domain || host.end_with?(".#{cookie_domain}")
+
+    normalized_domain
   end
 
   def google_analytics_tag_id

@@ -8,7 +8,6 @@ class AnalyticsHelperTest < ActionView::TestCase
   CONFIG_ENV = %w[
     ANALYTICS_PROVIDER
     ANALYTICS_REQUIRE_CONSENT
-    ANALYTICS_CONSENT_COOKIE_NAME
     ANALYTICS_CONSENT_COOKIE_DOMAIN
     ANALYTICS_ID
     MATOMO_URL
@@ -24,7 +23,6 @@ class AnalyticsHelperTest < ActionView::TestCase
       matomo_url: $MATOMO_URL,
       matomo_site_id: $MATOMO_SITE_ID,
       require_consent: $ANALYTICS_REQUIRE_CONSENT,
-      cookie_name: $ANALYTICS_CONSENT_COOKIE_NAME,
       cookie_domain: $ANALYTICS_CONSENT_COOKIE_DOMAIN
     }
     clear_configuration
@@ -39,8 +37,11 @@ class AnalyticsHelperTest < ActionView::TestCase
     $MATOMO_URL = @original_globals[:matomo_url]
     $MATOMO_SITE_ID = @original_globals[:matomo_site_id]
     $ANALYTICS_REQUIRE_CONSENT = @original_globals[:require_consent]
-    $ANALYTICS_CONSENT_COOKIE_NAME = @original_globals[:cookie_name]
     $ANALYTICS_CONSENT_COOKIE_DOMAIN = @original_globals[:cookie_domain]
+  end
+
+  test 'consent cookie name is fixed' do
+    assert_equal AnalyticsHelper::DEFAULT_CONSENT_COOKIE_NAME, analytics_consent_cookie_name
   end
 
   test 'no provider configuration disables analytics' do
@@ -124,11 +125,24 @@ class AnalyticsHelperTest < ActionView::TestCase
     assert analytics_tracking_enabled?
   end
 
-  test 'consent cookie domain is configurable and host-only by default' do
+  test 'consent cookie domain matches the exact host or a subdomain case-insensitively' do
+    request.set_header('HTTP_HOST', 'STAGE.MATPORTAL.ORG')
+    ENV['ANALYTICS_CONSENT_COOKIE_DOMAIN'] = 'stage.matportal.org'
+    assert_equal 'stage.matportal.org', analytics_consent_cookie_domain
+
+    request.set_header('HTTP_HOST', 'chemistry.STAGE.MATPORTAL.ORG')
+    ENV['ANALYTICS_CONSENT_COOKIE_DOMAIN'] = '.STAGE.MATPORTAL.ORG'
+    assert_equal '.stage.matportal.org', analytics_consent_cookie_domain
+  end
+
+  test 'malformed and unrelated consent cookie domains fall back to host-only' do
+    request.set_header('HTTP_HOST', 'chemistry.stage.matportal.org')
     assert_nil analytics_consent_cookie_domain
 
-    ENV['ANALYTICS_CONSENT_COOKIE_DOMAIN'] = '.stage.matportal.org'
-    assert_equal '.stage.matportal.org', analytics_consent_cookie_domain
+    ['.stage..matportal.org', '.other.example.org', 'https://stage.matportal.org'].each do |domain|
+      ENV['ANALYTICS_CONSENT_COOKIE_DOMAIN'] = domain
+      assert_nil analytics_consent_cookie_domain
+    end
   end
 
   private
@@ -144,7 +158,6 @@ class AnalyticsHelperTest < ActionView::TestCase
     $MATOMO_URL = nil
     $MATOMO_SITE_ID = nil
     $ANALYTICS_REQUIRE_CONSENT = nil
-    $ANALYTICS_CONSENT_COOKIE_NAME = nil
     $ANALYTICS_CONSENT_COOKIE_DOMAIN = nil
   end
 end

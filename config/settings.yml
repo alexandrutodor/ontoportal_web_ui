@@ -2,7 +2,6 @@ shared:
   analytics:
     provider: null
     require_consent: false
-    consent_cookie_name: analytics_consent
     consent_cookie_domain: null
     matomo:
       url: null

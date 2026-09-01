@@ -6,7 +6,6 @@ class CookieConsentControllerTest < ActionDispatch::IntegrationTest
   CONFIG_ENV = %w[
     ANALYTICS_PROVIDER
     ANALYTICS_REQUIRE_CONSENT
-    ANALYTICS_CONSENT_COOKIE_NAME
     ANALYTICS_CONSENT_COOKIE_DOMAIN
     ANALYTICS_ID
     MATOMO_URL
@@ -80,9 +79,10 @@ class CookieConsentControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test 'configured domain is applied to both new consent cookies' do
+  test 'matching domain is applied to both consent cookies' do
     configure_matomo
-    ENV['ANALYTICS_CONSENT_COOKIE_DOMAIN'] = '.stage.matportal.org'
+    host! 'chemistry.STAGE.MATPORTAL.ORG'
+    ENV['ANALYTICS_CONSENT_COOKIE_DOMAIN'] = '.STAGE.MATPORTAL.ORG'
 
     post cookie_consent_path,
          params: { analytics_consent: 'true' },
@@ -91,6 +91,27 @@ class CookieConsentControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     set_cookie = response.headers['Set-Cookie']
     assert_equal 2, set_cookie.scan(/domain=\.stage\.matportal\.org/i).length
+  end
+
+  test 'unrelated domain falls back to a host-only cookie that persists' do
+    configure_matomo
+    host! 'chemistry.stage.matportal.org'
+    ENV['ANALYTICS_CONSENT_COOKIE_DOMAIN'] = '.other.example.org'
+
+    post cookie_consent_path,
+         params: { analytics_consent: 'true' },
+         headers: { 'ACCEPT' => 'application/json' }
+
+    assert_response :success
+    set_cookie = response.headers['Set-Cookie']
+    assert_no_match(/(?:^|;)\s*domain=/i, set_cookie)
+    assert_not_includes set_cookie.downcase, '.other.example.org'
+
+    get cookie_consent_path
+
+    assert_response :success
+    assert_select '#analytics-preference[checked]'
+    assert_includes response.body, 'analytics.example.org/matomo'
   end
 
   test 'manage page uses the portal privacy URL and shows controls' do
@@ -168,7 +189,6 @@ class CookieConsentControllerTest < ActionDispatch::IntegrationTest
     $MATOMO_URL = nil
     $MATOMO_SITE_ID = nil
     $ANALYTICS_REQUIRE_CONSENT = nil
-    $ANALYTICS_CONSENT_COOKIE_NAME = nil
     $ANALYTICS_CONSENT_COOKIE_DOMAIN = nil
   end
 end

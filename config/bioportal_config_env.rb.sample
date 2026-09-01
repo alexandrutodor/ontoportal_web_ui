@@ -126,7 +126,6 @@ $MATOMO_SITE_ID = ENV['MATOMO_SITE_ID']
 # Set true to require explicit analytics consent (default: false for compatibility).
 # For portal/slice sharing, use ANALYTICS_CONSENT_COOKIE_DOMAIN=.stage.matportal.org.
 $ANALYTICS_REQUIRE_CONSENT = ENV['ANALYTICS_REQUIRE_CONSENT']
-$ANALYTICS_CONSENT_COOKIE_NAME = ENV['ANALYTICS_CONSENT_COOKIE_NAME']
 $ANALYTICS_CONSENT_COOKIE_DOMAIN = ENV['ANALYTICS_CONSENT_COOKIE_DOMAIN']
 
 # Enable client request caching
