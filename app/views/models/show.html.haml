@@ -1,0 +1,130 @@
+- @title = @model[:name]
+- section_titles = { 'overview' => 'Overview', 'model_card' => 'Model card', 'datasets' => 'Related datasets', 'papers' => 'Papers', 'code' => 'Code & checkpoints', 'inference' => 'Inference' }
+- empty_messages = { 'datasets' => 'No related datasets are catalogued for this model yet.', 'papers' => 'No related papers are catalogued for this model yet.', 'code' => 'No code or checkpoint links are catalogued for this model yet.', 'inference' => 'No hosted inference endpoint is catalogued for this model yet.' }
+- section_resources = Array(@model[:resources].to_h[@section.to_sym])
+- card = @model_card || model_card_for(@model)
+- fair = @fair_score || fair_score_for(@model)
+%main#top.catalogue-browse.browse-center.model-detail-page{aria: {label: 'Model details'}}
+
+  .browse-container
+    .browse-sub-container
+      .browse-second-row{style: 'width: 100%;'}
+        .model-detail-header
+          %p.browse-kicker Model
+          %h1.browse-ontology-title= @model[:name]
+          %p.browse-desc-text.model-summary= @model[:summary]
+          %nav.nav.nav-tabs.model-section-nav{aria: {label: 'Model detail sections'}}
+            - section_titles.each do |section_key, section_title|
+              - active = @section == section_key
+              = link_to section_title, model_path(@model[:id], section: section_key), class: "nav-link model-section-link#{' active' if active}", aria: {current: (active ? 'page' : nil)}
+
+        .model-section-panel
+          - case @section
+          - when 'overview'
+            .browse-ontology-container.model-section-card
+              %h2 Overview
+              %p.browse-desc-text= @model[:summary]
+              %dl.row.model-metadata.mb-0
+                %dt.col-sm-3 Organization
+                %dd.col-sm-9= @model[:organization]
+                %dt.col-sm-3 Tasks
+                %dd.col-sm-9= @model[:tasks].join(', ')
+                %dt.col-sm-3 Domains
+                %dd.col-sm-9= @model[:domains].join(', ')
+                %dt.col-sm-3 Hubs
+                %dd.col-sm-9= @model[:hubs].join(', ')
+                %dt.col-sm-3 License
+                %dd.col-sm-9= @model[:license]
+                %dt.col-sm-3 Verified date
+                %dd.col-sm-9= @model[:verified_on]
+              - if @model[:tags].any?
+                %p.browse-desc-text.mt-3.mb-1 Tags
+                .d-flex.w-100.flex-wrap
+                  - @model[:tags].each do |tag|
+                    %span.mr-1.me-1.model-tag= tag
+          - when 'model_card'
+            .browse-ontology-container.model-section-card
+              %h2 Model card & technical metadata
+              %dl.row.model-metadata.mb-3
+                %dt.col-sm-3 Organization
+                %dd.col-sm-9= card[:organization]
+                %dt.col-sm-3 License
+                %dd.col-sm-9= card[:license]
+                %dt.col-sm-3 Architecture
+                %dd.col-sm-9= card[:architecture]
+                %dt.col-sm-3 Framework / format
+                %dd.col-sm-9= card[:framework]
+                %dt.col-sm-3 Parameter count
+                %dd.col-sm-9= card[:parameters]
+                %dt.col-sm-3 Checkpoint / download size
+                %dd.col-sm-9
+                  = card[:size]
+                  - if card[:size_caveat].present?
+                    %small.text-muted.d-block.mt-1= card[:size_caveat]
+                %dt.col-sm-3 Precision
+                %dd.col-sm-9= card[:precision]
+                %dt.col-sm-3 Inputs
+                %dd.col-sm-9= card[:inputs]
+                %dt.col-sm-3 Outputs
+                %dd.col-sm-9= card[:outputs]
+                %dt.col-sm-3 Version / checkpoint
+                %dd.col-sm-9= card[:version]
+                %dt.col-sm-3 Authoritative source
+                %dd.col-sm-9
+                  - if card[:source_url].to_s.start_with?('https://')
+                    = link_to card[:source_url], card[:source_url], target: '_blank', rel: 'noopener'
+                  - else
+                    = card[:source_url]
+
+            .browse-ontology-container.model-section-card.mt-3#model-fair-assessment
+              %h2 Model FAIR metadata readiness v1
+              %p.browse-desc-text.mb-2= fair[:disclaimer]
+              %p.browse-desc-text.small.text-muted.mb-3= fair[:methodology]
+              %dl.row.mb-3
+                %dt.col-sm-3 Overall FAIR Readiness
+                %dd.col-sm-9
+                  %strong= "#{fair[:overall_score]}%"
+                %dt.col-sm-3 Principle scores
+                %dd.col-sm-9
+                  %ul.list-inline.mb-0
+                    - fair[:principles].each do |principle, score|
+                      %li.list-inline-item.mr-3.me-3
+                        %strong= "#{principle}:"
+                        = "#{score}%"
+                %dt.col-sm-3 Evaluation profile
+                %dd.col-sm-9= fair[:profile]
+
+              %h3.h6.mt-3.mb-2 Metadata criteria checks
+              - fair[:criteria].each do |principle_name, criteria_list|
+                .mb-3
+                  %h4.h6.text-muted.mb-1= principle_name
+                  %ul.list-unstyled.mb-0
+                    - criteria_list.each do |c|
+                      %li.mb-1
+                        - if c[:pass]
+                          %span.badge.badge-success.mr-1.me-1 PASS
+                        - else
+                          %span.badge.badge-secondary.mr-1.me-1 MISSING
+                        %span.font-weight-bold.fw-bold= "[#{c[:id]}]"
+                        = c[:label]
+          - when 'datasets', 'papers', 'code', 'inference'
+            .browse-ontology-container.model-section-card
+              %h2= section_titles[@section]
+              - if section_resources.any?
+                %ul.model-resource-list
+                  - section_resources.each do |resource|
+                    %li.model-resource-item
+                      - if @section == 'datasets' && resource[:search].present?
+                        - if respond_to?(:datasets_path)
+                          = link_to resource[:label], datasets_path(search: resource[:search]), class: 'model-resource-link'
+                        - else
+                          %span= resource[:label]
+
+                      - elsif resource[:url].present?
+                        = link_to resource[:label], resource[:url], class: 'model-resource-link', target: '_blank', rel: 'noopener'
+                      - else
+                        %span= resource[:label]
+                      - if resource[:relationship].present?
+                        %span.model-resource-relationship= " - #{resource[:relationship]}"
+              - else
+                %p.text-muted= empty_messages[@section]

@@ -18,7 +18,9 @@ Flipper::UI.configure do |config|
   config.descriptions_source = ->(keys) do
     {
       "SPARQL" => "Enables the SPARQL endpoint feature. Requires SPARQL_ENDPOINT_URL environment variable to be configured.",
-      "FOOPS" => "Enables the FOOPS! FAIRness assessment on the ontology summary page. Requires the FOOPS_URL environment variable (defaults to the public FOOPS! service)."
+      "FOOPS" => "Enables the FOOPS! FAIRness assessment on the ontology summary page. Requires the FOOPS_URL environment variable (defaults to the public FOOPS! service).",
+      "models_catalogue" => "Enables the read-only ML/AI Models catalogue. Disabled by default.",
+      "workflows_catalogue" => "Enables the read-only Scientific Workflows catalogue. Disabled by default."
     }
   end
 

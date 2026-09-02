@@ -13,7 +13,14 @@
         - navitems.each do |navItem|
           %li.nav-ul-li
             %a{href: navItem[0], class: ("active" if current_page?(navItem[0]))} #{navItem[1]}
+        - if Flipper.enabled?(:models_catalogue)
+          %li.nav-ul-li
+            %a{href: models_path, class: ("active" if current_page?(models_path))} Models
+        - if Flipper.enabled?(:workflows_catalogue)
+          %li.nav-ul-li
+            %a{href: workflows_path, class: ("active" if current_page?(workflows_path))} Workflows
         - if !session[:user].nil? && session[:user].admin?
+
           %li.nav-ul-li
             %a{href: "/admin", class: ("active" if current_page?("/admin"))} Admin
       .right-nav-items{style: "margin-left: 10px;"} 

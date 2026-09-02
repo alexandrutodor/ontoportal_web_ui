@@ -1,0 +1,136 @@
+- @title = 'Browse Models'
+- search = params[:search].to_s
+- selected_organization = @selected_organization.to_s
+- selected_task = @selected_task.to_s
+- selected_domain = @selected_domain.to_s
+- selected_hub = @selected_hub.to_s
+- selected_license = @selected_license.to_s
+- selected_group = @selected_group.to_s
+- selected_project = @selected_project.to_s
+%main#top.catalogue-browse.browse-center.models-browse-page{aria: {label: 'Browse models'}}
+  .browse-container
+    = form_with url: models_path, method: :get, local: true, class: 'models-browse-form' do
+      .browse-sub-container
+        .browse-first-row
+          %div{style: 'margin-top: 30px'}
+            .browse-filter-heading
+              %p.browse-filters-title Filters
+              = link_to 'Clear all', models_path, class: 'browse-clear-link'
+
+
+            %div{id: 'organization_filter_container'}
+              = dropdown_component(id: 'browse-model-organization-filter', is_open: selected_organization.present?) do |d|
+                - d.title { browse_filter_section_header(title: 'Organization', count: selected_organization.present? ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#model_organization.browse-format-filter.w-100{name: 'organization', onchange: 'this.form.submit()', aria: {label: 'Filter models by organization'}}
+                    = options_for_select([['All organizations', '']] + @organization_options.map { |org| [org, org] }, selected_organization)
+
+            %div{id: 'domain_filter_container'}
+              = dropdown_component(id: 'browse-model-domain-filter', is_open: selected_domain.present?) do |d|
+                - d.title { browse_filter_section_header(title: 'Domain', count: selected_domain.present? ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#model_domain.browse-format-filter.w-100{name: 'domain', onchange: 'this.form.submit()', aria: {label: 'Filter models by domain'}}
+                    = options_for_select([['All domains', '']] + @domain_options.map { |domain| [domain, domain] }, selected_domain)
+
+            %div{id: 'hub_filter_container'}
+              = dropdown_component(id: 'browse-model-hub-filter', is_open: selected_hub.present?) do |d|
+                - d.title { browse_filter_section_header(title: 'Hub', count: selected_hub.present? ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#model_hub.browse-format-filter.w-100{name: 'hub', onchange: 'this.form.submit()', aria: {label: 'Filter models by hub'}}
+                    = options_for_select([['All hubs', '']] + @hub_options.map { |hub| [hub, hub] }, selected_hub)
+
+            %div{id: 'license_filter_container'}
+              = dropdown_component(id: 'browse-model-license-filter', is_open: selected_license.present?) do |d|
+                - d.title { browse_filter_section_header(title: 'License', count: selected_license.present? ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#model_license.browse-format-filter.w-100{name: 'license', onchange: 'this.form.submit()', aria: {label: 'Filter models by license'}}
+                    = options_for_select([['All licenses', '']] + @license_options.map { |license| [license, license] }, selected_license)
+
+            %div{id: 'group_filter_container'}
+              = dropdown_component(id: 'browse-model-group-filter', is_open: selected_group.present?) do |d|
+                - d.title { browse_filter_section_header(title: 'Groups / Slices', count: selected_group.present? ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#model_group.browse-format-filter.w-100{name: 'group', onchange: 'this.form.submit()', aria: {label: 'Filter models by group or slice'}}
+                    = options_for_select([['All groups / slices', '']] + @group_options.map { |g| [g, g] }, selected_group)
+
+            %div{id: 'project_filter_container'}
+              = dropdown_component(id: 'browse-model-project-filter', is_open: selected_project.present?) do |d|
+                - d.title { browse_filter_section_header(title: 'Projects', count: selected_project.present? ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#model_project.browse-format-filter.w-100{name: 'project', onchange: 'this.form.submit()', aria: {label: 'Filter models by project'}}
+                    = options_for_select([['All projects', '']] + @project_options.map { |p| [p, p] }, selected_project)
+
+        .browse-second-row
+          .browse-mode-row
+            .browse-switch{role: 'navigation', aria: {label: 'Browse resource type'}}
+              = link_to ontologies_path, class: 'browse-switch-link' do
+                %i.fas.fa-sitemap
+                Ontologies
+              - if respond_to?(:datasets_path)
+                = link_to datasets_path, class: 'browse-switch-link' do
+                  %i.fas.fa-database
+                  Datasets
+              = link_to models_path, class: 'browse-switch-link active', aria: {current: 'page'} do
+                %i.fas.fa-cubes
+                Models
+              = link_to workflows_path, class: 'browse-switch-link' do
+                %i.fas.fa-project-diagram
+                Workflows
+              = link_to repositories_path, class: 'browse-switch-link' do
+                %i.fas.fa-code-branch
+                Repositories
+
+
+          .browse-search-bar
+            .browse-search-container
+              %input{name: 'search', placeholder: 'Search models by name, organization, task, domain, hub, or license', type: 'search', value: search, aria: {label: 'Search models'}}
+              .browse-search-filters
+                %select#model_task.browse-format-filter{name: 'task', onchange: 'this.form.submit()', aria: {label: 'Filter models by task'}}
+                  = options_for_select([['All tasks', '']] + @task_options.map { |task| [task, task] }, selected_task)
+                %select#Sort_by.browse-sort-by-filter{name: 'Sort_by', onchange: 'this.form.submit()', aria: {label: 'Sort models'}}
+                  = options_for_select(@sort_options, @sort)
+
+          .browse-ontologies.models-results-list
+            %p.browse-desc-text.models-result-count
+              = "Showing #{number_with_delimiter(@models.length)} #{'model'.pluralize(@models.length)}."
+            - if @models.any?
+              - @models.each do |model|
+                - card = model_card_for(model)
+                - fair = fair_score_for(model)
+                - fair_percentage = fair[:overall_score]
+                - fair_details_url = model_path(model[:id], section: 'model_card')
+                %article.browse-ontology-container.model-browse-card.dataset-browse-card-main
+                  .browse-ontology-description
+                    .browse-ontology-title-bar
+                      = link_to model[:name], model_path(model[:id]), class: 'browse-ontology-title'
+                    %p.browse-desc-text= model[:summary]
+                    - unless fair_percentage.nil?
+                      .browse-fair
+                        %p.browse-fair-title Model FAIR metadata readiness
+                        .browse-progress-bar{role: 'progressbar', aria: {valuemin: 0, valuemax: 100, valuenow: fair_percentage, label: "#{model[:name]} Model FAIR metadata readiness #{fair_percentage}%"}}
+                          .browse-faire-progress{style: "width: #{fair_percentage}%"}
+                        %p.browse-fair-score= "#{fair_percentage}%"
+                        = link_to 'Details', fair_details_url, class: 'browse-fair-details'
+                    .catalogue-card-meta
+                      %span.catalogue-card-meta-item= model[:organization]
+                      %span.catalogue-card-meta-item= model[:license]
+                      - if card[:parameters] != 'Unknown'
+                        %span.catalogue-card-meta-item= "#{card[:parameters]} parameters"
+                      - if card[:size] != 'Unknown'
+                        %span.catalogue-card-meta-item= card[:size]
+                      %span.catalogue-card-meta-item= "Verified #{model[:verified_on]}"
+                  - papers_count = Array(model.dig(:resources, :papers)).length
+                  - datasets_count = Array(model.dig(:resources, :datasets)).length
+                  - weights_count = [Array(model[:hubs]).length, 1].max
+                  .browse-ontology-cards.dataset-browse-badges
+                    = render SquareBadgeComponent.new(label: papers_count == 1 ? 'Paper' : 'Papers', count: papers_count, link: model_path(model[:id], section: 'papers'))
+                    = render SquareBadgeComponent.new(label: datasets_count == 1 ? 'Dataset' : 'Datasets', count: datasets_count, link: model_path(model[:id], section: 'datasets'))
+                    = render SquareBadgeComponent.new(label: weights_count == 1 ? 'Weights' : 'Weights', count: weights_count, link: model_path(model[:id], section: 'code'))
+            - else
+              .browse-ontology-container.model-empty-state
+                .browse-ontology-description{style: 'width: 100%;'}
+                  .browse-ontology-title-bar
+                    %span.browse-ontology-title No models found
+                  %p.browse-desc-text
+                    No models matched these filters. Clear the search or choose another organization, task, domain, hub, or license to browse the catalogue.
+                  = link_to 'Clear filters', models_path, class: 'regular-button primary-button slim'

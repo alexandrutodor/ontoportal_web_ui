@@ -1,0 +1,263 @@
+- @title = @workflow[:name]
+- section_titles = { 'overview' => 'Overview', 'steps' => 'Steps', 'software_environment' => 'Software & environment', 'related_resources' => 'Related resources', 'papers_code' => 'Papers & code', 'reproducibility' => 'Reproducibility' }
+- empty_messages = { 'related_resources' => 'No related resources are catalogued for this workflow yet.', 'papers_code' => 'No papers or code links are catalogued for this workflow yet.' }
+- classification = @workflow[:classification] || {}
+- implementation = @workflow[:implementation] || {}
+- io = @workflow[:io] || {}
+- execution = @workflow[:execution] || {}
+- licensing = @workflow[:licensing] || {}
+- definition_license = licensing[:workflow_definition] || {}
+- reproducibility = @workflow[:reproducibility] || {}
+- maintenance = @workflow[:maintenance] || {}
+- version = implementation[:version]
+- relation_titles = { datasets: 'Datasets', models: 'Models', ontologies: 'Ontologies' }
+- definition_url = implementation[:template_or_registry_url].to_s
+- definition_url = implementation[:repository_url].to_s if definition_url.empty? || definition_url == 'Unknown'
+- definition_label = implementation[:template_or_registry_url].to_s.empty? || implementation[:template_or_registry_url].to_s == 'Unknown' ? 'Open repository' : 'Open workflow definition'
+- fair = @fair_score || fair_score_for(@workflow)
+
+%main#top.catalogue-browse.browse-center.workflow-detail-page{aria: {label: 'Workflow details'}}
+
+  .browse-container
+    .browse-sub-container
+      .browse-second-row{style: 'width: 100%;'}
+        .model-detail-header
+          %p.browse-kicker Computational Workflow
+          %h1.browse-ontology-title= @workflow[:name]
+          %p.browse-desc-text.model-summary= @workflow[:summary]
+          .mb-3
+            - if definition_url.present? && definition_url != 'Unknown'
+              = link_to definition_label, definition_url, class: 'regular-button primary-button slim', target: '_blank', rel: 'noopener'
+            - if implementation[:documentation_url].present? && implementation[:documentation_url] != 'Unknown'
+              = link_to 'Documentation', implementation[:documentation_url], class: 'regular-button secondary-button slim ml-1', target: '_blank', rel: 'noopener'
+            = link_to 'Feedback', '/feedback?subject=Workflow%20submission', class: 'regular-button secondary-button slim ml-1'
+
+          .d-flex.w-100.flex-wrap.mb-3
+            %span.mr-1.me-1.workflow-tag= classification[:family]
+            - Array(classification[:scientific_tasks]).each do |task|
+              %span.mr-1.me-1.workflow-tag= task
+          %nav.nav.nav-tabs.model-section-nav{aria: {label: 'Workflow detail sections'}}
+            - section_titles.each do |section_key, section_title|
+              - active = @section == section_key
+              = link_to section_title, workflow_path(@workflow[:catalogue_id], section: section_key), class: "nav-link model-section-link#{' active' if active}", aria: {current: (active ? 'page' : nil)}
+
+        .model-section-panel
+          - case @section
+          - when 'overview'
+            .browse-ontology-container.model-section-card#overview
+              %h2 Overview
+              %p.browse-desc-text= @workflow[:summary]
+
+              %dl.row.model-metadata.mb-0
+                %dt.col-sm-3 Catalogue ID
+                %dd.col-sm-9= @workflow[:catalogue_id]
+                %dt.col-sm-3 Family
+                %dd.col-sm-9= classification[:family] || 'Unknown'
+                %dt.col-sm-3 Scientific tasks
+                %dd.col-sm-9= Array(classification[:scientific_tasks]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Domains
+                %dd.col-sm-9= Array(classification[:domains]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Material classes
+                %dd.col-sm-9= Array(classification[:material_classes]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Mode
+                %dd.col-sm-9= classification[:mode] || 'Unknown'
+                %dt.col-sm-3 Access
+                %dd.col-sm-9= @workflow[:access_proprietary_status] || 'Unknown'
+                %dt.col-sm-3 Verification confidence
+                %dd.col-sm-9= @workflow[:verification_confidence] || 'Unknown'
+              %h3.h5.mt-4 Inputs
+              - if Array(io[:inputs]).any?
+                %ul.model-resource-list
+                  - io[:inputs].each do |item|
+                    %li.model-resource-item
+                      %strong= item[:name]
+                      %span.model-resource-relationship= " - #{item[:description]}"
+              - else
+                %p.text-muted Unknown
+              %h3.h5.mt-4 Outputs
+              - if Array(io[:outputs]).any?
+                %ul.model-resource-list
+                  - io[:outputs].each do |item|
+                    %li.model-resource-item
+                      %strong= item[:name]
+                      %span.model-resource-relationship= " - #{item[:description]}"
+              - else
+                %p.text-muted Unknown
+              - if Array(@workflow[:limitations]).any?
+                %h3.h5.mt-4 Limitations
+                %ul.model-resource-list
+                  - @workflow[:limitations].each do |limitation|
+                    %li.model-resource-item= limitation
+
+          - when 'steps'
+            .browse-ontology-container.model-section-card#steps
+              %h2 Steps
+
+              - if Array(@workflow[:steps]).any?
+                %ol.workflow-steps-list.pl-3
+                  - @workflow[:steps].each do |step|
+                    %li.mb-3
+                      %strong= "#{step[:order]}. #{step[:name]}"
+                      %p.browse-desc-text.mb-0= step[:description]
+              - else
+                %p.text-muted No discrete workflow steps are catalogued for this workflow yet.
+              %h3.h5.mt-4 Restart & checkpoint behavior
+              %p.browse-desc-text= @workflow.dig(:restart_checkpoint, :behavior) || 'Unknown'
+              %dl.row.model-metadata.mb-0
+                %dt.col-sm-3 Granularity
+                %dd.col-sm-9= @workflow.dig(:restart_checkpoint, :granularity) || 'Unknown'
+
+          - when 'software_environment'
+            .browse-ontology-container.model-section-card#software-environment
+              %h2 Software & environment
+
+              %dl.row.model-metadata.mb-0
+                %dt.col-sm-3 Workflow engine
+                %dd.col-sm-9= Array(implementation[:workflow_engine_or_orchestrator]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Primary software
+                %dd.col-sm-9= Array(implementation[:primary_software]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Languages
+                %dd.col-sm-9= Array(implementation[:programming_or_workflow_languages]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Execution environments
+                %dd.col-sm-9= Array(execution[:environments]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Scheduler support
+                %dd.col-sm-9= Array(execution[:scheduler_support]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Container/environment definition
+                %dd.col-sm-9= Array(execution[:container_or_environment_definition]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Workflow definition license
+                %dd.col-sm-9
+                  - if definition_license[:url].present? && definition_license[:url] != 'Unknown'
+                    = link_to definition_license[:license] || 'Unknown', definition_license[:url], target: '_blank', rel: 'noopener'
+                  - else
+                    = definition_license[:license] || 'Unknown'
+              %h3.h5.mt-4 Dependency licenses and access
+              - if Array(licensing[:dependencies]).any?
+                %ul.model-resource-list
+                  - licensing[:dependencies].each do |dependency|
+                    %li.model-resource-item
+                      %strong= dependency[:name]
+                      %span.model-resource-relationship= " - license: #{dependency[:license] || 'Unknown'}; access: #{dependency[:access_status] || 'Unknown'}"
+              - else
+                %p.text-muted Unknown
+
+          - when 'related_resources'
+            .browse-ontology-container.model-section-card#related-resources
+              %h2 Related resources
+
+              - relation_titles.each do |resource_type, title|
+                %section.workflow-related-subsection.mb-4{id: resource_type}
+                  %h3.h5= title
+                  - resources = Array(@workflow.dig(:related_resources, resource_type))
+                  - if resources.any?
+                    %ul.model-resource-list
+                      - resources.each do |resource|
+                        %li.model-resource-item
+                          - search_term = resource[:search_term].to_s.presence || resource[:search].to_s
+                          - external_id = resource[:external_id].to_s.presence || resource[:id].to_s
+
+                          - if search_term.present? && (external_id.empty? || external_id == 'Unknown')
+                            - native_path = resource_type == :datasets ? (respond_to?(:datasets_path) ? datasets_path(search: search_term) : '#') : resource_type == :models ? models_path(search: search_term) : ontologies_path(search: search_term)
+                            = link_to "Search catalogue: #{resource[:label]}", native_path, class: 'model-resource-link'
+                          - elsif external_id.present? && external_id != 'Unknown'
+                            = link_to resource[:label], external_id, class: 'model-resource-link'
+
+                          - else
+                            %span= resource[:label]
+                          - if resource[:relationship].present?
+                            %span.model-resource-relationship= " - #{resource[:relationship]}"
+                          - if external_url.present? && external_url != 'Unknown'
+                            = link_to 'Authoritative external source', external_url, class: 'dataset-inline-link ml-1', target: '_blank', rel: 'noopener'
+                  - else
+                    %p.text-muted= "No related #{title.downcase} are catalogued for this workflow yet."
+
+          - when 'papers_code'
+            .browse-ontology-container.model-section-card#papers-code
+              %h2 Papers & code
+              %section#papers.mb-4
+
+                %h3.h5 Papers
+                - if Array(@workflow[:papers]).any?
+                  %ul.model-resource-list
+                    - @workflow[:papers].each do |paper|
+                      %li.model-resource-item
+                        - paper_url = paper[:doi].to_s != 'Unknown' ? paper[:doi].to_s : paper[:arxiv].to_s
+                        - if paper_url.present? && paper_url != 'Unknown'
+                          = link_to paper[:title], paper_url, class: 'model-resource-link', target: '_blank', rel: 'noopener'
+                        - else
+                          %span= paper[:title]
+                        %span.model-resource-relationship= " - #{paper[:role] || 'Paper'} (#{paper[:year] || 'Unknown'})"
+                - else
+                  %p.text-muted No related papers are catalogued for this workflow yet.
+              %section#code-templates
+                %h3.h5 Code & templates
+                %ul.model-resource-list
+                  - if definition_url.present? && definition_url != 'Unknown'
+                    %li.model-resource-item
+                      = link_to definition_label, definition_url, class: 'model-resource-link', target: '_blank', rel: 'noopener'
+                  - if implementation[:repository_url].present? && implementation[:repository_url] != 'Unknown'
+                    %li.model-resource-item
+                      = link_to 'Repository', implementation[:repository_url], class: 'model-resource-link', target: '_blank', rel: 'noopener'
+                  - if implementation[:documentation_url].present? && implementation[:documentation_url] != 'Unknown'
+                    %li.model-resource-item
+                      = link_to 'Documentation', implementation[:documentation_url], class: 'model-resource-link', target: '_blank', rel: 'noopener'
+
+          - when 'reproducibility'
+            .browse-ontology-container.model-section-card#reproducibility
+              %h2 Reproducibility & metadata readiness
+
+              %p.browse-desc-text= "#{reproducibility[:documented_checks] || 0} of 10 checks documented"
+              %dl.row.model-metadata.mb-0
+                %dt.col-sm-3 Provenance metadata
+                %dd.col-sm-9= Array(reproducibility[:provenance_metadata]).join(' ').presence || 'Unknown'
+                %dt.col-sm-3 Tests or examples
+                %dd.col-sm-9= Array(reproducibility[:tests_or_examples]).join(' ').presence || 'Unknown'
+                %dt.col-sm-3 Version
+                %dd.col-sm-9= version.is_a?(Hash) ? (version[:value] || 'Unknown') : (version || 'Unknown')
+                %dt.col-sm-3 Maintenance
+                %dd.col-sm-9= maintenance[:status] || 'Unknown'
+                %dt.col-sm-3 Last verified
+                %dd.col-sm-9= maintenance[:last_verified] || 'Unknown'
+              - if Array(reproducibility[:readiness_indicators]).any?
+                %h3.h5.mt-4 Documented evidence checks
+                %ul.model-resource-list
+                  - reproducibility[:readiness_indicators].each do |indicator|
+                    %li.model-resource-item
+                      %strong= indicator[:status] || 'Unknown'
+                      %span.model-resource-relationship= " - #{indicator[:criterion]}: #{indicator[:proof]}"
+              - if reproducibility[:disclaimer].present?
+                .alert.alert-info.mt-3.mb-0
+                  %strong Disclaimer:
+                  = reproducibility[:disclaimer]
+
+              - if fair.present?
+                .browse-ontology-container.model-section-card.mt-3#workflow-fair-assessment
+                  %h2 Workflow FAIR metadata readiness v1
+                  %p.browse-desc-text.mb-2= fair[:disclaimer]
+                  %p.browse-desc-text.small.text-muted.mb-3= fair[:methodology]
+                  %dl.row.mb-3
+                    %dt.col-sm-3 Overall FAIR Readiness
+                    %dd.col-sm-9
+                      %strong= "#{fair[:overall_score]}%"
+                    %dt.col-sm-3 Principle scores
+                    %dd.col-sm-9
+                      %ul.list-inline.mb-0
+                        - fair[:principles].each do |principle, score|
+                          %li.list-inline-item.mr-3.me-3
+                            %strong= "#{principle}:"
+                            = "#{score}%"
+                    %dt.col-sm-3 Evaluation profile
+                    %dd.col-sm-9= fair[:profile]
+
+                  %h3.h6.mt-3.mb-2 Metadata criteria checks
+                  - fair[:criteria].each do |principle_name, criteria_list|
+                    .mb-3
+                      %h4.h6.text-muted.mb-1= principle_name
+                      %ul.list-unstyled.mb-0
+                        - criteria_list.each do |c|
+                          %li.mb-1
+                            - if c[:pass]
+                              %span.badge.badge-success.mr-1.me-1 PASS
+                            - else
+                              %span.badge.badge-secondary.mr-1.me-1 MISSING
+                            %span.font-weight-bold.fw-bold= "[#{c[:id]}]"
+                            = c[:label]

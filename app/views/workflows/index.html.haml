@@ -1,0 +1,182 @@
+- @title = 'Browse Workflows'
+- q = (params[:q] || params[:search]).to_s
+- selected_family = Array(@selected_family)
+- selected_task = Array(@selected_task)
+- selected_domain = Array(@selected_domain)
+- selected_engine = Array(@selected_engine)
+- selected_software = Array(@selected_software)
+- selected_language = Array(@selected_language)
+- selected_license = Array(@selected_license)
+- selected_environment = Array(@selected_environment)
+- selected_access = Array(@selected_access)
+- selected_maintenance = Array(@selected_maintenance)
+- selected_group = Array(@selected_group)
+- selected_project = Array(@selected_project)
+
+%main#top.catalogue-browse.browse-center.workflows-browse-page{aria: {label: 'Browse workflows'}}
+  .browse-container
+    = form_with url: workflows_path, method: :get, local: true, class: 'workflows-browse-form' do
+      .browse-sub-container
+        .browse-first-row
+          %div{style: 'margin-top: 30px'}
+            .browse-filter-heading
+              %p.browse-filters-title Filters
+              = link_to 'Clear all', workflows_path, class: 'browse-clear-link'
+
+
+            %div{id: 'task_filter_container'}
+              = dropdown_component(id: 'browse-workflow-task-filter', is_open: selected_task.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Task', count: selected_task.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_task.browse-format-filter.w-100{name: 'task[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by task'}}
+                    = options_for_select([['All tasks', '']] + @task_options.map { |opt| [opt, opt] }, selected_task)
+
+            %div{id: 'engine_filter_container'}
+              = dropdown_component(id: 'browse-workflow-engine-filter', is_open: selected_engine.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Engine', count: selected_engine.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_engine.browse-format-filter.w-100{name: 'engine[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by engine'}}
+                    = options_for_select([['All engines', '']] + @engine_options.map { |opt| [opt, opt] }, selected_engine)
+
+            %div{id: 'software_filter_container'}
+              = dropdown_component(id: 'browse-workflow-software-filter', is_open: selected_software.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Software', count: selected_software.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_software.browse-format-filter.w-100{name: 'software[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by software'}}
+                    = options_for_select([['All software', '']] + @software_options.map { |opt| [opt, opt] }, selected_software)
+
+            %div{id: 'domain_filter_container'}
+              = dropdown_component(id: 'browse-workflow-domain-filter', is_open: selected_domain.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Domain', count: selected_domain.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_domain.browse-format-filter.w-100{name: 'domain[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by domain'}}
+                    = options_for_select([['All domains', '']] + @domain_options.map { |opt| [opt, opt] }, selected_domain)
+
+            %div{id: 'language_filter_container'}
+              = dropdown_component(id: 'browse-workflow-language-filter', is_open: selected_language.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Language', count: selected_language.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_language.browse-format-filter.w-100{name: 'language[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by language'}}
+                    = options_for_select([['All languages', '']] + @language_options.map { |opt| [opt, opt] }, selected_language)
+
+            %div{id: 'license_filter_container'}
+              = dropdown_component(id: 'browse-workflow-license-filter', is_open: selected_license.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'License', count: selected_license.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_license.browse-format-filter.w-100{name: 'license[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by license'}}
+                    = options_for_select([['All licenses', '']] + @license_options.map { |opt| [opt, opt] }, selected_license)
+
+            %div{id: 'environment_filter_container'}
+              = dropdown_component(id: 'browse-workflow-environment-filter', is_open: selected_environment.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Environment', count: selected_environment.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_environment.browse-format-filter.w-100{name: 'environment[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by environment'}}
+                    = options_for_select([['All environments', '']] + @environment_options.map { |opt| [opt, opt] }, selected_environment)
+
+            %div{id: 'access_filter_container'}
+              = dropdown_component(id: 'browse-workflow-access-filter', is_open: selected_access.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Access', count: selected_access.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_access.browse-format-filter.w-100{name: 'access[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by access'}}
+                    = options_for_select([['All access states', '']] + @access_options.map { |opt| [opt, opt] }, selected_access)
+
+            %div{id: 'maintenance_filter_container'}
+              = dropdown_component(id: 'browse-workflow-maintenance-filter', is_open: selected_maintenance.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Maintenance', count: selected_maintenance.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_maintenance.browse-format-filter.w-100{name: 'maintenance[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by maintenance'}}
+                    = options_for_select([['All maintenance states', '']] + @maintenance_options.map { |opt| [opt, opt] }, selected_maintenance)
+
+            %div{id: 'group_filter_container'}
+              = dropdown_component(id: 'browse-workflow-group-filter', is_open: selected_group.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Groups / Slices', count: selected_group.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_group.browse-format-filter.w-100{name: 'group[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by group or slice'}}
+                    = options_for_select([['All groups / slices', '']] + @group_options.map { |g| [g, g] }, selected_group)
+
+            %div{id: 'project_filter_container'}
+              = dropdown_component(id: 'browse-workflow-project-filter', is_open: selected_project.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Projects', count: selected_project.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#workflow_project.browse-format-filter.w-100{name: 'project[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by project'}}
+                    = options_for_select([['All projects', '']] + @project_options.map { |p| [p, p] }, selected_project)
+
+            %hr
+            %p.browse-filters-title Documented evidence
+            %p.browse-desc-text.small.mb-0
+              Workflow cards expose evidence-presence checks only; they are not FAIR certification, scientific validation, or assurance of execution.
+
+        .browse-second-row
+          .browse-mode-row
+            .browse-switch{role: 'navigation', aria: {label: 'Browse resource type'}}
+              = link_to ontologies_path, class: 'browse-switch-link' do
+                %i.fas.fa-sitemap
+                Ontologies
+              - if respond_to?(:datasets_path)
+                = link_to datasets_path, class: 'browse-switch-link' do
+                  %i.fas.fa-database
+                  Datasets
+              = link_to models_path, class: 'browse-switch-link' do
+                %i.fas.fa-cubes
+                Models
+              = link_to workflows_path, class: 'browse-switch-link active', aria: {current: 'page'} do
+                %i.fas.fa-project-diagram
+                Workflows
+              = link_to repositories_path, class: 'browse-switch-link' do
+                %i.fas.fa-code-branch
+                Repositories
+
+
+          .browse-search-bar
+            .browse-search-container
+              %input{name: 'q', placeholder: 'Search workflows by title, engine, software, task, domain, or environment', type: 'search', value: q, aria: {label: 'Search workflows'}}
+              .browse-search-filters
+                %select#workflow_family.browse-format-filter{name: 'family[]', onchange: 'this.form.submit()', aria: {label: 'Filter workflows by family'}}
+                  = options_for_select([['All families', '']] + @family_options.map { |opt| [opt, opt] }, selected_family)
+                %select#Sort_by.browse-sort-by-filter{name: 'Sort_by', onchange: 'this.form.submit()', aria: {label: 'Sort workflows'}}
+                  = options_for_select(@sort_options, @sort)
+
+          .browse-ontologies.workflows-results-list
+            %p.browse-desc-text.workflows-result-count{aria: {live: 'polite'}}
+              = "Showing #{number_with_delimiter(@workflows.length)} #{'workflow'.pluralize(@workflows.length)}."
+            - if @workflows.any?
+              - @workflows.each do |workflow|
+                - classification = workflow[:classification] || {}
+                - implementation = workflow[:implementation] || {}
+                - reproducibility = workflow[:reproducibility] || {}
+                - version = implementation[:version]
+                - fair = fair_score_for(workflow)
+                - fair_percentage = fair[:overall_score]
+                - fair_details_url = workflow_path(workflow[:catalogue_id], section: 'reproducibility')
+                %article.browse-ontology-container.workflow-browse-card.dataset-browse-card-main
+                  .browse-ontology-description
+                    .browse-ontology-title-bar
+                      = link_to workflow[:name], workflow_path(workflow[:catalogue_id]), class: 'browse-ontology-title'
+                    %p.browse-desc-text= workflow[:summary]
+                    - unless fair_percentage.nil?
+                      .browse-fair
+                        %p.browse-fair-title Workflow FAIR metadata readiness
+                        .browse-progress-bar{role: 'progressbar', aria: {valuemin: 0, valuemax: 100, valuenow: fair_percentage, label: "#{workflow[:name]} Workflow FAIR metadata readiness #{fair_percentage}%"}}
+                          .browse-faire-progress{style: "width: #{fair_percentage}%"}
+                        %p.browse-fair-score= "#{fair_percentage}%"
+                        = link_to 'Details', fair_details_url, class: 'browse-fair-details'
+                    .catalogue-card-meta
+                      %span.catalogue-card-meta-item= classification[:family]
+                      %span.catalogue-card-meta-item= Array(implementation[:workflow_engine_or_orchestrator]).first || 'Engine unknown'
+                      %span.catalogue-card-meta-item= "Version #{version.is_a?(Hash) ? (version[:value] || 'Unknown') : (version || 'Unknown')}"
+                      %span.catalogue-card-meta-item= workflow[:access_proprietary_status] || 'Access unknown'
+                  - steps_count = Array(workflow[:steps]).length
+                  - software_count = Array(workflow.dig(:implementation, :primary_software)).length + Array(workflow.dig(:implementation, :workflow_engine_or_orchestrator)).length
+                  - papers_count = Array(workflow[:papers]).length
+                  .browse-ontology-cards.dataset-browse-badges
+                    = render SquareBadgeComponent.new(label: steps_count == 1 ? 'Step' : 'Steps', count: steps_count, link: workflow_path(workflow[:catalogue_id], section: 'steps'))
+                    = render SquareBadgeComponent.new(label: 'Software', count: software_count, link: workflow_path(workflow[:catalogue_id], section: 'software_environment'))
+                    = render SquareBadgeComponent.new(label: papers_count == 1 ? 'Paper' : 'Papers', count: papers_count, link: workflow_path(workflow[:catalogue_id], section: 'papers_code'))
+            - else
+              .browse-ontology-container.workflow-empty-state
+                .browse-ontology-description{style: 'width: 100%;'}
+                  .browse-ontology-title-bar
+                    %span.browse-ontology-title No workflows found
+                  %p.browse-desc-text
+                    No computational workflows matched these filters. Clear your search query or reset filter selections to browse the full catalogue.
+                  = link_to 'Clear filters', workflows_path, class: 'regular-button primary-button slim'

@@ -33,6 +33,9 @@ Rails.application.routes.draw do
   get '/users/un-subscribe/:email', to: 'users#un_subscribe'
 
   post '/mappings/loader', to: 'mappings#loader_process'
+  resources :models, only: [:index, :show]
+  resources :workflows, only: [:index, :show]
+
   get 'mappings/count/:id', to: 'mappings#count', constraints: { id: /.+/ }
   get 'mappings/show_mappings', to: 'mappings#show_mappings'
   get 'mappings/new', to: 'mappings#new'
