@@ -1,0 +1,243 @@
+- @title = @workflow[:name]
+- classification = @workflow[:classification] || {}
+- implementation = @workflow[:implementation] || {}
+- io = @workflow[:io] || {}
+- execution = @workflow[:execution] || {}
+- licensing = @workflow[:licensing] || {}
+- definition_license = licensing[:workflow_definition] || {}
+- reproducibility = @workflow[:reproducibility] || {}
+- maintenance = @workflow[:maintenance] || {}
+- version = implementation[:version]
+- relation_titles = { datasets: 'Datasets', models: 'Models', ontologies: 'Ontologies' }
+- empty_messages = { datasets: 'No related datasets are catalogued for this workflow yet.', models: 'No related models are catalogued for this workflow yet.', ontologies: 'No related ontologies are catalogued for this workflow yet.' }
+- definition_url = implementation[:template_or_registry_url].to_s
+- definition_url = implementation[:repository_url].to_s if definition_url.empty? || definition_url == 'Unknown'
+- definition_label = implementation[:template_or_registry_url].to_s.empty? || implementation[:template_or_registry_url].to_s == 'Unknown' ? 'Open repository' : 'Open workflow definition'
+
+%main#top.catalogue-browse.browse-center.workflow-detail-page{aria: {label: 'Workflow details'}}
+  .browse-container
+    .browse-sub-container
+      .browse-second-row{style: 'width: 100%;'}
+        .workflow-detail-header
+          %p.browse-kicker Computational Workflow
+          %h1.browse-ontology-title= @workflow[:name]
+          %p.browse-desc-text.workflow-summary= @workflow[:summary]
+          .mb-3
+            - if definition_url.start_with?('https://')
+              = link_to definition_label, definition_url, class: 'regular-button primary-button slim', target: '_blank', rel: 'noopener'
+            - documentation_url = implementation[:documentation_url].to_s
+            - if documentation_url.start_with?('https://')
+              = link_to 'Documentation', documentation_url, class: 'regular-button secondary-button slim ml-1', target: '_blank', rel: 'noopener'
+          .d-flex.w-100.flex-wrap
+            %span.mr-1.me-1.workflow-tag= classification[:family]
+            - Array(classification[:scientific_tasks]).each do |task|
+              %span.mr-1.me-1.workflow-tag= task
+          %nav.nav.nav-tabs.workflow-section-nav{aria: {label: 'Workflow detail sections'}}
+            = link_to 'Overview', '#overview', class: 'nav-link workflow-section-link'
+            = link_to 'Steps', '#steps', class: 'nav-link workflow-section-link'
+            = link_to 'Software & environment', '#software-environment', class: 'nav-link workflow-section-link'
+            = link_to 'Related resources', '#related-resources', class: 'nav-link workflow-section-link'
+            = link_to 'Papers & code', '#papers-code', class: 'nav-link workflow-section-link'
+            = link_to 'Reproducibility', '#reproducibility', class: 'nav-link workflow-section-link'
+
+        .workflow-section-panel
+          .browse-ontology-container.workflow-section-card#overview
+            %h2 Overview
+            %p.browse-desc-text= @workflow[:summary]
+            %dl.row.workflow-metadata.mb-0
+              %dt.col-sm-3 Catalogue ID
+              %dd.col-sm-9= @workflow[:catalogue_id]
+              %dt.col-sm-3 Family
+              %dd.col-sm-9= classification[:family] || 'Unknown'
+              %dt.col-sm-3 Scientific tasks
+              %dd.col-sm-9= Array(classification[:scientific_tasks]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Domains
+              %dd.col-sm-9= Array(classification[:domains]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Material classes
+              %dd.col-sm-9= Array(classification[:material_classes]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Mode
+              %dd.col-sm-9= classification[:mode] || 'Unknown'
+              %dt.col-sm-3 Access
+              %dd.col-sm-9= @workflow[:access_proprietary_status] || 'Unknown'
+              %dt.col-sm-3 Verification confidence
+              %dd.col-sm-9= @workflow[:verification_confidence] || 'Unknown'
+            %h3.h6.mt-3 Inputs
+            - if Array(io[:inputs]).any?
+              %ul.workflow-resource-list
+                - io[:inputs].each do |item|
+                  %li.workflow-resource-item
+                    %strong= item[:name]
+                    %span.workflow-resource-relationship= " - #{item[:description]}"
+            - else
+              %p.text-muted Unknown
+            %h3.h6.mt-3 Outputs
+            - if Array(io[:outputs]).any?
+              %ul.workflow-resource-list
+                - io[:outputs].each do |item|
+                  %li.workflow-resource-item
+                    %strong= item[:name]
+                    %span.workflow-resource-relationship= " - #{item[:description]}"
+            - else
+              %p.text-muted Unknown
+            - if Array(@workflow[:limitations]).any?
+              %h3.h6.mt-3 Limitations
+              %ul.workflow-resource-list
+                - @workflow[:limitations].each do |limitation|
+                  %li.workflow-resource-item= limitation
+
+          .browse-ontology-container.workflow-section-card#steps
+            %h2 Steps
+            - if Array(@workflow[:steps]).any?
+              %ol.workflow-steps-list.pl-3
+                - @workflow[:steps].each do |step|
+                  %li.mb-3
+                    %strong= "#{step[:order]}. #{step[:name]}"
+                    %p.browse-desc-text.mb-0= step[:description]
+            - else
+              %p.text-muted No discrete workflow steps are catalogued for this workflow yet.
+            %h3.h6.mt-3 Restart & checkpoint behavior
+            %p.browse-desc-text= @workflow.dig(:restart_checkpoint, :behavior) || 'Unknown'
+            %dl.row.workflow-metadata.mb-0
+              %dt.col-sm-3 Granularity
+              %dd.col-sm-9= @workflow.dig(:restart_checkpoint, :granularity) || 'Unknown'
+
+          .browse-ontology-container.workflow-section-card#software-environment
+            %h2 Software & environment
+            %dl.row.workflow-metadata.mb-0
+              %dt.col-sm-3 Workflow engine
+              %dd.col-sm-9= Array(implementation[:workflow_engine_or_orchestrator]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Primary software
+              %dd.col-sm-9= Array(implementation[:primary_software]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Languages
+              %dd.col-sm-9= Array(implementation[:programming_or_workflow_languages]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Execution environments
+              %dd.col-sm-9= Array(execution[:environments]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Scheduler support
+              %dd.col-sm-9= Array(execution[:scheduler_support]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Container/environment definition
+              %dd.col-sm-9= Array(execution[:container_or_environment_definition]).join(', ').presence || 'Unknown'
+              %dt.col-sm-3 Workflow definition license
+              %dd.col-sm-9
+                - definition_license_url = definition_license[:url].to_s
+                - if definition_license_url.start_with?('https://')
+                  = link_to definition_license[:license] || 'Unknown', definition_license_url, target: '_blank', rel: 'noopener'
+                - else
+                  = definition_license[:license] || 'Unknown'
+            %h3.h6.mt-3 Dependency licenses and access
+            - if Array(licensing[:dependencies]).any?
+              %ul.workflow-resource-list
+                - licensing[:dependencies].each do |dependency|
+                  %li.workflow-resource-item
+                    %strong= dependency[:name]
+                    %span.workflow-resource-relationship= " - license: #{dependency[:license] || 'Unknown'}; access: #{dependency[:access_status] || 'Unknown'}"
+            - else
+              %p.text-muted Unknown
+
+          .browse-ontology-container.workflow-section-card#related-resources
+            %h2 Related resources
+            - relation_titles.each do |resource_type, title|
+              %section.workflow-related-subsection{id: resource_type}
+                %h3.h5= title
+                - resources = Array(@workflow.dig(:related_resources, resource_type))
+                - if resources.any?
+                  %ul.workflow-resource-list
+                    - resources.each do |resource|
+                      %li.workflow-resource-item
+                        %span= resource[:label]
+                        - if resource[:relationship].present?
+                          %span.workflow-resource-relationship= " - #{resource[:relationship]}"
+                        - external_url = resource[:external_url].to_s
+                        - if external_url.start_with?('https://')
+                          = link_to 'Authoritative external source', external_url, class: 'external-link ml-1', target: '_blank', rel: 'noopener'
+                - else
+                  %p.text-muted= empty_messages[resource_type]
+
+          .browse-ontology-container.workflow-section-card#papers-code
+            %h2 Papers & code
+            %section#papers
+              %h3.h5 Papers
+              - if Array(@workflow[:papers]).any?
+                %ul.workflow-resource-list
+                  - @workflow[:papers].each do |paper|
+                    %li.workflow-resource-item
+                      - paper_url = paper[:doi].to_s != 'Unknown' ? paper[:doi].to_s : paper[:arxiv].to_s
+                      - if paper_url.start_with?('https://')
+                        = link_to paper[:title], paper_url, class: 'workflow-resource-link', target: '_blank', rel: 'noopener'
+                      - else
+                        %span= paper[:title]
+                      %span.workflow-resource-relationship= " - #{paper[:role] || 'Paper'} (#{paper[:year] || 'Unknown'})"
+              - else
+                %p.text-muted No related papers are catalogued for this workflow yet.
+            %section#code-templates.mt-3
+              %h3.h5 Code & templates
+              %ul.workflow-resource-list
+                - if definition_url.start_with?('https://')
+                  %li.workflow-resource-item
+                    = link_to definition_label, definition_url, class: 'workflow-resource-link', target: '_blank', rel: 'noopener'
+                - repository_url = implementation[:repository_url].to_s
+                - if repository_url.start_with?('https://')
+                  %li.workflow-resource-item
+                    = link_to 'Repository', repository_url, class: 'workflow-resource-link', target: '_blank', rel: 'noopener'
+                - if documentation_url.start_with?('https://')
+                  %li.workflow-resource-item
+                    = link_to 'Documentation', documentation_url, class: 'workflow-resource-link', target: '_blank', rel: 'noopener'
+
+          .browse-ontology-container.workflow-section-card#reproducibility
+            %h2 Reproducibility & metadata readiness
+            %p.browse-desc-text= "#{reproducibility[:documented_checks] || 0} of 10 checks documented"
+            %dl.row.workflow-metadata.mb-0
+              %dt.col-sm-3 Provenance metadata
+              %dd.col-sm-9= Array(reproducibility[:provenance_metadata]).join(' ').presence || 'Unknown'
+              %dt.col-sm-3 Tests or examples
+              %dd.col-sm-9= Array(reproducibility[:tests_or_examples]).join(' ').presence || 'Unknown'
+              %dt.col-sm-3 Version
+              %dd.col-sm-9= version.is_a?(Hash) ? (version[:value] || 'Unknown') : (version || 'Unknown')
+              %dt.col-sm-3 Maintenance
+              %dd.col-sm-9= maintenance[:status] || 'Unknown'
+              %dt.col-sm-3 Last verified
+              %dd.col-sm-9= maintenance[:last_verified] || 'Unknown'
+            - if Array(reproducibility[:readiness_indicators]).any?
+              %h3.h6.mt-3 Documented evidence checks
+              %ul.workflow-resource-list
+                - reproducibility[:readiness_indicators].each do |indicator|
+                  %li.workflow-resource-item
+                    %strong= indicator[:status] || 'Unknown'
+                    %span.workflow-resource-relationship= " - #{indicator[:criterion]}: #{indicator[:proof]}"
+            - if reproducibility[:disclaimer].present?
+              .alert.alert-info.mt-3.mb-0
+                %strong Disclaimer:
+                = reproducibility[:disclaimer]
+
+            - fair = @fair_score || fair_score_for(@workflow)
+            - if fair.present?
+              .browse-ontology-container.workflow-section-card.mt-3#workflow-fair-assessment
+                %h2 Workflow FAIR metadata readiness v1
+                %p.browse-desc-text.mb-2= fair[:disclaimer]
+                %p.browse-desc-text.small.text-muted.mb-3= fair[:methodology]
+                %dl.row.mb-3
+                  %dt.col-sm-3 Overall FAIR Readiness
+                  %dd.col-sm-9
+                    %strong= "#{fair[:overall_score]}%"
+                  %dt.col-sm-3 Principle scores
+                  %dd.col-sm-9
+                    %ul.list-inline.mb-0
+                      - fair[:principles].each do |principle, score|
+                        %li.list-inline-item.mr-3.me-3
+                          %strong= "#{principle}:"
+                          = "#{score}%"
+                  %dt.col-sm-3 Evaluation profile
+                  %dd.col-sm-9= fair[:profile]
+
+                %h3.h6.mt-3.mb-2 Metadata criteria checks
+                - fair[:criteria].each do |principle_name, criteria_list|
+                  .mb-3
+                    %h4.h6.text-muted.mb-1= principle_name
+                    %ul.list-unstyled.mb-0
+                      - criteria_list.each do |c|
+                        %li.mb-1
+                          - if c[:pass]
+                            %span.badge.badge-success.mr-1.me-1 PASS
+                          - else
+                            %span.badge.badge-secondary.mr-1.me-1 MISSING
+                          %span.font-weight-bold.fw-bold= "[#{c[:id]}]"
+                          = c[:label]

@@ -4,6 +4,13 @@ Rails.application.routes.draw do
   root to: 'home#index'
   mount LetterOpenerWeb::Engine, at: '/letter_opener' if Rails.env.development?
 
+  get '/models', to: 'models#index', as: :models
+  get '/models/:id', to: 'models#show', as: :model, constraints: { id: /[A-Za-z0-9][A-Za-z0-9_-]{0,160}/ }
+  get '/workflows', to: 'workflows#index', as: :workflows
+  get '/workflows/:id', to: 'workflows#show', as: :workflow, constraints: { id: /[A-Za-z0-9][A-Za-z0-9_-]{0,160}/ }
+  get '/repositories', to: 'repositories#index', as: :repositories
+  get '/repositories/:id', to: 'repositories#show', as: :repository, constraints: { id: /[A-Za-z0-9][A-Za-z0-9_-]{0,160}/ }
+
   get'/tools', to: 'home#tools'
   get 'auth/:provider/callback', to: 'login#create_omniauth'
   get 'locale/:language', to: 'language#set_locale_language'
@@ -26,6 +33,8 @@ Rails.application.routes.draw do
   post 'agents/:id', to: 'agents#update', constraints: { id: /.+/ }
 
   resources :projects, constraints: { id: /[^\/]+/ }
+
+  resources :datasets, only: [:index, :show], constraints: { id: /[a-zA-Z0-9][a-zA-Z0-9._:-]{0,119}/ }
 
   resources :users, path: :accounts, constraints: { id: /[\d\w\.\@\-\%\+ ]+/ }
 
