@@ -31,9 +31,10 @@ class DatasetsControllerTest < ActionController::TestCase
 
   test 'invalid ids return 404 without a provider request' do
     Flipper.stub(:enabled?, ->(feature, _actor = nil) { feature.to_sym == :datasets }) do
-      get :show, params: { id: '../secret' }
+      assert_raises(ActionController::UrlGenerationError) do
+        get :show, params: { id: '../secret' }
+      end
     end
-    assert_response :not_found
     assert_not_requested :get, %r{datasets\.example\.test}
   end
 

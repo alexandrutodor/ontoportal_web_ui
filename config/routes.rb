@@ -62,9 +62,6 @@ Rails.application.routes.draw do
     get ':ontology/instances', to: 'instances#index'
     get ':ontology/instances/show', to: 'instances#show'
 
-    get ':ontology/properties', to: 'properties#index'
-    get ':ontology/properties/show', to: 'properties#show'
-
     get ':ontology/schemes', to: 'schemes#index'
     get ':ontology/schemes/show', to: 'schemes#show'
 
@@ -78,14 +75,6 @@ Rails.application.routes.draw do
   get '/user_ontologies_filter', to: 'my_ontologies#user_ontologies_filter'
 
   resources :ontologies do
-    # TODO: reenable in the next releases
-    # resource :administration, controller: 'ontologies_administration', only: [:show, :destroy] do
-    #   get 'log'
-    #   get 'submissions'
-    #   delete 'submissions', action: :destroy_submission
-    #   delete 'submissions/:id', action: :destroy_submission
-    # end
-
     resources :submissions do
       get 'edit_properties'
     end
@@ -257,9 +246,6 @@ Rails.application.routes.draw do
 
   get 'check_resolvability' => 'check_resolvability#index'
   get 'check_url_resolvability' => 'check_resolvability#check_resolvability'
-
-  # Install the default route as the lowest priority.
-  get '/:controller(/:action(/:id))'
 
   mount Lookbook::Engine, at: '/lookbook'
 end
