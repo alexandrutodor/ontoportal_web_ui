@@ -16,6 +16,8 @@ class ContextualAssistantTest < ActionController::TestCase
   end
 
   teardown do
+    Thread.current[:session] = nil
+    Thread.current[:request] = nil
     Flipper.disable(:ai_assistant)
     Flipper.disable(:contextual_assistant)
     Flipper.disable_actor(:ai_assistant, @actor)

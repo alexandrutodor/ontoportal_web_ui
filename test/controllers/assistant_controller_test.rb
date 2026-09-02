@@ -14,6 +14,8 @@ class AssistantControllerTest < ActionController::TestCase
   end
 
   teardown do
+    Thread.current[:session] = nil
+    Thread.current[:request] = nil
     Flipper.disable(:ai_assistant)
     Flipper.disable_actor(:ai_assistant, @actor)
     ENV['AI_ASSISTANT_BACKEND_URL'] = @original_url
