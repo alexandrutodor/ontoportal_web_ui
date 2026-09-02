@@ -1,0 +1,14 @@
+- if contextual_assistant_enabled_for_current_user?
+  .contextual-assistant{data: {controller: 'contextual-assistant'}}
+    %button.contextual-assistant-launcher.btn.btn-primary{type: 'button', 'aria-controls': 'contextual-assistant-drawer', 'aria-expanded': 'false', 'data-contextual-assistant-target': 'launcher', 'data-action': 'contextual-assistant#open'} Assistant
+    %aside#contextual-assistant-drawer.contextual-assistant-drawer{hidden: true, 'aria-label': 'Contextual Assistant', 'data-contextual-assistant-target': 'drawer'}
+      .contextual-assistant-header
+        %h2.h5.mb-0 Assistant
+        %button.btn.btn-sm.btn-link{type: 'button', 'aria-label': 'Close Assistant', 'data-action': 'contextual-assistant#close'} ×
+      %p.small.text-muted{'data-contextual-assistant-target' => 'context'}
+      %div.small{role: 'status', 'aria-live': 'polite', 'data-contextual-assistant-target': 'status'}
+      %form{data: {action: 'submit->contextual-assistant#submit'}}
+        %label.sr-only{for: 'contextual-assistant-prompt'} Ask about this page
+        %textarea#contextual-assistant-prompt.form-control.form-control-sm{rows: 3, maxlength: AssistantController::PROMPT_LIMIT, placeholder: 'Ask about this page', 'data-contextual-assistant-target': 'prompt'}
+        %button.btn.btn-primary.btn-sm.mt-2{type: 'submit', 'data-contextual-assistant-target': 'submit'} Ask
+      %div.mt-3.small.contextual-assistant-messages{aria: {live: 'polite'}, 'data-contextual-assistant-target': 'messages'}

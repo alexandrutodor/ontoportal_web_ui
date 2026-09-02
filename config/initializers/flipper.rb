@@ -18,7 +18,9 @@ Flipper::UI.configure do |config|
   config.descriptions_source = ->(keys) do
     {
       "SPARQL" => "Enables the SPARQL endpoint feature. Requires SPARQL_ENDPOINT_URL environment variable to be configured.",
-      "FOOPS" => "Enables the FOOPS! FAIRness assessment on the ontology summary page. Requires the FOOPS_URL environment variable (defaults to the public FOOPS! service)."
+      "FOOPS" => "Enables the FOOPS! FAIRness assessment on the ontology summary page. Requires the FOOPS_URL environment variable (defaults to the public FOOPS! service).",
+      "ai_assistant" => "Enables the authenticated read-only Assistant page and stream. Requires AI_ASSISTANT_BACKEND_URL on the server.",
+      "contextual_assistant" => "Enables the authenticated contextual Assistant drawer alongside the separate ai_assistant flag."
     }
   end
 

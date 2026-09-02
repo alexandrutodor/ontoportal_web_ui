@@ -44,6 +44,28 @@ module ApplicationHelper
     user = current_user rescue nil
     Flipper.enabled?('SPARQL', user) && $SPARQL_ENDPOINT_URL
   end
+
+  def flipper_actor_enabled?(feature, actor)
+    Flipper[feature].actors_value.include?(Flipper::Types::Actor.wrap(actor).value)
+  end
+
+  def assistant_enabled_for_current_user?
+    user = current_user
+    return false unless user && ENV['AI_ASSISTANT_BACKEND_URL'].present?
+
+    flipper_actor_enabled?(:ai_assistant, Flipper::Actor.new(user.id.to_s))
+  rescue Flipper::Error, ArgumentError
+    false
+  end
+
+  def contextual_assistant_enabled_for_current_user?
+    user = current_user
+    return false unless assistant_enabled_for_current_user? && user
+
+    flipper_actor_enabled?(:contextual_assistant, Flipper::Actor.new(user.id.to_s))
+  rescue Flipper::Error, ArgumentError
+    false
+  end
   def sidekiq_enabled?
     user = current_user rescue nil
     Flipper.enabled?('SIDEKIQ_UI', user) && $SIDEKIQ_UI_URL

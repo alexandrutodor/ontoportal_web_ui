@@ -13,6 +13,9 @@
         - navitems.each do |navItem|
           %li.nav-ul-li
             %a{href: navItem[0], class: ("active" if current_page?(navItem[0]))} #{navItem[1]}
+        - if assistant_enabled_for_current_user?
+          %li.nav-ul-li
+            = link_to 'Assistant', assistant_path, class: ("active" if current_page?(assistant_path))
         - if !session[:user].nil? && session[:user].admin?
           %li.nav-ul-li
             %a{href: "/admin", class: ("active" if current_page?("/admin"))} Admin

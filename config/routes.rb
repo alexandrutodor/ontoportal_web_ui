@@ -27,6 +27,9 @@ Rails.application.routes.draw do
 
   resources :projects, constraints: { id: /[^\/]+/ }
 
+  get '/assistant', to: 'assistant#index'
+  post '/assistant/stream', to: 'assistant#stream'
+
   resources :users, path: :accounts, constraints: { id: /[\d\w\.\@\-\%\+ ]+/ }
 
   get '/users/subscribe/:username', to: 'users#subscribe'

@@ -1,5 +1,6 @@
 .search-page-container
-  .search-page-subcontainer{'data-controller': 'reveal-component'}
+  - context_data = contextual_assistant_enabled_for_current_user? ? { assistant_context_kind: 'search', assistant_context_title: @title.to_s.first(200), assistant_context_query: @search_query.to_s.first(200) } : {}
+  .search-page-subcontainer{'data-controller': 'reveal-component', data: context_data}
     = form_tag(search_path, method: :get,data:{turbo: true, controller: 'form-url', action: 'submit->form-url#submit'}) do
       = search_page_input_component(placeholder: t('search.search_place_holder'), name: "q", value: @search_query) do
         .search-page-advanced{'data-reveal-component-target': 'item', class: "#{@advanced_options_open ? '' : 'd-none'}"}

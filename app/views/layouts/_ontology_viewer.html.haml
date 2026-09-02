@@ -1,9 +1,9 @@
 - content_section = current_section
 - @title = ontology_viewer_page_name(@ontology.acronym, @concept&.prefLabel || '', content_section)
-
+- context_data = contextual_assistant_enabled_for_current_user? ? { assistant_context_kind: (@concept ? 'concept' : 'ontology'), assistant_context_title: @title.to_s.first(200), assistant_context_ontology_acronym: @ontology.acronym.to_s.first(80), assistant_context_ontology_name: @ontology.name.to_s.first(200), assistant_context_concept_id: @concept&.id.to_s.first(300), assistant_context_concept_label: strip_tags(@concept&.prefLabel.to_s).first(200) } : {}
 
 = render :partial =>'layouts/header'
-%div#bd.bg-white.ontology-viewer
+%div#bd.bg-white.ontology-viewer{data: context_data}
   = modal_frame_container
 
   = render partial: 'concepts/perma_link_modal'

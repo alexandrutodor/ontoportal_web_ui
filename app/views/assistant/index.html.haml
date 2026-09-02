@@ -1,0 +1,13 @@
+- @title = 'Assistant'
+.container.my-4.assistant-page
+  %h1.mb-2 Assistant
+  %p.text-muted Ask a question about the portal. Responses are provided by this installation's configured assistant service.
+  %form{data: {controller: 'assistant-chat', action: 'submit->assistant-chat#submit', 'assistant-chat-target': 'form'}}
+    .form-group
+      %label{for: 'assistant-prompt'} Prompt
+      %textarea#assistant-prompt.form-control{rows: 4, required: true, maxlength: AssistantController::PROMPT_LIMIT, 'aria-describedby': 'assistant-help', 'data-assistant-chat-target': 'prompt'}
+      %small#assistant-help.form-text.text-muted Keep prompts concise.
+    .d-flex.align-items-center
+      %button.btn.btn-primary{type: 'submit', 'data-assistant-chat-target': 'submit'} Send
+      %span.ml-3{role: 'status', 'aria-live': 'polite', 'data-assistant-chat-target': 'status'}
+  %section.mt-4{aria: {label: 'Assistant response'}, 'data-assistant-chat-target': 'messages'}

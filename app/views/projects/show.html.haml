@@ -1,6 +1,7 @@
 - @title = t('projects.show.title', name: @project.name)
+- context_data = contextual_assistant_enabled_for_current_user? ? { assistant_context_kind: 'project', assistant_context_title: @title.to_s.first(200), assistant_context_project_name: strip_tags(@project.name.to_s).first(200), assistant_context_project_description: strip_tags(@project.description.to_s).first(500) } : {}
 
-%div.container
+%div.container{data: context_data}
 
   %div{:style => "padding: 1em;"}
     %h1{:style => "font-size: xx-large;"}= @project.name
