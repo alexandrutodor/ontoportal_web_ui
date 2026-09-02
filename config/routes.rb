@@ -27,6 +27,8 @@ Rails.application.routes.draw do
 
   resources :projects, constraints: { id: /[^\/]+/ }
 
+  resources :datasets, only: [:index, :show], constraints: { id: /[a-zA-Z0-9][a-zA-Z0-9._:-]{0,119}/ }
+
   resources :users, path: :accounts, constraints: { id: /[\d\w\.\@\-\%\+ ]+/ }
 
   get '/users/subscribe/:username', to: 'users#subscribe'

@@ -1,0 +1,25 @@
+- @title = 'Datasets'
+.container.my-4.datasets-page
+  .d-flex.justify-content-between.align-items-center.mb-3
+    %h1.mb-0 Datasets
+  = form_with url: datasets_path, method: :get, local: true, class: 'mb-4' do |form|
+    .input-group
+      = form.search_field :q, value: @query, class: 'form-control', placeholder: 'Search datasets', aria: { label: 'Search datasets' }
+      .input-group-append
+        = form.submit 'Search', class: 'btn btn-primary'
+  - if @datasets_error
+    .alert.alert-warning{role: 'alert'}= @datasets_error
+  - elsif @datasets.empty?
+    .alert.alert-info No datasets are available.
+  - else
+    .row
+      - @datasets.each do |dataset|
+        .col-md-6.mb-3
+          .card.h-100
+            .card-body
+              %h2.h5.card-title= link_to dataset.title, dataset_path(dataset.id)
+              - if dataset.description.present?
+                %p.card-text= dataset.description
+              - if dataset.publisher.present?
+                %p.card-text.text-muted.mb-0
+                  %small= "Publisher: #{dataset.publisher}"

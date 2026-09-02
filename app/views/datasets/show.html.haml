@@ -1,0 +1,23 @@
+- @title = @dataset&.title || 'Dataset'
+.container.my-4.datasets-page
+  %p.mb-3= link_to '← Datasets', datasets_path
+  - if @datasets_error
+    .alert.alert-warning{role: 'alert'}= @datasets_error
+  - else
+    %article.card
+      .card-body
+        %h1.h3.card-title= @dataset.title
+        %dl.row
+          %dt.col-sm-3 Identifier
+          %dd.col-sm-9= @dataset.id
+          - if @dataset.publisher.present?
+            %dt.col-sm-3 Publisher
+            %dd.col-sm-9= @dataset.publisher
+          - if @dataset.updated_at.present?
+            %dt.col-sm-3 Updated
+            %dd.col-sm-9= @dataset.updated_at
+        - if @dataset.description.present?
+          %h2.h5 Description
+          %p= @dataset.description
+        - if @dataset.homepage
+          = link_to 'Dataset homepage', @dataset.homepage, target: '_blank', rel: 'noopener noreferrer', class: 'btn btn-outline-primary'
