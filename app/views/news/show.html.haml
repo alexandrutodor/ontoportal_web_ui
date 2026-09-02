@@ -7,4 +7,4 @@
       = (@news_entry.published_at || @news_entry.created_at)&.to_date
       - if @news_entry.author_name.present?
         = " · #{@news_entry.author_name}"
-    .news-entry-body!= @news_entry.body_html
+    .news-entry-body= sanitize(@news_entry.body_html)
