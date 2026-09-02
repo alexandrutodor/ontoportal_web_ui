@@ -482,9 +482,10 @@ class ModelsController < ApplicationController
     @selected_license = params[:license].to_s.strip
     @selected_group = (params[:group] || params[:groups]).to_s.strip
     @selected_project = (params[:project] || params[:projects]).to_s.strip
-    respond_to do |format|
-      format.html { render :index }
-      format.json { render json: api_models_payload(@models) }
+    if params[:format].to_s == 'json' || (defined?(request) && request&.format&.json?)
+      render json: api_models_payload(@models)
+    else
+      render :index
     end
   end
 
@@ -497,9 +498,10 @@ class ModelsController < ApplicationController
     @section = SECTIONS.include?(requested_section) ? requested_section : 'overview'
     @model_card = model_card_for(@model)
     @fair_score = fair_score_for(@model)
-    respond_to do |format|
-      format.html { render :show }
-      format.json { render json: api_model_payload(@model, @model_card, @fair_score) }
+    if params[:format].to_s == 'json' || (defined?(request) && request&.format&.json?)
+      render json: api_model_payload(@model, @model_card, @fair_score)
+    else
+      render :show
     end
   end
 

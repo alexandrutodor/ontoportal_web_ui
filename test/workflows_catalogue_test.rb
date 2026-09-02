@@ -9,29 +9,9 @@ class ApplicationController
     @layout_name = name if name
     @layout_name
   end
-
-  class FormatMock
-    def initialize(controller)
-      @controller = controller
-    end
-
-    def html(&b)
-      @controller.instance_eval(&b) if block_given?
-    end
-
-    def json(&b)
-      # ignore for view test
-    end
-  end
-
-  def respond_to(&block)
-    block.call(FormatMock.new(self))
-  end
 end unless defined?(ApplicationController)
 
-
-
-load File.expand_path("../app/controllers/workflows_controller.rb", __dir__)
+require_relative "../app/controllers/workflows_controller"
 
 class WorkflowsCatalogueTest < Minitest::Test
   ROOT = File.expand_path("..", __dir__)

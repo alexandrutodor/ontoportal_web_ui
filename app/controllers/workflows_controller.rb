@@ -61,9 +61,10 @@ class WorkflowsController < ApplicationController
     @selected_maintenance = selected_values(:maintenance, catalogue)
     @selected_group = selected_values(:group, catalogue)
     @selected_project = selected_values(:project, catalogue)
-    respond_to do |format|
-      format.html { render :index }
-      format.json { render json: api_workflows_payload(@workflows) }
+    if params[:format].to_s == 'json' || (defined?(request) && request&.format&.json?)
+      render json: api_workflows_payload(@workflows)
+    else
+      render :index
     end
   end
 
@@ -73,9 +74,10 @@ class WorkflowsController < ApplicationController
 
     @section = SECTIONS.include?(params[:section].to_s) ? params[:section].to_s : "overview"
     @fair_score = fair_score_for(@workflow)
-    respond_to do |format|
-      format.html { render :show }
-      format.json { render json: api_workflow_payload(@workflow, @fair_score) }
+    if params[:format].to_s == 'json' || (defined?(request) && request&.format&.json?)
+      render json: api_workflow_payload(@workflow, @fair_score)
+    else
+      render :show
     end
   end
 
