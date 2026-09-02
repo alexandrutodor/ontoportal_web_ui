@@ -4,7 +4,7 @@ class AssistantControllerTest < ActionController::TestCase
   tests AssistantController
 
   setup do
-    @user = Struct.new(:id, :admin?).new('user-1', false)
+    @user = Struct.new(:id, :admin?, :apikey).new('user-1', false, 'test-apikey')
     @request.session[:user] = @user
     @actor = Flipper::Actor.new(@user.id.to_s)
     @original_url = ENV['AI_ASSISTANT_BACKEND_URL']

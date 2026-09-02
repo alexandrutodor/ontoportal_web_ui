@@ -6,7 +6,7 @@ class ContextualAssistantFeatureTest < ActionView::TestCase
   setup do
     @original_url = ENV['AI_ASSISTANT_BACKEND_URL']
     ENV['AI_ASSISTANT_BACKEND_URL'] = 'https://assistant.example.test/stream'
-    @user = Struct.new(:id).new('user-1')
+    @user = Struct.new(:id, :apikey).new('user-1', 'test-apikey')
     define_singleton_method(:current_user) { @user }
     @actor = Flipper::Actor.new(@user.id.to_s)
     Flipper.disable(:ai_assistant)
