@@ -25,7 +25,8 @@
   right: 1rem;
   bottom: 4.5rem;
   z-index: 1030;
-  width: min(23rem, calc(100vw - 2rem));
+  width: 23rem;
+  max-width: calc(100vw - 2rem);
   padding: 1rem;
   background: #fff;
   border: 1px solid #dee2e6;
