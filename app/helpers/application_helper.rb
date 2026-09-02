@@ -45,6 +45,18 @@ module ApplicationHelper
     Flipper.enabled?('SPARQL', user) && $SPARQL_ENDPOINT_URL
   end
 
+  def datasets_enabled?
+    Flipper.enabled?(:datasets) && ENV['DATASETS_API_URL'].present?
+  rescue StandardError
+    false
+  end
+
+  def news_cms_enabled?
+    Flipper.enabled?(:news_cms)
+  rescue StandardError
+    false
+  end
+
   def flipper_actor_enabled?(feature, actor)
     Flipper[feature].actors_value.include?(Flipper::Types::Actor.wrap(actor).value)
   end
@@ -66,6 +78,7 @@ module ApplicationHelper
   rescue Flipper::Error, ArgumentError
     false
   end
+
   def sidekiq_enabled?
     user = current_user rescue nil
     Flipper.enabled?('SIDEKIQ_UI', user) && $SIDEKIQ_UI_URL
@@ -407,12 +420,13 @@ module ApplicationHelper
   end
 
   def rest_url
-    # Split the URL into protocol and path parts
-    protocol, path = $REST_URL.split("://", 2)
+    url = ($REST_URL || LinkedData::Client.settings.rest_url).to_s
+    return '' if url.blank?
 
-    # Remove the last '/' in the path part
+    protocol, path = url.split("://", 2)
+    return url unless path
+
     cleaned_path = path.chomp('/')
-    # Reconstruct the cleaned URL
     "#{protocol}://#{cleaned_path}"
   end
 
