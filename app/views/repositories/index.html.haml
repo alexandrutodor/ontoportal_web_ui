@@ -1,0 +1,170 @@
+- @title = 'Browse Code Repositories'
+- q = (params[:q] || params[:search]).to_s
+- selected_host = Array(@selected_host)
+- selected_language = Array(@selected_language)
+- selected_license = Array(@selected_license)
+- selected_task = Array(@selected_task)
+- selected_domain = Array(@selected_domain)
+- selected_type = Array(@selected_type)
+- selected_ecosystem = Array(@selected_ecosystem)
+- selected_maintenance = Array(@selected_maintenance)
+- selected_archive = Array(@selected_archive)
+- selected_access = Array(@selected_access)
+
+%main#top.catalogue-browse.browse-center.repositories-browse-page{aria: {label: 'Browse code repositories'}}
+  .browse-container
+    = form_with url: repositories_path, method: :get, local: true, class: 'repositories-browse-form' do
+      .browse-sub-container
+        .browse-first-row
+          %div{style: 'margin-top: 30px'}
+            .browse-filter-heading
+              %p.browse-filters-title Filters
+              = link_to 'Clear all', repositories_path, class: 'browse-clear-link'
+
+            %div{id: 'host_filter_container'}
+              = dropdown_component(id: 'browse-repo-host-filter', is_open: selected_host.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Host', count: selected_host.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_host.browse-format-filter.w-100{name: 'host[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by host'}}
+                    = options_for_select([['All hosts', '']] + @host_options.map { |value| [value, value] }, selected_host)
+
+            %div{id: 'language_filter_container'}
+              = dropdown_component(id: 'browse-repo-language-filter', is_open: selected_language.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Primary language', count: selected_language.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_language.browse-format-filter.w-100{name: 'language[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by primary language'}}
+                    = options_for_select([['All primary languages', '']] + @language_options.map { |value| [value, value] }, selected_language)
+
+            %div{id: 'license_filter_container'}
+              = dropdown_component(id: 'browse-repo-license-filter', is_open: selected_license.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'License', count: selected_license.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_license.browse-format-filter.w-100{name: 'license[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by license'}}
+                    = options_for_select([['All licenses', '']] + @license_options.map { |value| [value, value] }, selected_license)
+
+            %div{id: 'task_filter_container'}
+              = dropdown_component(id: 'browse-repo-task-filter', is_open: selected_task.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Task', count: selected_task.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_task.browse-format-filter.w-100{name: 'task[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by task'}}
+                    = options_for_select([['All tasks', '']] + @task_options.map { |value| [value, value] }, selected_task)
+
+            %div{id: 'domain_filter_container'}
+              = dropdown_component(id: 'browse-repo-domain-filter', is_open: selected_domain.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Domain', count: selected_domain.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_domain.browse-format-filter.w-100{name: 'domain[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by domain'}}
+                    = options_for_select([['All domains', '']] + @domain_options.map { |value| [value, value] }, selected_domain)
+
+            %div{id: 'package_filter_container'}
+              = dropdown_component(id: 'browse-repo-package-filter', is_open: selected_ecosystem.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Package', count: selected_ecosystem.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_ecosystem.browse-format-filter.w-100{name: 'package[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by package ecosystem or name'}}
+                    = options_for_select([['All packages', '']] + @ecosystem_options.map { |value| [value, value] }, selected_ecosystem)
+
+            %div{id: 'maintenance_filter_container'}
+              = dropdown_component(id: 'browse-repo-maintenance-filter', is_open: selected_maintenance.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Maintenance', count: selected_maintenance.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_maintenance.browse-format-filter.w-100{name: 'maintenance[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by maintenance'}}
+                    = options_for_select([['All maintenance states', '']] + @maintenance_options.map { |value| [value, value] }, selected_maintenance)
+
+            %div{id: 'archive_filter_container'}
+              = dropdown_component(id: 'browse-repo-archive-filter', is_open: selected_archive.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Archive', count: selected_archive.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_archive.browse-format-filter.w-100{name: 'archive[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by archive status'}}
+                    = options_for_select([['All archive states', '']] + @archive_options.map { |value| [value, value] }, selected_archive)
+
+            %div{id: 'access_filter_container'}
+              = dropdown_component(id: 'browse-repo-access-filter', is_open: selected_access.any?(&:present?)) do |d|
+                - d.title { browse_filter_section_header(title: 'Access', count: selected_access.any?(&:present?) ? 1 : 0) }
+                .browse-filter-checks-container.px-3.py-2
+                  %select#repo_access.browse-format-filter.w-100{name: 'access[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by access'}}
+                    = options_for_select([['All access states', '']] + @access_options.map { |value| [value, value] }, selected_access)
+
+            %hr
+            %p.browse-filters-title Documented evidence
+            %p.browse-desc-text.small.mb-0
+              The catalogue records public metadata and upstream identity; inclusion does not certify code quality, security, sustainability, numerical correctness, or scientific validity.
+
+        .browse-second-row
+          .browse-mode-row
+            .browse-switch{role: 'navigation', aria: {label: 'Browse resource type'}}
+              = link_to ontologies_path, class: 'browse-switch-link' do
+                %i.fas.fa-sitemap
+                Ontologies
+              - if datasets_enabled?
+                = link_to datasets_path, class: 'browse-switch-link' do
+                  %i.fas.fa-database
+                  Datasets
+              - if Flipper.enabled?(:models_catalogue)
+                = link_to models_path, class: 'browse-switch-link' do
+                  %i.fas.fa-cubes
+                  Models
+              - if Flipper.enabled?(:workflows_catalogue)
+                = link_to workflows_path, class: 'browse-switch-link' do
+                  %i.fas.fa-project-diagram
+                  Workflows
+              = link_to repositories_path, class: 'browse-switch-link active', aria: {current: 'page'} do
+                %i.fas.fa-code-branch
+                Repositories
+
+          .browse-search-bar
+            .browse-search-container
+              %input{name: 'q', placeholder: 'Search repositories by name, host, canonical path, package, paper, or related resource', type: 'search', value: q, aria: {label: 'Search repositories'}}
+              .browse-search-filters
+                %select#repo_type.browse-format-filter{name: 'type[]', onchange: 'this.form.submit()', aria: {label: 'Filter repositories by type'}}
+                  = options_for_select([['All types', '']] + @type_options.map { |value| [value, value] }, selected_type)
+                %select#Sort_by.browse-sort-by-filter{name: 'Sort_by', onchange: 'this.form.submit()', aria: {label: 'Sort repositories'}}
+                  = options_for_select(@sort_options, @sort)
+
+          .browse-ontologies.repositories-results-list
+            %p.browse-desc-text.repositories-result-count{aria: {live: 'polite'}}
+              = "Showing #{number_with_delimiter(@repositories.length)} #{'repository'.pluralize(@repositories.length)}."
+            - if @repositories.any?
+              - @repositories.each do |repository|
+                - canonical = repository[:canonical_repository] || {}
+                - licenses = repository[:licenses] || {}
+                - status = repository[:status] || {}
+                - fair = fair_score_for(repository)
+                - fair_percentage = fair[:overall_score]
+                - fair_details_url = repository_path(repository[:id], section: 'overview', anchor: 'repository-fair-assessment')
+                %article.browse-ontology-container.repository-browse-card.catalogue-browse-card
+                  .browse-ontology-description
+                    .browse-ontology-title-bar
+                      = link_to repository[:project_name], repository_path(repository[:id]), class: 'browse-ontology-title'
+                      - canonical_url = canonical[:url].to_s
+                      - if canonical_url.start_with?('https://')
+                        = link_to canonical_url, class: 'external-link ms-2', target: '_blank', rel: 'noopener', aria: {label: "Canonical repository for #{repository[:project_name]}"} do
+                          %i.fas.fa-external-link-alt
+                          = canonical[:host] || 'Source'
+                    %p.browse-desc-text= repository[:summary]
+                    - unless fair_percentage.nil?
+                      .browse-fair
+                        %p.browse-fair-title Repository FAIR metadata readiness
+                        .browse-progress-bar{role: 'progressbar', aria: {valuemin: 0, valuemax: 100, valuenow: fair_percentage, label: "#{repository[:project_name]} Repository FAIR metadata readiness #{fair_percentage}%"}}
+                          .browse-faire-progress{style: "width: #{fair_percentage}%"}
+                        %p.browse-fair-score= "#{fair_percentage}%"
+                        = link_to 'Details', fair_details_url, class: 'browse-fair-details'
+                    .catalogue-card-meta
+                      %span.catalogue-card-meta-item= "#{canonical[:host] || 'Unknown'} · #{repository[:owner_organization] || 'Unknown'}"
+                      %span.catalogue-card-meta-item= repository.dig(:languages, :primary) || 'Language unknown'
+                      %span.catalogue-card-meta-item= licenses[:repository_spdx].to_s == 'Unknown' || licenses[:repository_spdx].to_s.empty? ? 'License unknown' : licenses[:repository_spdx]
+                      %span.catalogue-card-meta-item= "#{(status[:maintenance] || 'Unknown').to_s.tr('_', ' ')} · #{(status[:access] || 'Unknown').to_s.tr('_', ' ')}"
+                  - repo_langs = repository[:languages].is_a?(Hash) ? ([repository[:languages][:primary]].compact + Array(repository[:languages][:secondary])).reject { |l| l.blank? || l == 'Unknown' } : []
+                  - packages_count = Array(repository[:packages]).length
+                  - papers_count = Array(repository[:papers]).length
+                  .browse-ontology-cards.catalogue-browse-badges
+                    = render SquareBadgeComponent.new(label: packages_count == 1 ? 'Package' : 'Packages', count: packages_count, link: repository_path(repository[:id], anchor: 'packages'))
+                    = render SquareBadgeComponent.new(label: repo_langs.length == 1 ? 'Language' : 'Languages', count: repo_langs.length, link: repository_path(repository[:id], anchor: 'overview'))
+                    = render SquareBadgeComponent.new(label: papers_count == 1 ? 'Paper' : 'Papers', count: papers_count, link: repository_path(repository[:id], anchor: 'papers'))
+            - else
+              .browse-ontology-container.repository-empty-state
+                .browse-ontology-description{style: 'width: 100%;'}
+                  .browse-ontology-title-bar
+                    %span.browse-ontology-title No repositories found
+                  %p.browse-desc-text
+                    No code repositories matched these filters. Clear the search or choose another filter option to browse the catalogue.
+                  = link_to 'Clear filters', repositories_path, class: 'regular-button primary-button slim'

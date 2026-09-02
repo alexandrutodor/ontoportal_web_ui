@@ -1,0 +1,236 @@
+- @title = @repository[:project_name]
+- section_titles = { 'overview' => 'Overview', 'languages' => 'Languages & environment', 'releases' => 'Releases/packages', 'workflows' => 'Workflows', 'models' => 'Models', 'datasets' => 'Datasets', 'ontologies' => 'Ontologies', 'papers' => 'Papers/citations', 'archive' => 'Archive/provenance' }
+- empty_messages = { 'workflows' => 'No related workflow search terms are catalogued for this repository yet.', 'models' => 'No related model search terms are catalogued for this repository yet.', 'datasets' => 'No related dataset search terms are catalogued for this repository yet.', 'ontologies' => 'No related ontology search terms are catalogued for this repository yet.' }
+- canonical = @repository[:canonical_repository] || {}
+- languages = @repository[:languages] || {}
+- licenses = @repository[:licenses] || {}
+- status = @repository[:status] || {}
+- related_type = @section.to_sym
+- related_group = @repository.dig(:related_resources, related_type) || {}
+
+%main#top.catalogue-browse.browse-center.repository-detail-page{aria: {label: 'Code repository details'}}
+  .browse-container
+    .browse-sub-container
+      .browse-second-row{style: 'width: 100%;'}
+        .model-detail-header
+          %p.browse-kicker Code repository
+          %h1.browse-ontology-title= @repository[:project_name]
+          %p.browse-desc-text.model-summary= @repository[:summary]
+          - canonical_url = canonical[:url].to_s
+          - if canonical_url.start_with?('https://')
+            .mb-3
+              = link_to canonical_url, class: 'regular-button primary-button slim', target: '_blank', rel: 'noopener' do
+                %i.fas.fa-external-link-alt.mr-1
+                = "Open on #{canonical[:host] || 'Source'}"
+          %nav.nav.nav-tabs.model-section-nav{aria: {label: 'Repository detail sections'}}
+            - section_titles.each do |section_key, section_title|
+              - active = @section == section_key
+              = link_to section_title, repository_path(@repository[:id], section: section_key), class: "nav-link model-section-link#{' active' if active}", aria: {current: (active ? 'page' : nil)}
+
+        .model-section-panel
+          - case @section
+          - when 'overview'
+            - fair = @fair_score || fair_score_for(@repository)
+            .browse-ontology-container.model-section-card
+              %h2 Overview
+              %p.browse-desc-text= @repository[:summary]
+              %dl.row.model-metadata.mb-0
+                %dt.col-sm-3 Canonical URL
+                %dd.col-sm-9
+                  - if canonical_url.start_with?('https://')
+                    = link_to canonical_url, canonical_url, class: 'external-link', target: '_blank', rel: 'noopener'
+                  - else
+                    Unknown
+                %dt.col-sm-3 Canonical upstream status
+                %dd.col-sm-9= canonical[:upstream_status] || 'Unknown'
+                %dt.col-sm-3 Host
+                %dd.col-sm-9= canonical[:host] || 'Unknown'
+                %dt.col-sm-3 Organization / Maintainer
+                %dd.col-sm-9= @repository[:owner_organization] || 'Unknown'
+                %dt.col-sm-3 Repository types
+                %dd.col-sm-9= Array(@repository[:repository_types]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Primary language
+                %dd.col-sm-9= languages[:primary] || 'Unknown'
+                %dt.col-sm-3 Secondary languages
+                %dd.col-sm-9= languages[:secondary].is_a?(Array) ? (languages[:secondary].join(', ').presence || 'Unknown') : (languages[:secondary] || 'Unknown')
+                %dt.col-sm-3 Repository code license
+                %dd.col-sm-9
+                  - code_license = licenses[:repository_spdx] || 'Unknown'
+                  - repository_license_url = licenses[:repository_license_url].to_s
+                  - if code_license == 'Unknown'
+                    %strong License unknown or unresolved
+                  - elsif repository_license_url.start_with?('https://')
+                    = link_to "#{code_license} - repository code", repository_license_url, target: '_blank', rel: 'noopener'
+                  - else
+                    = "#{code_license} - repository code"
+                %dt.col-sm-3 Maintenance / access
+                %dd.col-sm-9= "#{status[:maintenance] || 'Unknown'} / #{status[:access] || 'Unknown'}"
+                %dt.col-sm-3 Metadata last verified
+                %dd.col-sm-9= status[:last_verified] || 'Unknown'
+                %dt.col-sm-3 Domains
+                %dd.col-sm-9= Array(@repository[:broad_domains]).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Tasks
+                %dd.col-sm-9= Array(@repository[:tasks]).join(', ').presence || 'Unknown'
+              %h3.h5.mt-4 License scopes
+              %dl.row.model-metadata.mb-0
+                - { documentation_license: 'Documentation license', data_license_or_terms: 'Data license or terms', model_license_or_terms: 'Model/checkpoint license or terms', dependency_license_note: 'Dependency license note' }.each do |key, label|
+                  %dt.col-sm-3= label
+                  %dd.col-sm-9= licenses[key] || 'Unknown'
+              - if Array(@repository[:limitations]).any?
+                %h3.h5.mt-4 Limitations
+                %ul.model-resource-list
+                  - @repository[:limitations].each do |limitation|
+                    %li.model-resource-item= limitation
+              %p.text-muted.small.mt-4.mb-0
+                Metadata groups describe catalogue evidence only; they do not imply certification, endorsement, code quality, security, sustainability, numerical correctness, or scientific validity.
+
+            - if fair.present?
+              .browse-ontology-container.model-section-card.mt-3#repository-fair-assessment
+                %h2 Repository FAIR metadata readiness v1
+                %p.browse-desc-text.mb-2= fair[:disclaimer]
+                %p.browse-desc-text.small.text-muted.mb-3= fair[:methodology]
+                %dl.row.mb-3
+                  %dt.col-sm-3 Overall FAIR Readiness
+                  %dd.col-sm-9
+                    %strong= "#{fair[:overall_score]}%"
+                  %dt.col-sm-3 Principle scores
+                  %dd.col-sm-9
+                    %ul.list-inline.mb-0
+                      - fair[:principles].each do |principle, score|
+                        %li.list-inline-item.mr-3.me-3
+                          %strong= "#{principle}:"
+                          = "#{score}%"
+                  %dt.col-sm-3 Evaluation profile
+                  %dd.col-sm-9= fair[:profile]
+
+                %h3.h6.mt-3.mb-2 Metadata criteria checks
+                - fair[:criteria].each do |principle_name, criteria_list|
+                  .mb-3
+                    %h4.h6.text-muted.mb-1= principle_name
+                    %ul.list-unstyled.mb-0
+                      - criteria_list.each do |c|
+                        %li.mb-1
+                          - if c[:pass]
+                            %span.badge.badge-success.mr-1.me-1 PASS
+                          - else
+                            %span.badge.badge-secondary.mr-1.me-1 MISSING
+                          %span.font-weight-bold.fw-bold= "[#{c[:id]}]"
+                          = c[:label]
+
+          - when 'languages'
+            .browse-ontology-container.model-section-card
+              %h2 Languages & environment
+              %dl.row.model-metadata.mb-0
+                %dt.col-sm-3 Primary language
+                %dd.col-sm-9= languages[:primary] || 'Unknown'
+                %dt.col-sm-3 Secondary languages
+                %dd.col-sm-9= languages[:secondary].is_a?(Array) ? (languages[:secondary].join(', ').presence || 'Unknown') : (languages[:secondary] || 'Unknown')
+                %dt.col-sm-3 Install surfaces
+                %dd.col-sm-9= Array(@repository.dig(:environment, :install_surfaces)).join(', ').presence || 'Unknown'
+                %dt.col-sm-3 Containers
+                %dd.col-sm-9= @repository.dig(:environment, :containers) || 'Unknown'
+                %dt.col-sm-3 HPC / scheduler
+                %dd.col-sm-9= @repository.dig(:environment, :hpc_or_scheduler) || 'Unknown'
+              %p.text-muted.small.mt-4.mb-0 Environment metadata describes documented setup surfaces, not a reproducible build guarantee.
+
+          - when 'releases'
+            .browse-ontology-container.model-section-card
+              %h2 Releases & packages
+              - release = @repository[:release]
+              - if release.is_a?(Hash)
+                %dl.row.model-metadata.mb-3
+                  %dt.col-sm-3 Version
+                  %dd.col-sm-9= release[:version] || 'Unknown'
+                  %dt.col-sm-3 Release date
+                  %dd.col-sm-9= release[:date] || 'Unknown'
+                  %dt.col-sm-3 Release source
+                  %dd.col-sm-9
+                    - release_url = release[:url].to_s
+                    - if release_url.start_with?('https://')
+                      = link_to release_url, release_url, target: '_blank', rel: 'noopener'
+                    - else
+                      Unknown
+              - else
+                %p.browse-desc-text Version: #{release || 'Unknown'}
+              %h3.h5 Packages
+              - packages = @repository[:packages]
+              - if packages.is_a?(Array) && packages.any?
+                %ul.model-resource-list
+                  - packages.each do |package|
+                    %li.model-resource-item
+                      - package_url = package[:url].to_s
+                      - if package_url.start_with?('https://')
+                        = link_to "#{package[:ecosystem]}: #{package[:name]}", package_url, target: '_blank', rel: 'noopener'
+                      - else
+                        %span= "#{package[:ecosystem]}: #{package[:name]}"
+                      %span.model-resource-relationship= " - #{package[:relationship] || 'Unknown'}"
+              - else
+                %p.text-muted Unknown
+
+          - when 'workflows', 'models', 'datasets', 'ontologies'
+            .browse-ontology-container.model-section-card
+              %h2= section_titles[@section]
+              - search_terms = Array(related_group[:search_terms]).reject { |term| term.to_s == 'Unknown' }
+              - if search_terms.any?
+                %ul.model-resource-list
+                  - search_terms.each do |term|
+                    %li.model-resource-item
+                      %span= term
+                      %span.model-resource-relationship= " - #{related_group[:stable_ids] || 'Unknown'}"
+              - else
+                %p.text-muted= empty_messages[@section]
+
+          - when 'papers'
+            .browse-ontology-container.model-section-card
+              %h2 Papers & citations
+              - papers = @repository[:papers]
+              - if papers.is_a?(Array) && papers.any?
+                %ul.model-resource-list
+                  - papers.each do |paper|
+                    %li.model-resource-item
+                      - paper_url = paper[:url].to_s
+                      - if paper_url.start_with?('https://')
+                        = link_to paper[:title], paper_url, class: 'model-resource-link', target: '_blank', rel: 'noopener'
+                      - else
+                        %span= paper[:title]
+                      %span.model-resource-relationship= " - #{paper[:identifier] || 'Unknown'}"
+              - else
+                %p.text-muted No paper or citation metadata is catalogued for this repository yet.
+              %dl.row.model-metadata.mt-3.mb-0
+                %dt.col-sm-3 CITATION.cff
+                %dd.col-sm-9= @repository.dig(:citation_metadata, :citation_cff) || 'Unknown'
+                %dt.col-sm-3 CodeMeta
+                %dd.col-sm-9= @repository.dig(:citation_metadata, :codemeta) || 'Unknown'
+
+          - when 'archive'
+            .browse-ontology-container.model-section-card
+              %h2 Archive & provenance
+              - archives = @repository[:archives]
+              - if archives.is_a?(Array) && archives.any?
+                %ul.model-resource-list
+                  - archives.each do |archive|
+                    %li.model-resource-item
+                      - archive_url = archive[:url].to_s
+                      - if archive_url.start_with?('https://')
+                        = link_to "#{archive[:kind]}: #{archive[:persistent_id]}", archive_url, class: 'model-resource-link', target: '_blank', rel: 'noopener'
+                      - else
+                        %span= "#{archive[:kind]}: #{archive[:persistent_id]}"
+                      %span.model-resource-relationship= " - #{archive[:scope] || 'Unknown'}"
+              - else
+                %p.text-muted= archives || 'Unknown'
+              %h3.h5.mt-4 Canonical upstream evidence
+              %p.browse-desc-text= canonical[:upstream_evidence] || 'Unknown'
+              %h3.h5.mt-4 Relationships
+              %dl.row.model-metadata.mb-0
+                - { mirrors: 'Mirrors', forks: 'Forks', successors: 'Successors' }.each do |key, label|
+                  %dt.col-sm-3= label
+                  %dd.col-sm-9= @repository.dig(:relationships, key) || 'Unknown'
+              %h3.h5.mt-4 Provenance source groups
+              - if @repository[:provenance].is_a?(Hash)
+                %ul.model-resource-list
+                  - @repository[:provenance].each do |pointer, source_ids|
+                    %li.model-resource-item
+                      %strong= pointer
+                      %span.model-resource-relationship= " - #{Array(source_ids).join(', ')}"
+              - else
+                %p.text-muted Unknown

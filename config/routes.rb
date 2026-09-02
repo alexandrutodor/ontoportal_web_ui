@@ -25,6 +25,10 @@ Rails.application.routes.draw do
   resources :agents, constraints: { id: /.+/ }
   post 'agents/:id', to: 'agents#update', constraints: { id: /.+/ }
 
+  # Optional Repositories Catalogue
+  get '/repositories', to: 'repositories#index', as: :repositories
+  get '/repositories/:id', to: 'repositories#show', as: :repository, constraints: { id: /[A-Za-z0-9][A-Za-z0-9_-]{0,160}/ }
+
   resources :projects, constraints: { id: /[^\/]+/ }
 
   resources :users, path: :accounts, constraints: { id: /[\d\w\.\@\-\%\+ ]+/ }

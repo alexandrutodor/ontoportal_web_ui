@@ -1,0 +1,5688 @@
+{
+  "schema_version": 1,
+  "profile": "ontoportal-code-repository-catalogue-v1",
+  "verified_on": "2026-08-14",
+  "unknown_token": "Unknown",
+  "catalogue_scope": {
+    "access_model": "public_read_only",
+    "implementation_status": "implemented_read_only_catalogue",
+    "record_count": 27,
+    "held_candidate_count": 6,
+    "evidence_policy": "Every populated factual section has machine-readable source IDs; unresolved values use the literal Unknown token. Inclusion and metadata completeness do not certify quality, security, sustainability, FAIRness, or scientific validity."
+  },
+  "repositories": [
+    {
+      "id": "quantum-espresso",
+      "project_name": "Quantum ESPRESSO",
+      "owner_organization": "Quantum ESPRESSO Foundation and contributors",
+      "summary": "Integrated open-source suite for electronic-structure calculations and materials modelling using plane waves and pseudopotentials.",
+      "canonical_repository": {
+        "url": "https://gitlab.com/QEF/q-e",
+        "host": "GitLab",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "The official Quantum ESPRESSO project and QEF namespace identify this GitLab repository as the upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "simulation engine",
+        "application"
+      ],
+      "broad_domains": [
+        "electronic structure and DFT",
+        "atomistic simulation"
+      ],
+      "tasks": [
+        "ground-state DFT",
+        "phonons and response",
+        "materials property calculation"
+      ],
+      "languages": {
+        "primary": "Fortran",
+        "secondary": [
+          "C",
+          "Python",
+          "Shell"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "Spack",
+          "name": "quantum-espresso",
+          "url": "https://packages.spack.io/package.html?name=quantum-espresso",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "GPL-2.0-or-later",
+        "repository_license_url": "https://gitlab.com/QEF/q-e",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": {
+        "version": "7.6",
+        "date": "2026-07-09",
+        "url": "https://gitlab.com/QEF/q-e/-/releases/qe-7.6"
+      },
+      "environment": {
+        "install_surfaces": [
+          "source build",
+          "Spack"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "MPI-oriented HPC execution documented"
+      },
+      "links": {
+        "documentation": "https://www.quantum-espresso.org/documentation/",
+        "issues": "https://gitlab.com/QEF/q-e/-/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "QUANTUM ESPRESSO: a modular and open-source software project for quantum simulations of materials",
+          "identifier": "doi:10.1088/0953-8984/21/39/395502",
+          "url": "https://doi.org/10.1088/0953-8984/21/39/395502"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "Quantum ESPRESSO",
+            "ground-state DFT",
+            "phonons and response"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "Quantum ESPRESSO",
+            "electronic structure and DFT",
+            "atomistic simulation"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "Quantum ESPRESSO",
+            "ground-state DFT",
+            "phonons and response"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "Quantum ESPRESSO",
+            "electronic structure and DFT",
+            "atomistic simulation"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Pseudopotentials and external data files may carry terms distinct from the repository code license.",
+        "Catalogue inclusion does not assess numerical suitability for a particular calculation."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/summary": [
+          "SRC-QUANTUM-ESPRESSO-DOCS",
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/relationships": [
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/repository_types": [
+          "SRC-QUANTUM-ESPRESSO-DOCS",
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-QUANTUM-ESPRESSO-DOCS"
+        ],
+        "/tasks": [
+          "SRC-QUANTUM-ESPRESSO-DOCS"
+        ],
+        "/languages": [
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/licenses": [
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/links": [
+          "SRC-QUANTUM-ESPRESSO-DOCS",
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/related_resources": [
+          "SRC-QUANTUM-ESPRESSO-DOCS"
+        ],
+        "/status": [
+          "SRC-QUANTUM-ESPRESSO-DOCS",
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-QUANTUM-ESPRESSO-DOCS",
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-QUANTUM-ESPRESSO-DOCS",
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/packages": [
+          "SRC-QUANTUM-ESPRESSO-PACKAGE",
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/papers": [
+          "SRC-QUANTUM-ESPRESSO-PAPER"
+        ],
+        "/archives": [
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/release": [
+          "SRC-QUANTUM-ESPRESSO-PACKAGE",
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ],
+        "/environment": [
+          "SRC-QUANTUM-ESPRESSO-DOCS",
+          "SRC-QUANTUM-ESPRESSO-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-QUANTUM-ESPRESSO-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "abinit",
+      "project_name": "ABINIT",
+      "owner_organization": "ABINIT Group",
+      "summary": "Electronic-structure software suite for materials and molecules, including density-functional and response-property calculations.",
+      "canonical_repository": {
+        "url": "https://gitlab.abinit.org/abinit/abinit",
+        "host": "Institutional GitLab",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "The official GitHub mirror directs active development to the ABINIT institutional GitLab; that forge is therefore catalogued as canonical."
+      },
+      "relationships": {
+        "mirrors": [
+          {
+            "label": "Official GitHub mirror",
+            "url": "https://github.com/abinit/abinit",
+            "relationship_type": "official_mirror",
+            "evidence_note": "The GitHub README labels itself an official mirror and directs development to the institutional GitLab."
+          }
+        ],
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "simulation engine",
+        "application"
+      ],
+      "broad_domains": [
+        "electronic structure and DFT",
+        "atomistic simulation"
+      ],
+      "tasks": [
+        "ground-state DFT",
+        "response properties",
+        "phonons and many-body methods"
+      ],
+      "languages": {
+        "primary": "Fortran",
+        "secondary": [
+          "Python",
+          "C",
+          "Shell"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "Spack",
+          "name": "abinit",
+          "url": "https://packages.spack.io/package.html?name=abinit",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "Unknown",
+        "repository_license_url": "https://gitlab.abinit.org/abinit/abinit",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": {
+        "version": "10.8.3",
+        "date": "Unknown",
+        "url": "https://gitlab.abinit.org/abinit/abinit/-/releases"
+      },
+      "environment": {
+        "install_surfaces": [
+          "source build",
+          "Spack"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Parallel/HPC build documentation is available"
+      },
+      "links": {
+        "documentation": "https://docs.abinit.org/",
+        "issues": "https://gitlab.abinit.org/abinit/abinit/-/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "The ABINIT project: Impact, environment and recent developments",
+          "identifier": "doi:10.1016/j.cpc.2019.107042",
+          "url": "https://doi.org/10.1016/j.cpc.2019.107042"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "ABINIT",
+            "ground-state DFT",
+            "response properties"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "ABINIT",
+            "electronic structure and DFT",
+            "atomistic simulation"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "ABINIT",
+            "ground-state DFT",
+            "response properties"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "ABINIT",
+            "electronic structure and DFT",
+            "atomistic simulation"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Exact repository SPDX is held as Unknown because repository README/COPYING metadata and CITATION.cff expose different GPL version expressions.",
+        "The GitHub copy is a mirror, not the catalogue canonical URL."
+      ],
+      "verification_confidence": "medium",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-ABINIT-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-ABINIT-REPO"
+        ],
+        "/summary": [
+          "SRC-ABINIT-DOCS",
+          "SRC-ABINIT-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-ABINIT-MIRROR",
+          "SRC-ABINIT-REPO"
+        ],
+        "/relationships": [
+          "SRC-ABINIT-MIRROR",
+          "SRC-ABINIT-REPO"
+        ],
+        "/repository_types": [
+          "SRC-ABINIT-DOCS",
+          "SRC-ABINIT-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-ABINIT-DOCS"
+        ],
+        "/tasks": [
+          "SRC-ABINIT-DOCS"
+        ],
+        "/languages": [
+          "SRC-ABINIT-REPO"
+        ],
+        "/licenses": [
+          "SRC-ABINIT-LICENSE",
+          "SRC-ABINIT-MIRROR",
+          "SRC-ABINIT-REPO"
+        ],
+        "/links": [
+          "SRC-ABINIT-DOCS",
+          "SRC-ABINIT-REPO"
+        ],
+        "/related_resources": [
+          "SRC-ABINIT-DOCS"
+        ],
+        "/status": [
+          "SRC-ABINIT-DOCS",
+          "SRC-ABINIT-REPO"
+        ],
+        "/limitations": [
+          "SRC-ABINIT-DOCS",
+          "SRC-ABINIT-LICENSE",
+          "SRC-ABINIT-MIRROR",
+          "SRC-ABINIT-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-ABINIT-DOCS",
+          "SRC-ABINIT-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-ABINIT-PACKAGE",
+          "SRC-ABINIT-REPO"
+        ],
+        "/papers": [
+          "SRC-ABINIT-PAPER"
+        ],
+        "/archives": [
+          "SRC-ABINIT-REPO"
+        ],
+        "/release": [
+          "SRC-ABINIT-PACKAGE",
+          "SRC-ABINIT-REPO"
+        ],
+        "/environment": [
+          "SRC-ABINIT-DOCS",
+          "SRC-ABINIT-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-ABINIT-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "gpaw",
+      "project_name": "GPAW",
+      "owner_organization": "GPAW developers",
+      "summary": "Python-based density-functional theory code using real-space grids, finite differences, and projector-augmented-wave methods.",
+      "canonical_repository": {
+        "url": "https://gitlab.com/gpaw/gpaw",
+        "host": "GitLab",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "simulation engine",
+        "library"
+      ],
+      "broad_domains": [
+        "electronic structure and DFT",
+        "atomistic simulation"
+      ],
+      "tasks": [
+        "ground-state DFT",
+        "electronic response",
+        "materials property calculation"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "C",
+          "Cython"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "gpaw",
+          "url": "https://pypi.org/project/gpaw/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "GPL-3.0-or-later",
+        "repository_license_url": "https://gitlab.com/gpaw/gpaw",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": {
+        "version": "26.7.0",
+        "date": "2026-07-06",
+        "url": "https://pypi.org/project/gpaw/26.7.0/"
+      },
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "MPI execution documented"
+      },
+      "links": {
+        "documentation": "https://gpaw.readthedocs.io/",
+        "issues": "https://gitlab.com/gpaw/gpaw/-/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "GPAW: An open Python package for electronic structure calculations",
+          "identifier": "doi:10.1063/5.0182685",
+          "url": "https://doi.org/10.1063/5.0182685"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "GPAW",
+            "ground-state DFT",
+            "electronic response"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "GPAW",
+            "electronic structure and DFT",
+            "atomistic simulation"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "GPAW",
+            "ground-state DFT",
+            "electronic response"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "GPAW",
+            "electronic structure and DFT",
+            "atomistic simulation"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "PAW setups and external numerical data should be checked for their own distribution terms.",
+        "Installation can require compiled numerical libraries and MPI support."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-GPAW-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-GPAW-REPO"
+        ],
+        "/summary": [
+          "SRC-GPAW-DOCS",
+          "SRC-GPAW-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-GPAW-REPO"
+        ],
+        "/relationships": [
+          "SRC-GPAW-REPO"
+        ],
+        "/repository_types": [
+          "SRC-GPAW-DOCS",
+          "SRC-GPAW-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-GPAW-DOCS"
+        ],
+        "/tasks": [
+          "SRC-GPAW-DOCS"
+        ],
+        "/languages": [
+          "SRC-GPAW-REPO"
+        ],
+        "/licenses": [
+          "SRC-GPAW-REPO"
+        ],
+        "/links": [
+          "SRC-GPAW-DOCS",
+          "SRC-GPAW-REPO"
+        ],
+        "/related_resources": [
+          "SRC-GPAW-DOCS"
+        ],
+        "/status": [
+          "SRC-GPAW-DOCS",
+          "SRC-GPAW-REPO"
+        ],
+        "/limitations": [
+          "SRC-GPAW-DOCS",
+          "SRC-GPAW-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-GPAW-DOCS",
+          "SRC-GPAW-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-GPAW-PACKAGE",
+          "SRC-GPAW-REPO"
+        ],
+        "/papers": [
+          "SRC-GPAW-PAPER"
+        ],
+        "/archives": [
+          "SRC-GPAW-REPO"
+        ],
+        "/release": [
+          "SRC-GPAW-PACKAGE",
+          "SRC-GPAW-REPO"
+        ],
+        "/environment": [
+          "SRC-GPAW-DOCS",
+          "SRC-GPAW-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-GPAW-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "ase",
+      "project_name": "Atomic Simulation Environment (ASE)",
+      "owner_organization": "ASE developers",
+      "summary": "Python library for setting up, running, and analysing atomistic simulations across many calculator backends.",
+      "canonical_repository": {
+        "url": "https://gitlab.com/ase/ase",
+        "host": "GitLab",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "workflow toolkit"
+      ],
+      "broad_domains": [
+        "atomistic simulation",
+        "materials workflow and provenance"
+      ],
+      "tasks": [
+        "structure manipulation",
+        "calculator orchestration",
+        "trajectory analysis"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "ase",
+          "url": "https://pypi.org/project/ase/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "LGPL-2.1-or-later",
+        "repository_license_url": "https://gitlab.com/ase/ase",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Backend-dependent"
+      },
+      "links": {
+        "documentation": "https://ase-lib.org/",
+        "issues": "https://gitlab.com/ase/ase/-/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "The Atomic Simulation Environment—A Python library for working with atoms",
+          "identifier": "doi:10.1088/1361-648X/aa680e",
+          "url": "https://doi.org/10.1088/1361-648X/aa680e"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "Atomic Simulation Environment (ASE)",
+            "structure manipulation",
+            "calculator orchestration"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "Atomic Simulation Environment (ASE)",
+            "atomistic simulation",
+            "materials workflow and provenance"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "Atomic Simulation Environment (ASE)",
+            "structure manipulation",
+            "calculator orchestration"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "Atomic Simulation Environment (ASE)",
+            "atomistic simulation",
+            "materials workflow and provenance"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "ASE wraps many external calculators; their access conditions and licenses are not inherited from ASE.",
+        "Workflow reproducibility depends on calculator versions and external files."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-ASE-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-ASE-REPO"
+        ],
+        "/summary": [
+          "SRC-ASE-DOCS",
+          "SRC-ASE-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-ASE-REPO"
+        ],
+        "/relationships": [
+          "SRC-ASE-REPO"
+        ],
+        "/repository_types": [
+          "SRC-ASE-DOCS",
+          "SRC-ASE-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-ASE-DOCS"
+        ],
+        "/tasks": [
+          "SRC-ASE-DOCS"
+        ],
+        "/languages": [
+          "SRC-ASE-REPO"
+        ],
+        "/licenses": [
+          "SRC-ASE-REPO"
+        ],
+        "/links": [
+          "SRC-ASE-DOCS",
+          "SRC-ASE-REPO"
+        ],
+        "/related_resources": [
+          "SRC-ASE-DOCS"
+        ],
+        "/status": [
+          "SRC-ASE-DOCS",
+          "SRC-ASE-REPO"
+        ],
+        "/limitations": [
+          "SRC-ASE-DOCS",
+          "SRC-ASE-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-ASE-DOCS",
+          "SRC-ASE-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-ASE-PACKAGE",
+          "SRC-ASE-REPO"
+        ],
+        "/papers": [
+          "SRC-ASE-PAPER"
+        ],
+        "/archives": [
+          "SRC-ASE-REPO"
+        ],
+        "/release": [
+          "SRC-ASE-REPO"
+        ],
+        "/environment": [
+          "SRC-ASE-DOCS",
+          "SRC-ASE-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-ASE-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "lammps",
+      "project_name": "LAMMPS",
+      "owner_organization": "LAMMPS developers",
+      "summary": "Molecular-dynamics simulation engine for particles and materials, with extensible force fields and parallel execution.",
+      "canonical_repository": {
+        "url": "https://github.com/lammps/lammps",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "simulation engine",
+        "application"
+      ],
+      "broad_domains": [
+        "molecular dynamics and multiscale",
+        "atomistic simulation"
+      ],
+      "tasks": [
+        "molecular dynamics",
+        "particle simulation",
+        "materials modelling"
+      ],
+      "languages": {
+        "primary": "C++",
+        "secondary": [
+          "C",
+          "Python",
+          "CMake"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "lammps",
+          "url": "https://pypi.org/project/lammps/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "GPL-2.0-only",
+        "repository_license_url": "https://github.com/lammps/lammps",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Potential files and contributed datasets may carry item-specific notices.",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Optional packages can introduce additional third-party license and build constraints."
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "source build",
+          "PyPI",
+          "Conda",
+          "Spack"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "MPI and accelerator packages documented"
+      },
+      "links": {
+        "documentation": "https://docs.lammps.org/",
+        "issues": "https://github.com/lammps/lammps/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "LAMMPS - a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales",
+          "identifier": "doi:10.1016/j.cpc.2021.108171",
+          "url": "https://doi.org/10.1016/j.cpc.2021.108171"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "LAMMPS",
+            "molecular dynamics",
+            "particle simulation"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "LAMMPS",
+            "molecular dynamics and multiscale",
+            "atomistic simulation"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "LAMMPS",
+            "molecular dynamics",
+            "particle simulation"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "LAMMPS",
+            "molecular dynamics and multiscale",
+            "atomistic simulation"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Force fields, potential files, and optional dependencies require separate suitability and license review.",
+        "The catalogue does not treat a successful build as scientific validation."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-LAMMPS-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-LAMMPS-REPO"
+        ],
+        "/summary": [
+          "SRC-LAMMPS-DOCS",
+          "SRC-LAMMPS-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-LAMMPS-REPO"
+        ],
+        "/relationships": [
+          "SRC-LAMMPS-REPO"
+        ],
+        "/repository_types": [
+          "SRC-LAMMPS-DOCS",
+          "SRC-LAMMPS-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-LAMMPS-DOCS"
+        ],
+        "/tasks": [
+          "SRC-LAMMPS-DOCS"
+        ],
+        "/languages": [
+          "SRC-LAMMPS-REPO"
+        ],
+        "/licenses": [
+          "SRC-LAMMPS-REPO"
+        ],
+        "/links": [
+          "SRC-LAMMPS-DOCS",
+          "SRC-LAMMPS-REPO"
+        ],
+        "/related_resources": [
+          "SRC-LAMMPS-DOCS"
+        ],
+        "/status": [
+          "SRC-LAMMPS-DOCS",
+          "SRC-LAMMPS-REPO"
+        ],
+        "/limitations": [
+          "SRC-LAMMPS-DOCS",
+          "SRC-LAMMPS-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-LAMMPS-DOCS",
+          "SRC-LAMMPS-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-LAMMPS-PACKAGE",
+          "SRC-LAMMPS-REPO"
+        ],
+        "/papers": [
+          "SRC-LAMMPS-PAPER"
+        ],
+        "/archives": [
+          "SRC-LAMMPS-REPO"
+        ],
+        "/release": [
+          "SRC-LAMMPS-REPO"
+        ],
+        "/environment": [
+          "SRC-LAMMPS-DOCS",
+          "SRC-LAMMPS-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-LAMMPS-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "hoomd-blue",
+      "project_name": "HOOMD-blue",
+      "owner_organization": "Glotzer Lab",
+      "summary": "GPU-oriented molecular-dynamics and hard-particle simulation toolkit controlled through Python.",
+      "canonical_repository": {
+        "url": "https://github.com/glotzerlab/hoomd-blue",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "simulation engine",
+        "library"
+      ],
+      "broad_domains": [
+        "molecular dynamics and multiscale",
+        "soft matter and polymers"
+      ],
+      "tasks": [
+        "molecular dynamics",
+        "particle simulation",
+        "GPU simulation"
+      ],
+      "languages": {
+        "primary": "C++",
+        "secondary": [
+          "Python",
+          "CMake"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "Conda",
+          "name": "hoomd",
+          "url": "https://anaconda.org/conda-forge/hoomd",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/glotzerlab/hoomd-blue",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "Conda",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "GPU and MPI build options documented"
+      },
+      "links": {
+        "documentation": "https://hoomd-blue.readthedocs.io/",
+        "issues": "https://github.com/glotzerlab/hoomd-blue/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "HOOMD-blue: A Python package for high-performance molecular dynamics and hard particle Monte Carlo simulations",
+          "identifier": "doi:10.1016/j.commatsci.2019.109363",
+          "url": "https://doi.org/10.1016/j.commatsci.2019.109363"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "HOOMD-blue",
+            "molecular dynamics",
+            "particle simulation"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "HOOMD-blue",
+            "molecular dynamics and multiscale",
+            "soft matter and polymers"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "HOOMD-blue",
+            "molecular dynamics",
+            "particle simulation"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "HOOMD-blue",
+            "molecular dynamics and multiscale",
+            "soft matter and polymers"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "GPU support depends on compatible hardware, toolchains, and build configuration.",
+        "Simulation models and user-supplied parameters are outside the repository license assessment."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/summary": [
+          "SRC-HOOMD-BLUE-DOCS",
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/relationships": [
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/repository_types": [
+          "SRC-HOOMD-BLUE-DOCS",
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-HOOMD-BLUE-DOCS"
+        ],
+        "/tasks": [
+          "SRC-HOOMD-BLUE-DOCS"
+        ],
+        "/languages": [
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/licenses": [
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/links": [
+          "SRC-HOOMD-BLUE-DOCS",
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/related_resources": [
+          "SRC-HOOMD-BLUE-DOCS"
+        ],
+        "/status": [
+          "SRC-HOOMD-BLUE-DOCS",
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/limitations": [
+          "SRC-HOOMD-BLUE-DOCS",
+          "SRC-HOOMD-BLUE-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-HOOMD-BLUE-DOCS",
+          "SRC-HOOMD-BLUE-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-HOOMD-BLUE-PACKAGE",
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/papers": [
+          "SRC-HOOMD-BLUE-PAPER"
+        ],
+        "/archives": [
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/release": [
+          "SRC-HOOMD-BLUE-REPO"
+        ],
+        "/environment": [
+          "SRC-HOOMD-BLUE-DOCS",
+          "SRC-HOOMD-BLUE-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-HOOMD-BLUE-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "cp2k",
+      "project_name": "CP2K",
+      "owner_organization": "CP2K developers",
+      "summary": "Quantum-chemistry and solid-state simulation package supporting atomistic calculations for materials, liquids, and molecules.",
+      "canonical_repository": {
+        "url": "https://github.com/cp2k/cp2k",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "simulation engine",
+        "application"
+      ],
+      "broad_domains": [
+        "electronic structure and DFT",
+        "molecular dynamics and multiscale"
+      ],
+      "tasks": [
+        "DFT",
+        "ab initio molecular dynamics",
+        "materials property calculation"
+      ],
+      "languages": {
+        "primary": "Fortran",
+        "secondary": [
+          "C",
+          "Python",
+          "CMake"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "Spack",
+          "name": "cp2k",
+          "url": "https://packages.spack.io/package.html?name=cp2k",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "GPL-2.0-or-later",
+        "repository_license_url": "https://github.com/cp2k/cp2k",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "source build",
+          "Spack",
+          "containers"
+        ],
+        "containers": "Project documents container images/build recipes",
+        "hpc_or_scheduler": "MPI/OpenMP execution documented"
+      },
+      "links": {
+        "documentation": "https://manual.cp2k.org/",
+        "issues": "https://github.com/cp2k/cp2k/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "CP2K: An electronic structure and molecular dynamics software package - Quickstep: Efficient and accurate electronic structure calculations",
+          "identifier": "doi:10.1063/5.0007045",
+          "url": "https://doi.org/10.1063/5.0007045"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CP2K",
+            "DFT",
+            "ab initio molecular dynamics"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CP2K",
+            "electronic structure and DFT",
+            "molecular dynamics and multiscale"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CP2K",
+            "DFT",
+            "ab initio molecular dynamics"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CP2K",
+            "electronic structure and DFT",
+            "molecular dynamics and multiscale"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Build variants and optional libraries materially affect available features.",
+        "Basis sets, pseudopotentials, and external data files require separate provenance tracking."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-CP2K-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-CP2K-REPO"
+        ],
+        "/summary": [
+          "SRC-CP2K-DOCS",
+          "SRC-CP2K-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-CP2K-REPO"
+        ],
+        "/relationships": [
+          "SRC-CP2K-REPO"
+        ],
+        "/repository_types": [
+          "SRC-CP2K-DOCS",
+          "SRC-CP2K-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-CP2K-DOCS"
+        ],
+        "/tasks": [
+          "SRC-CP2K-DOCS"
+        ],
+        "/languages": [
+          "SRC-CP2K-REPO"
+        ],
+        "/licenses": [
+          "SRC-CP2K-REPO"
+        ],
+        "/links": [
+          "SRC-CP2K-DOCS",
+          "SRC-CP2K-REPO"
+        ],
+        "/related_resources": [
+          "SRC-CP2K-DOCS"
+        ],
+        "/status": [
+          "SRC-CP2K-DOCS",
+          "SRC-CP2K-REPO"
+        ],
+        "/limitations": [
+          "SRC-CP2K-DOCS",
+          "SRC-CP2K-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-CP2K-DOCS",
+          "SRC-CP2K-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-CP2K-PACKAGE",
+          "SRC-CP2K-REPO"
+        ],
+        "/papers": [
+          "SRC-CP2K-PAPER"
+        ],
+        "/archives": [
+          "SRC-CP2K-REPO"
+        ],
+        "/release": [
+          "SRC-CP2K-REPO"
+        ],
+        "/environment": [
+          "SRC-CP2K-DOCS",
+          "SRC-CP2K-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-CP2K-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "openkim-kim-api",
+      "project_name": "OpenKIM KIM API",
+      "owner_organization": "OpenKIM",
+      "summary": "Portable application programming interface and reference library for interatomic models used by atomistic simulators.",
+      "canonical_repository": {
+        "url": "https://github.com/openkim/kim-api",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "specification",
+        "model tooling"
+      ],
+      "broad_domains": [
+        "atomistic simulation",
+        "materials data standards and FAIR tooling"
+      ],
+      "tasks": [
+        "portable model interface",
+        "interatomic model integration",
+        "simulation interoperability"
+      ],
+      "languages": {
+        "primary": "C++",
+        "secondary": [
+          "C",
+          "Fortran",
+          "CMake"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "Conda",
+          "name": "kim-api",
+          "url": "https://anaconda.org/conda-forge/kim-api",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "LGPL-2.1-or-later",
+        "repository_license_url": "https://github.com/openkim/kim-api",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Models distributed through OpenKIM carry item-level licenses and identifiers; the KIM API license does not replace them.",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "Conda",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Simulator-dependent"
+      },
+      "links": {
+        "documentation": "https://kim-api.readthedocs.io/",
+        "issues": "https://github.com/openkim/kim-api/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "The Potential of Atomistic Simulations and the Knowledgebase of Interatomic Models",
+          "identifier": "doi:10.1007/s11837-011-0102-6",
+          "url": "https://doi.org/10.1007/s11837-011-0102-6"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "OpenKIM KIM API",
+            "portable model interface",
+            "interatomic model integration"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "OpenKIM KIM API",
+            "atomistic simulation",
+            "materials data standards and FAIR tooling"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "OpenKIM KIM API",
+            "portable model interface",
+            "interatomic model integration"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "OpenKIM KIM API",
+            "atomistic simulation",
+            "materials data standards and FAIR tooling"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "This record describes the API source repository, not every model hosted by OpenKIM.",
+        "Model scientific validity and compatibility remain item- and simulator-specific."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/summary": [
+          "SRC-OPENKIM-KIM-API-DOCS",
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/relationships": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/repository_types": [
+          "SRC-OPENKIM-KIM-API-DOCS",
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-OPENKIM-KIM-API-DOCS"
+        ],
+        "/tasks": [
+          "SRC-OPENKIM-KIM-API-DOCS"
+        ],
+        "/languages": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/licenses": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/links": [
+          "SRC-OPENKIM-KIM-API-DOCS",
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/related_resources": [
+          "SRC-OPENKIM-KIM-API-DOCS"
+        ],
+        "/status": [
+          "SRC-OPENKIM-KIM-API-DOCS",
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-OPENKIM-KIM-API-DOCS",
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-OPENKIM-KIM-API-DOCS",
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/packages": [
+          "SRC-OPENKIM-KIM-API-PACKAGE",
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/papers": [
+          "SRC-OPENKIM-KIM-API-PAPER"
+        ],
+        "/archives": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/release": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ],
+        "/environment": [
+          "SRC-OPENKIM-KIM-API-DOCS",
+          "SRC-OPENKIM-KIM-API-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-OPENKIM-KIM-API-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "aiida-core",
+      "project_name": "AiiDA Core",
+      "owner_organization": "AiiDA Team",
+      "summary": "Python infrastructure for automated computational workflows with persistent provenance graphs and data management.",
+      "canonical_repository": {
+        "url": "https://github.com/aiidateam/aiida-core",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "workflow engine",
+        "library",
+        "provenance tooling"
+      ],
+      "broad_domains": [
+        "materials workflow and provenance",
+        "materials data standards and FAIR tooling"
+      ],
+      "tasks": [
+        "workflow orchestration",
+        "provenance capture",
+        "remote HPC execution"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "Shell"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "aiida-core",
+          "url": "https://pypi.org/project/aiida-core/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "MIT",
+        "repository_license_url": "https://github.com/aiidateam/aiida-core",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda",
+          "containers"
+        ],
+        "containers": "Documentation includes container-based setup options",
+        "hpc_or_scheduler": "Remote computers and schedulers supported through configuration/plugins"
+      },
+      "links": {
+        "documentation": "https://aiida.readthedocs.io/",
+        "issues": "https://github.com/aiidateam/aiida-core/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "AiiDA: automated interactive infrastructure and database for computational science",
+          "identifier": "doi:10.1016/j.commatsci.2015.09.013",
+          "url": "https://doi.org/10.1016/j.commatsci.2015.09.013"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "AiiDA Core",
+            "workflow orchestration",
+            "provenance capture"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "AiiDA Core",
+            "materials workflow and provenance",
+            "materials data standards and FAIR tooling"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "AiiDA Core",
+            "workflow orchestration",
+            "provenance capture"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "AiiDA Core",
+            "materials workflow and provenance",
+            "materials data standards and FAIR tooling"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Domain capabilities depend on separately installed plugins and external simulation codes.",
+        "Captured provenance does not itself certify correctness, reproducibility, or FAIR compliance."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/summary": [
+          "SRC-AIIDA-CORE-DOCS",
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/relationships": [
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/repository_types": [
+          "SRC-AIIDA-CORE-DOCS",
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-AIIDA-CORE-DOCS"
+        ],
+        "/tasks": [
+          "SRC-AIIDA-CORE-DOCS"
+        ],
+        "/languages": [
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/licenses": [
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/links": [
+          "SRC-AIIDA-CORE-DOCS",
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/related_resources": [
+          "SRC-AIIDA-CORE-DOCS"
+        ],
+        "/status": [
+          "SRC-AIIDA-CORE-DOCS",
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/limitations": [
+          "SRC-AIIDA-CORE-DOCS",
+          "SRC-AIIDA-CORE-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-AIIDA-CORE-DOCS",
+          "SRC-AIIDA-CORE-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-AIIDA-CORE-PACKAGE",
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/papers": [
+          "SRC-AIIDA-CORE-PAPER"
+        ],
+        "/archives": [
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/release": [
+          "SRC-AIIDA-CORE-REPO"
+        ],
+        "/environment": [
+          "SRC-AIIDA-CORE-DOCS",
+          "SRC-AIIDA-CORE-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-AIIDA-CORE-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "atomate2",
+      "project_name": "atomate2",
+      "owner_organization": "Materials Project",
+      "summary": "Materials-science workflow library for defining and executing computational workflows with jobflow and supported simulation backends.",
+      "canonical_repository": {
+        "url": "https://github.com/materialsproject/atomate2",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "workflow collection",
+        "library"
+      ],
+      "broad_domains": [
+        "materials workflow and provenance",
+        "electronic structure and DFT"
+      ],
+      "tasks": [
+        "high-throughput computation",
+        "workflow orchestration",
+        "simulation post-processing"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "atomate2",
+          "url": "https://pypi.org/project/atomate2/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/materialsproject/atomate2",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "VASP workflows require a separately obtained VASP executable and pseudopotentials under VASP access terms."
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Backend and jobflow-manager dependent"
+      },
+      "links": {
+        "documentation": "https://materialsproject.github.io/atomate2/",
+        "issues": "https://github.com/materialsproject/atomate2/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": "Unknown",
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "atomate2",
+            "high-throughput computation",
+            "workflow orchestration"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "atomate2",
+            "materials workflow and provenance",
+            "electronic structure and DFT"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "atomate2",
+            "high-throughput computation",
+            "workflow orchestration"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "atomate2",
+            "materials workflow and provenance",
+            "electronic structure and DFT"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Some workflow families depend on proprietary VASP software and separately licensed pseudopotentials.",
+        "A workflow definition does not guarantee that its external code, data, or scheduler dependencies are available."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/summary": [
+          "SRC-ATOMATE2-DOCS",
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/relationships": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/repository_types": [
+          "SRC-ATOMATE2-DOCS",
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-ATOMATE2-DOCS"
+        ],
+        "/tasks": [
+          "SRC-ATOMATE2-DOCS"
+        ],
+        "/languages": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/licenses": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/links": [
+          "SRC-ATOMATE2-DOCS",
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/related_resources": [
+          "SRC-ATOMATE2-DOCS"
+        ],
+        "/status": [
+          "SRC-ATOMATE2-DOCS",
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/limitations": [
+          "SRC-ATOMATE2-DOCS",
+          "SRC-ATOMATE2-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-ATOMATE2-DOCS",
+          "SRC-ATOMATE2-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-ATOMATE2-PACKAGE",
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/papers": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/archives": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/release": [
+          "SRC-ATOMATE2-REPO"
+        ],
+        "/environment": [
+          "SRC-ATOMATE2-DOCS",
+          "SRC-ATOMATE2-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-ATOMATE2-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "pyiron",
+      "project_name": "pyiron",
+      "owner_organization": "pyiron project",
+      "summary": "Integrated development environment for computational materials science that combines structures, simulation jobs, workflows, and data management.",
+      "canonical_repository": {
+        "url": "https://github.com/pyiron/pyiron",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "workflow engine",
+        "library",
+        "application"
+      ],
+      "broad_domains": [
+        "materials workflow and provenance",
+        "atomistic simulation"
+      ],
+      "tasks": [
+        "simulation workflow construction",
+        "job and data management",
+        "HPC execution"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "pyiron",
+          "url": "https://pypi.org/project/pyiron/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/pyiron/pyiron",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "External simulation codes, including proprietary backends such as VASP, retain their own access and license terms."
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda"
+        ],
+        "containers": "Tutorial and workshop environments are available separately",
+        "hpc_or_scheduler": "Server and scheduler configuration documented"
+      },
+      "links": {
+        "documentation": "https://pyiron.readthedocs.io/",
+        "issues": "https://github.com/pyiron/pyiron/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "pyiron: An integrated development environment for computational materials science",
+          "identifier": "doi:10.1016/j.commatsci.2018.07.043",
+          "url": "https://doi.org/10.1016/j.commatsci.2018.07.043"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pyiron",
+            "simulation workflow construction",
+            "job and data management"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pyiron",
+            "materials workflow and provenance",
+            "atomistic simulation"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pyiron",
+            "simulation workflow construction",
+            "job and data management"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pyiron",
+            "materials workflow and provenance",
+            "atomistic simulation"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "The pyiron organization contains multiple component repositories; this record is the top-level pyiron package, not the full organization.",
+        "Backend availability and licensing must be evaluated separately."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-PYIRON-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-PYIRON-REPO"
+        ],
+        "/summary": [
+          "SRC-PYIRON-DOCS",
+          "SRC-PYIRON-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-PYIRON-REPO"
+        ],
+        "/relationships": [
+          "SRC-PYIRON-REPO"
+        ],
+        "/repository_types": [
+          "SRC-PYIRON-DOCS",
+          "SRC-PYIRON-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-PYIRON-DOCS"
+        ],
+        "/tasks": [
+          "SRC-PYIRON-DOCS"
+        ],
+        "/languages": [
+          "SRC-PYIRON-REPO"
+        ],
+        "/licenses": [
+          "SRC-PYIRON-REPO"
+        ],
+        "/links": [
+          "SRC-PYIRON-DOCS",
+          "SRC-PYIRON-REPO"
+        ],
+        "/related_resources": [
+          "SRC-PYIRON-DOCS"
+        ],
+        "/status": [
+          "SRC-PYIRON-DOCS",
+          "SRC-PYIRON-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-PYIRON-DOCS",
+          "SRC-PYIRON-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-PYIRON-DOCS",
+          "SRC-PYIRON-REPO"
+        ],
+        "/packages": [
+          "SRC-PYIRON-PACKAGE",
+          "SRC-PYIRON-REPO"
+        ],
+        "/papers": [
+          "SRC-PYIRON-PAPER"
+        ],
+        "/archives": [
+          "SRC-PYIRON-REPO"
+        ],
+        "/release": [
+          "SRC-PYIRON-REPO"
+        ],
+        "/environment": [
+          "SRC-PYIRON-DOCS",
+          "SRC-PYIRON-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-PYIRON-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "pymatgen",
+      "project_name": "pymatgen",
+      "owner_organization": "Materials Project",
+      "summary": "Python library for materials analysis, crystal structures, electronic-structure inputs and outputs, and materials-data workflows.",
+      "canonical_repository": {
+        "url": "https://github.com/materialsproject/pymatgen",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "data tooling"
+      ],
+      "broad_domains": [
+        "crystal and structure analysis",
+        "materials informatics and machine learning"
+      ],
+      "tasks": [
+        "structure analysis",
+        "file-format parsing",
+        "phase and electronic analysis"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "Cython",
+          "C"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "pymatgen",
+          "url": "https://pypi.org/project/pymatgen/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "MIT",
+        "repository_license_url": "https://github.com/materialsproject/pymatgen",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Data retrieved from external providers, including Materials Project services, remains governed by provider terms.",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://pymatgen.org/",
+        "issues": "https://github.com/materialsproject/pymatgen/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "Python Materials Genomics (pymatgen): A robust, open-source python library for materials analysis",
+          "identifier": "doi:10.1016/j.commatsci.2012.10.028",
+          "url": "https://doi.org/10.1016/j.commatsci.2012.10.028"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pymatgen",
+            "structure analysis",
+            "file-format parsing"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pymatgen",
+            "crystal and structure analysis",
+            "materials informatics and machine learning"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pymatgen",
+            "structure analysis",
+            "file-format parsing"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pymatgen",
+            "crystal and structure analysis",
+            "materials informatics and machine learning"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "External databases and executable integrations have independent access, citation, and license conditions.",
+        "Parser support does not imply endorsement or redistribution rights for proprietary simulation outputs."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/summary": [
+          "SRC-PYMATGEN-DOCS",
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/relationships": [
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/repository_types": [
+          "SRC-PYMATGEN-DOCS",
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-PYMATGEN-DOCS"
+        ],
+        "/tasks": [
+          "SRC-PYMATGEN-DOCS"
+        ],
+        "/languages": [
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/licenses": [
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/links": [
+          "SRC-PYMATGEN-DOCS",
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/related_resources": [
+          "SRC-PYMATGEN-DOCS"
+        ],
+        "/status": [
+          "SRC-PYMATGEN-DOCS",
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-PYMATGEN-DOCS",
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-PYMATGEN-DOCS",
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/packages": [
+          "SRC-PYMATGEN-PACKAGE",
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/papers": [
+          "SRC-PYMATGEN-PAPER"
+        ],
+        "/archives": [
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/release": [
+          "SRC-PYMATGEN-REPO"
+        ],
+        "/environment": [
+          "SRC-PYMATGEN-DOCS",
+          "SRC-PYMATGEN-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-PYMATGEN-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "matminer",
+      "project_name": "matminer",
+      "owner_organization": "Hacking Materials",
+      "summary": "Python library for materials-data mining with featurizers, dataset access helpers, and data-retrieval utilities.",
+      "canonical_repository": {
+        "url": "https://github.com/hackingmaterials/matminer",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "dataset tooling",
+        "model tooling"
+      ],
+      "broad_domains": [
+        "materials informatics and machine learning",
+        "crystal and structure analysis"
+      ],
+      "tasks": [
+        "materials featurization",
+        "dataset access",
+        "property-prediction preparation"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "matminer",
+          "url": "https://pypi.org/project/matminer/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/hackingmaterials/matminer",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Bundled or downloadable datasets can have source-specific licenses and citation requirements distinct from the code.",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://hackingmaterials.lbl.gov/matminer/",
+        "issues": "https://github.com/hackingmaterials/matminer/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "Matminer: An open source toolkit for materials data mining",
+          "identifier": "doi:10.1016/j.commatsci.2018.05.018",
+          "url": "https://doi.org/10.1016/j.commatsci.2018.05.018"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "matminer",
+            "materials featurization",
+            "dataset access"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "matminer",
+            "materials informatics and machine learning",
+            "crystal and structure analysis"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "matminer",
+            "materials featurization",
+            "dataset access"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "matminer",
+            "materials informatics and machine learning",
+            "crystal and structure analysis"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Dataset access helpers do not transfer source-dataset licenses to matminer users.",
+        "Feature availability and semantics can vary by version and optional dependency."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-MATMINER-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-MATMINER-REPO"
+        ],
+        "/summary": [
+          "SRC-MATMINER-DOCS",
+          "SRC-MATMINER-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-MATMINER-REPO"
+        ],
+        "/relationships": [
+          "SRC-MATMINER-REPO"
+        ],
+        "/repository_types": [
+          "SRC-MATMINER-DOCS",
+          "SRC-MATMINER-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-MATMINER-DOCS"
+        ],
+        "/tasks": [
+          "SRC-MATMINER-DOCS"
+        ],
+        "/languages": [
+          "SRC-MATMINER-REPO"
+        ],
+        "/licenses": [
+          "SRC-MATMINER-REPO"
+        ],
+        "/links": [
+          "SRC-MATMINER-DOCS",
+          "SRC-MATMINER-REPO"
+        ],
+        "/related_resources": [
+          "SRC-MATMINER-DOCS"
+        ],
+        "/status": [
+          "SRC-MATMINER-DOCS",
+          "SRC-MATMINER-REPO"
+        ],
+        "/limitations": [
+          "SRC-MATMINER-DOCS",
+          "SRC-MATMINER-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-MATMINER-DOCS",
+          "SRC-MATMINER-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-MATMINER-PACKAGE",
+          "SRC-MATMINER-REPO"
+        ],
+        "/papers": [
+          "SRC-MATMINER-PAPER"
+        ],
+        "/archives": [
+          "SRC-MATMINER-REPO"
+        ],
+        "/release": [
+          "SRC-MATMINER-REPO"
+        ],
+        "/environment": [
+          "SRC-MATMINER-DOCS",
+          "SRC-MATMINER-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-MATMINER-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "dscribe",
+      "project_name": "DScribe",
+      "owner_organization": "SINGROUP",
+      "summary": "Python library for computing atomistic descriptors used in machine-learning models of materials and molecules.",
+      "canonical_repository": {
+        "url": "https://github.com/SINGROUP/dscribe",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "model tooling"
+      ],
+      "broad_domains": [
+        "materials informatics and machine learning",
+        "atomistic simulation"
+      ],
+      "tasks": [
+        "atomistic descriptors",
+        "feature generation",
+        "machine-learning preprocessing"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "C++"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "dscribe",
+          "url": "https://pypi.org/project/dscribe/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "Apache-2.0",
+        "repository_license_url": "https://github.com/SINGROUP/dscribe",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://singroup.github.io/dscribe/latest/",
+        "issues": "https://github.com/SINGROUP/dscribe/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "DScribe: Library of descriptors for machine learning in materials science",
+          "identifier": "doi:10.1016/j.cpc.2019.106949",
+          "url": "https://doi.org/10.1016/j.cpc.2019.106949"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "DScribe",
+            "atomistic descriptors",
+            "feature generation"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "DScribe",
+            "materials informatics and machine learning",
+            "atomistic simulation"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "DScribe",
+            "atomistic descriptors",
+            "feature generation"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "DScribe",
+            "materials informatics and machine learning",
+            "atomistic simulation"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Descriptor choices and hyperparameters materially affect invariance, scaling, and downstream model behavior.",
+        "The repository supplies representations, not validated property-prediction models."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/summary": [
+          "SRC-DSCRIBE-DOCS",
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/relationships": [
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/repository_types": [
+          "SRC-DSCRIBE-DOCS",
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-DSCRIBE-DOCS"
+        ],
+        "/tasks": [
+          "SRC-DSCRIBE-DOCS"
+        ],
+        "/languages": [
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/licenses": [
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/links": [
+          "SRC-DSCRIBE-DOCS",
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/related_resources": [
+          "SRC-DSCRIBE-DOCS"
+        ],
+        "/status": [
+          "SRC-DSCRIBE-DOCS",
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/limitations": [
+          "SRC-DSCRIBE-DOCS",
+          "SRC-DSCRIBE-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-DSCRIBE-DOCS",
+          "SRC-DSCRIBE-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-DSCRIBE-PACKAGE",
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/papers": [
+          "SRC-DSCRIBE-PAPER"
+        ],
+        "/archives": [
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/release": [
+          "SRC-DSCRIBE-REPO"
+        ],
+        "/environment": [
+          "SRC-DSCRIBE-DOCS",
+          "SRC-DSCRIBE-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-DSCRIBE-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "mace",
+      "project_name": "MACE",
+      "owner_organization": "ACEsuit",
+      "summary": "Equivariant message-passing framework for training and using machine-learning interatomic potentials.",
+      "canonical_repository": {
+        "url": "https://github.com/ACEsuit/mace",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "model tooling",
+        "library",
+        "application"
+      ],
+      "broad_domains": [
+        "materials informatics and machine learning",
+        "atomistic simulation"
+      ],
+      "tasks": [
+        "interatomic-potential training",
+        "force and energy prediction",
+        "molecular dynamics integration"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "mace-torch",
+          "url": "https://pypi.org/project/mace-torch/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "MIT",
+        "repository_license_url": "https://github.com/ACEsuit/mace",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Pretrained MACE model families can use licenses and usage terms distinct from the MIT-licensed source repository; inspect each model distribution.",
+        "dependency_license_note": "Unknown"
+      },
+      "release": {
+        "version": "0.3.16",
+        "date": "2026-05-10",
+        "url": "https://github.com/ACEsuit/mace/releases/tag/v0.3.16"
+      },
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Accelerator/distributed execution is environment-dependent"
+      },
+      "links": {
+        "documentation": "https://mace-docs.readthedocs.io/",
+        "issues": "https://github.com/ACEsuit/mace/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields",
+          "identifier": "arXiv:2206.07697",
+          "url": "https://arxiv.org/abs/2206.07697"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "MACE",
+            "interatomic-potential training",
+            "force and energy prediction"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "MACE",
+            "materials informatics and machine learning",
+            "atomistic simulation"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "MACE",
+            "interatomic-potential training",
+            "force and energy prediction"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "MACE",
+            "materials informatics and machine learning",
+            "atomistic simulation"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Pretrained checkpoints are not automatically covered by the repository code license.",
+        "Accuracy and transferability are model-, dataset-, chemistry-, and simulation-regime-specific."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-MACE-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-MACE-REPO"
+        ],
+        "/summary": [
+          "SRC-MACE-DOCS",
+          "SRC-MACE-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-MACE-REPO"
+        ],
+        "/relationships": [
+          "SRC-MACE-REPO"
+        ],
+        "/repository_types": [
+          "SRC-MACE-DOCS",
+          "SRC-MACE-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-MACE-DOCS"
+        ],
+        "/tasks": [
+          "SRC-MACE-DOCS"
+        ],
+        "/languages": [
+          "SRC-MACE-REPO"
+        ],
+        "/licenses": [
+          "SRC-MACE-REPO"
+        ],
+        "/links": [
+          "SRC-MACE-DOCS",
+          "SRC-MACE-REPO"
+        ],
+        "/related_resources": [
+          "SRC-MACE-DOCS"
+        ],
+        "/status": [
+          "SRC-MACE-DOCS",
+          "SRC-MACE-REPO"
+        ],
+        "/limitations": [
+          "SRC-MACE-DOCS",
+          "SRC-MACE-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-MACE-DOCS",
+          "SRC-MACE-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-MACE-PACKAGE",
+          "SRC-MACE-REPO"
+        ],
+        "/papers": [
+          "SRC-MACE-PAPER"
+        ],
+        "/archives": [
+          "SRC-MACE-REPO"
+        ],
+        "/release": [
+          "SRC-MACE-PACKAGE",
+          "SRC-MACE-REPO"
+        ],
+        "/environment": [
+          "SRC-MACE-DOCS",
+          "SRC-MACE-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-MACE-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "nequip",
+      "project_name": "NequIP",
+      "owner_organization": "MIR Group",
+      "summary": "E(3)-equivariant neural-network framework for learning interatomic potentials from atomistic data.",
+      "canonical_repository": {
+        "url": "https://github.com/mir-group/nequip",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "model tooling",
+        "library"
+      ],
+      "broad_domains": [
+        "materials informatics and machine learning",
+        "atomistic simulation"
+      ],
+      "tasks": [
+        "interatomic-potential training",
+        "force and energy prediction",
+        "equivariant representation learning"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "nequip",
+          "url": "https://pypi.org/project/nequip/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "MIT",
+        "repository_license_url": "https://github.com/mir-group/nequip",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "User-trained and third-party checkpoint licenses and dataset terms must be recorded separately.",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Accelerator/distributed execution is environment-dependent"
+      },
+      "links": {
+        "documentation": "https://nequip.readthedocs.io/",
+        "issues": "https://github.com/mir-group/nequip/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials",
+          "identifier": "doi:10.1038/s41467-022-29939-5",
+          "url": "https://doi.org/10.1038/s41467-022-29939-5"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "NequIP",
+            "interatomic-potential training",
+            "force and energy prediction"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "NequIP",
+            "materials informatics and machine learning",
+            "atomistic simulation"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "NequIP",
+            "interatomic-potential training",
+            "force and energy prediction"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "NequIP",
+            "materials informatics and machine learning",
+            "atomistic simulation"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "The source license does not establish rights to training data or third-party checkpoints.",
+        "Reported model performance is not portable without matching splits, chemistry, and simulation conditions."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-NEQUIP-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-NEQUIP-REPO"
+        ],
+        "/summary": [
+          "SRC-NEQUIP-DOCS",
+          "SRC-NEQUIP-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-NEQUIP-REPO"
+        ],
+        "/relationships": [
+          "SRC-NEQUIP-REPO"
+        ],
+        "/repository_types": [
+          "SRC-NEQUIP-DOCS",
+          "SRC-NEQUIP-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-NEQUIP-DOCS"
+        ],
+        "/tasks": [
+          "SRC-NEQUIP-DOCS"
+        ],
+        "/languages": [
+          "SRC-NEQUIP-REPO"
+        ],
+        "/licenses": [
+          "SRC-NEQUIP-REPO"
+        ],
+        "/links": [
+          "SRC-NEQUIP-DOCS",
+          "SRC-NEQUIP-REPO"
+        ],
+        "/related_resources": [
+          "SRC-NEQUIP-DOCS"
+        ],
+        "/status": [
+          "SRC-NEQUIP-DOCS",
+          "SRC-NEQUIP-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-NEQUIP-DOCS",
+          "SRC-NEQUIP-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-NEQUIP-DOCS",
+          "SRC-NEQUIP-REPO"
+        ],
+        "/packages": [
+          "SRC-NEQUIP-PACKAGE",
+          "SRC-NEQUIP-REPO"
+        ],
+        "/papers": [
+          "SRC-NEQUIP-PAPER"
+        ],
+        "/archives": [
+          "SRC-NEQUIP-REPO"
+        ],
+        "/release": [
+          "SRC-NEQUIP-REPO"
+        ],
+        "/environment": [
+          "SRC-NEQUIP-DOCS",
+          "SRC-NEQUIP-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-NEQUIP-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "chgnet",
+      "project_name": "CHGNet",
+      "owner_organization": "Ceder Group Hub",
+      "summary": "Crystal graph neural-network package for energy, force, stress, and magnetic-moment prediction in inorganic materials.",
+      "canonical_repository": {
+        "url": "https://github.com/CederGroupHub/chgnet",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": [
+          {
+            "label": "MatGL",
+            "url": "https://github.com/materialsvirtuallab/matgl",
+            "relationship_type": "development_successor",
+            "evidence_note": "The CHGNet project metadata directs future model development toward MatGL while retaining this repository for CHGNet."
+          }
+        ]
+      },
+      "repository_types": [
+        "model tooling",
+        "library",
+        "pretrained model distribution"
+      ],
+      "broad_domains": [
+        "materials informatics and machine learning",
+        "crystal and structure analysis"
+      ],
+      "tasks": [
+        "property prediction",
+        "interatomic potential inference",
+        "structure relaxation"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "chgnet",
+          "url": "https://pypi.org/project/chgnet/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/CederGroupHub/chgnet",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Bundled pretrained weights and their training-data provenance must be reviewed separately from the repository source license.",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Accelerator execution supported through the ML stack"
+      },
+      "links": {
+        "documentation": "https://chgnet.lbl.gov/",
+        "issues": "https://github.com/CederGroupHub/chgnet/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "CHGNet as a pretrained universal neural network potential for charge-informed atomistic modelling",
+          "identifier": "doi:10.1038/s42256-023-00716-3",
+          "url": "https://doi.org/10.1038/s42256-023-00716-3"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CHGNet",
+            "property prediction",
+            "interatomic potential inference"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CHGNet",
+            "materials informatics and machine learning",
+            "crystal and structure analysis"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CHGNet",
+            "property prediction",
+            "interatomic potential inference"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CHGNet",
+            "materials informatics and machine learning",
+            "crystal and structure analysis"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "limited",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "The upstream indicates a development transition toward MatGL; this record remains for the CHGNet code and model lineage.",
+        "Checkpoint and training-data terms require separate review."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-CHGNET-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-CHGNET-REPO"
+        ],
+        "/summary": [
+          "SRC-CHGNET-DOCS",
+          "SRC-CHGNET-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-CHGNET-REPO"
+        ],
+        "/relationships": [
+          "SRC-CHGNET-REPO"
+        ],
+        "/repository_types": [
+          "SRC-CHGNET-DOCS",
+          "SRC-CHGNET-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-CHGNET-DOCS"
+        ],
+        "/tasks": [
+          "SRC-CHGNET-DOCS"
+        ],
+        "/languages": [
+          "SRC-CHGNET-REPO"
+        ],
+        "/licenses": [
+          "SRC-CHGNET-REPO"
+        ],
+        "/links": [
+          "SRC-CHGNET-DOCS",
+          "SRC-CHGNET-REPO"
+        ],
+        "/related_resources": [
+          "SRC-CHGNET-DOCS"
+        ],
+        "/status": [
+          "SRC-CHGNET-DOCS",
+          "SRC-CHGNET-REPO"
+        ],
+        "/limitations": [
+          "SRC-CHGNET-DOCS",
+          "SRC-CHGNET-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-CHGNET-DOCS",
+          "SRC-CHGNET-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-CHGNET-PACKAGE",
+          "SRC-CHGNET-REPO"
+        ],
+        "/papers": [
+          "SRC-CHGNET-PAPER"
+        ],
+        "/archives": [
+          "SRC-CHGNET-REPO"
+        ],
+        "/release": [
+          "SRC-CHGNET-REPO"
+        ],
+        "/environment": [
+          "SRC-CHGNET-DOCS",
+          "SRC-CHGNET-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-CHGNET-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "phonopy",
+      "project_name": "phonopy",
+      "owner_organization": "phonopy project",
+      "summary": "Open-source package for harmonic and quasi-harmonic phonon calculations from force data produced by external calculators.",
+      "canonical_repository": {
+        "url": "https://github.com/phonopy/phonopy",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "application",
+        "library"
+      ],
+      "broad_domains": [
+        "phonons and lattice dynamics",
+        "crystal and structure analysis"
+      ],
+      "tasks": [
+        "phonon calculation",
+        "thermal properties",
+        "force-constant analysis"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "C"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "phonopy",
+          "url": "https://pypi.org/project/phonopy/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/phonopy/phonopy",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Force calculations are performed by external electronic-structure or atomistic codes with separate terms."
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "External force-calculator workflow dependent"
+      },
+      "links": {
+        "documentation": "https://phonopy.github.io/phonopy/",
+        "issues": "https://github.com/phonopy/phonopy/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "Implementation strategies in phonopy and phono3py",
+          "identifier": "doi:10.1088/1361-648X/acd831",
+          "url": "https://doi.org/10.1088/1361-648X/acd831"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "phonopy",
+            "phonon calculation",
+            "thermal properties"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "phonopy",
+            "phonons and lattice dynamics",
+            "crystal and structure analysis"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "phonopy",
+            "phonon calculation",
+            "thermal properties"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "phonopy",
+            "phonons and lattice dynamics",
+            "crystal and structure analysis"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Phonopy consumes force data from external calculators and does not license or validate those calculations.",
+        "Reproducibility depends on calculator settings, supercells, displacements, and force provenance."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-PHONOPY-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-PHONOPY-REPO"
+        ],
+        "/summary": [
+          "SRC-PHONOPY-DOCS",
+          "SRC-PHONOPY-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-PHONOPY-REPO"
+        ],
+        "/relationships": [
+          "SRC-PHONOPY-REPO"
+        ],
+        "/repository_types": [
+          "SRC-PHONOPY-DOCS",
+          "SRC-PHONOPY-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-PHONOPY-DOCS"
+        ],
+        "/tasks": [
+          "SRC-PHONOPY-DOCS"
+        ],
+        "/languages": [
+          "SRC-PHONOPY-REPO"
+        ],
+        "/licenses": [
+          "SRC-PHONOPY-REPO"
+        ],
+        "/links": [
+          "SRC-PHONOPY-DOCS",
+          "SRC-PHONOPY-REPO"
+        ],
+        "/related_resources": [
+          "SRC-PHONOPY-DOCS"
+        ],
+        "/status": [
+          "SRC-PHONOPY-DOCS",
+          "SRC-PHONOPY-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-PHONOPY-DOCS",
+          "SRC-PHONOPY-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-PHONOPY-DOCS",
+          "SRC-PHONOPY-REPO"
+        ],
+        "/packages": [
+          "SRC-PHONOPY-PACKAGE",
+          "SRC-PHONOPY-REPO"
+        ],
+        "/papers": [
+          "SRC-PHONOPY-PAPER"
+        ],
+        "/archives": [
+          "SRC-PHONOPY-REPO"
+        ],
+        "/release": [
+          "SRC-PHONOPY-REPO"
+        ],
+        "/environment": [
+          "SRC-PHONOPY-DOCS",
+          "SRC-PHONOPY-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-PHONOPY-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "spglib",
+      "project_name": "spglib",
+      "owner_organization": "spglib project",
+      "summary": "C library with language bindings for crystal-symmetry search, standardization, and space-group analysis.",
+      "canonical_repository": {
+        "url": "https://github.com/spglib/spglib",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "specification tooling"
+      ],
+      "broad_domains": [
+        "crystal and structure analysis",
+        "materials data standards and FAIR tooling"
+      ],
+      "tasks": [
+        "crystal symmetry detection",
+        "cell standardization",
+        "space-group analysis"
+      ],
+      "languages": {
+        "primary": "C",
+        "secondary": [
+          "Python",
+          "Fortran",
+          "CMake"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "spglib",
+          "url": "https://pypi.org/project/spglib/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/spglib/spglib",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://spglib.readthedocs.io/",
+        "issues": "https://github.com/spglib/spglib/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "Spglib: a software library for crystal symmetry search",
+          "identifier": "doi:10.1080/27660400.2024.2384822",
+          "url": "https://doi.org/10.1080/27660400.2024.2384822"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "spglib",
+            "crystal symmetry detection",
+            "cell standardization"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "spglib",
+            "crystal and structure analysis",
+            "materials data standards and FAIR tooling"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "spglib",
+            "crystal symmetry detection",
+            "cell standardization"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "spglib",
+            "crystal and structure analysis",
+            "materials data standards and FAIR tooling"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Tolerance choices and numerical precision can change identified symmetry.",
+        "The library provides symmetry analysis, not a certification of crystallographic data quality."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-SPGLIB-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-SPGLIB-REPO"
+        ],
+        "/summary": [
+          "SRC-SPGLIB-DOCS",
+          "SRC-SPGLIB-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-SPGLIB-REPO"
+        ],
+        "/relationships": [
+          "SRC-SPGLIB-REPO"
+        ],
+        "/repository_types": [
+          "SRC-SPGLIB-DOCS",
+          "SRC-SPGLIB-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-SPGLIB-DOCS"
+        ],
+        "/tasks": [
+          "SRC-SPGLIB-DOCS"
+        ],
+        "/languages": [
+          "SRC-SPGLIB-REPO"
+        ],
+        "/licenses": [
+          "SRC-SPGLIB-REPO"
+        ],
+        "/links": [
+          "SRC-SPGLIB-DOCS",
+          "SRC-SPGLIB-REPO"
+        ],
+        "/related_resources": [
+          "SRC-SPGLIB-DOCS"
+        ],
+        "/status": [
+          "SRC-SPGLIB-DOCS",
+          "SRC-SPGLIB-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-SPGLIB-DOCS",
+          "SRC-SPGLIB-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-SPGLIB-DOCS",
+          "SRC-SPGLIB-REPO"
+        ],
+        "/packages": [
+          "SRC-SPGLIB-PACKAGE",
+          "SRC-SPGLIB-REPO"
+        ],
+        "/papers": [
+          "SRC-SPGLIB-PAPER"
+        ],
+        "/archives": [
+          "SRC-SPGLIB-REPO"
+        ],
+        "/release": [
+          "SRC-SPGLIB-REPO"
+        ],
+        "/environment": [
+          "SRC-SPGLIB-DOCS",
+          "SRC-SPGLIB-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-SPGLIB-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "pycalphad",
+      "project_name": "pycalphad",
+      "owner_organization": "pycalphad project",
+      "summary": "Python library for CALPHAD thermodynamic modelling, equilibrium calculation, and phase-diagram computation.",
+      "canonical_repository": {
+        "url": "https://github.com/pycalphad/pycalphad",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "application"
+      ],
+      "broad_domains": [
+        "thermodynamics and phase diagrams",
+        "materials informatics and machine learning"
+      ],
+      "tasks": [
+        "thermodynamic equilibrium",
+        "phase-diagram calculation",
+        "CALPHAD modelling"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "Cython"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "pycalphad",
+          "url": "https://pypi.org/project/pycalphad/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "MIT",
+        "repository_license_url": "https://github.com/pycalphad/pycalphad",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Thermodynamic database files may be proprietary, restricted, or separately licensed; the MIT code license does not cover them.",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://pycalphad.org/docs/latest/",
+        "issues": "https://github.com/pycalphad/pycalphad/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "pycalphad: CALPHAD-based Computational Thermodynamics in Python",
+          "identifier": "doi:10.5334/jors.140",
+          "url": "https://doi.org/10.5334/jors.140"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pycalphad",
+            "thermodynamic equilibrium",
+            "phase-diagram calculation"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pycalphad",
+            "thermodynamics and phase diagrams",
+            "materials informatics and machine learning"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pycalphad",
+            "thermodynamic equilibrium",
+            "phase-diagram calculation"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pycalphad",
+            "thermodynamics and phase diagrams",
+            "materials informatics and machine learning"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Thermodynamic databases are independent inputs with their own access and redistribution terms.",
+        "Results depend on database assessment scope, model selection, and numerical settings."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/summary": [
+          "SRC-PYCALPHAD-DOCS",
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/relationships": [
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/repository_types": [
+          "SRC-PYCALPHAD-DOCS",
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-PYCALPHAD-DOCS"
+        ],
+        "/tasks": [
+          "SRC-PYCALPHAD-DOCS"
+        ],
+        "/languages": [
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/licenses": [
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/links": [
+          "SRC-PYCALPHAD-DOCS",
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/related_resources": [
+          "SRC-PYCALPHAD-DOCS"
+        ],
+        "/status": [
+          "SRC-PYCALPHAD-DOCS",
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-PYCALPHAD-DOCS",
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-PYCALPHAD-DOCS",
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/packages": [
+          "SRC-PYCALPHAD-PACKAGE",
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/papers": [
+          "SRC-PYCALPHAD-PAPER"
+        ],
+        "/archives": [
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/release": [
+          "SRC-PYCALPHAD-REPO"
+        ],
+        "/environment": [
+          "SRC-PYCALPHAD-DOCS",
+          "SRC-PYCALPHAD-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-PYCALPHAD-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "pybamm",
+      "project_name": "PyBaMM",
+      "owner_organization": "PyBaMM Team",
+      "summary": "Python battery-modelling package for physics-based electrochemical models, simulation, parameter studies, and analysis.",
+      "canonical_repository": {
+        "url": "https://github.com/pybamm-team/PyBaMM",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "application"
+      ],
+      "broad_domains": [
+        "batteries and electrochemistry",
+        "materials workflow and provenance"
+      ],
+      "tasks": [
+        "battery simulation",
+        "electrochemical modelling",
+        "parameter studies"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "C++"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "pybamm",
+          "url": "https://pypi.org/project/pybamm/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/pybamm-team/PyBaMM",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Parameter sets and experimental datasets can have independent provenance, citation, and usage terms.",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://docs.pybamm.org/",
+        "issues": "https://github.com/pybamm-team/PyBaMM/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "PyBaMM: Python Battery Mathematical Modelling",
+          "identifier": "doi:10.5334/jors.309",
+          "url": "https://doi.org/10.5334/jors.309"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "PyBaMM",
+            "battery simulation",
+            "electrochemical modelling"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "PyBaMM",
+            "batteries and electrochemistry",
+            "materials workflow and provenance"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "PyBaMM",
+            "battery simulation",
+            "electrochemical modelling"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "PyBaMM",
+            "batteries and electrochemistry",
+            "materials workflow and provenance"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Parameter-set provenance and experimental comparability must be evaluated separately from code availability.",
+        "Simulation output is not evidence of device safety, performance, or validation."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-PYBAMM-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-PYBAMM-REPO"
+        ],
+        "/summary": [
+          "SRC-PYBAMM-DOCS",
+          "SRC-PYBAMM-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-PYBAMM-REPO"
+        ],
+        "/relationships": [
+          "SRC-PYBAMM-REPO"
+        ],
+        "/repository_types": [
+          "SRC-PYBAMM-DOCS",
+          "SRC-PYBAMM-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-PYBAMM-DOCS"
+        ],
+        "/tasks": [
+          "SRC-PYBAMM-DOCS"
+        ],
+        "/languages": [
+          "SRC-PYBAMM-REPO"
+        ],
+        "/licenses": [
+          "SRC-PYBAMM-REPO"
+        ],
+        "/links": [
+          "SRC-PYBAMM-DOCS",
+          "SRC-PYBAMM-REPO"
+        ],
+        "/related_resources": [
+          "SRC-PYBAMM-DOCS"
+        ],
+        "/status": [
+          "SRC-PYBAMM-DOCS",
+          "SRC-PYBAMM-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-PYBAMM-DOCS",
+          "SRC-PYBAMM-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-PYBAMM-DOCS",
+          "SRC-PYBAMM-REPO"
+        ],
+        "/packages": [
+          "SRC-PYBAMM-PACKAGE",
+          "SRC-PYBAMM-REPO"
+        ],
+        "/papers": [
+          "SRC-PYBAMM-PAPER"
+        ],
+        "/archives": [
+          "SRC-PYBAMM-REPO"
+        ],
+        "/release": [
+          "SRC-PYBAMM-REPO"
+        ],
+        "/environment": [
+          "SRC-PYBAMM-DOCS",
+          "SRC-PYBAMM-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-PYBAMM-REPO"
+        ]
+      },
+      "slices": [
+        "battery"
+      ]
+    },
+    {
+      "id": "radonpy",
+      "project_name": "RadonPy",
+      "owner_organization": "RadonPy project",
+      "summary": "Python automation framework for polymer-property calculations using molecular simulation and related cheminformatics tooling.",
+      "canonical_repository": {
+        "url": "https://github.com/RadonPy/RadonPy",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "workflow collection",
+        "library",
+        "application"
+      ],
+      "broad_domains": [
+        "soft matter and polymers",
+        "materials workflow and provenance"
+      ],
+      "tasks": [
+        "polymer modelling",
+        "simulation automation",
+        "property calculation"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": "Unknown",
+      "licenses": {
+        "repository_spdx": "BSD-3-Clause",
+        "repository_license_url": "https://github.com/RadonPy/RadonPy",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "External molecular-dynamics and quantum-chemistry tools retain separate licenses and installation constraints."
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "source installation",
+          "Conda environment guidance"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "External molecular-dynamics execution is environment-dependent"
+      },
+      "links": {
+        "documentation": "https://radonpy.readthedocs.io/",
+        "issues": "https://github.com/RadonPy/RadonPy/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "RadonPy: automated physical property calculation using all-atom classical molecular dynamics simulations for polymer informatics",
+          "identifier": "doi:10.1038/s41524-022-00906-4",
+          "url": "https://doi.org/10.1038/s41524-022-00906-4"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "RadonPy",
+            "polymer modelling",
+            "simulation automation"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "RadonPy",
+            "soft matter and polymers",
+            "materials workflow and provenance"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "RadonPy",
+            "polymer modelling",
+            "simulation automation"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "RadonPy",
+            "soft matter and polymers",
+            "materials workflow and provenance"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "The workflow depends on external simulators, force fields, and chemistry data with separate terms.",
+        "Calculated polymer properties depend on protocol, force field, sampling, and system preparation."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/summary": [
+          "SRC-RADONPY-DOCS",
+          "SRC-RADONPY-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/relationships": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/repository_types": [
+          "SRC-RADONPY-DOCS",
+          "SRC-RADONPY-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-RADONPY-DOCS"
+        ],
+        "/tasks": [
+          "SRC-RADONPY-DOCS"
+        ],
+        "/languages": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/licenses": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/links": [
+          "SRC-RADONPY-DOCS",
+          "SRC-RADONPY-REPO"
+        ],
+        "/related_resources": [
+          "SRC-RADONPY-DOCS"
+        ],
+        "/status": [
+          "SRC-RADONPY-DOCS",
+          "SRC-RADONPY-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-RADONPY-DOCS",
+          "SRC-RADONPY-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-RADONPY-DOCS",
+          "SRC-RADONPY-REPO"
+        ],
+        "/packages": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/papers": [
+          "SRC-RADONPY-PAPER"
+        ],
+        "/archives": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/release": [
+          "SRC-RADONPY-REPO"
+        ],
+        "/environment": [
+          "SRC-RADONPY-DOCS"
+        ],
+        "/citation_metadata": [
+          "SRC-RADONPY-REPO"
+        ]
+      },
+      "slices": [
+        "chemistry"
+      ]
+    },
+    {
+      "id": "catmap",
+      "project_name": "CatMAP",
+      "owner_organization": "SUNCAT Center",
+      "summary": "Python package for descriptor-based microkinetic modelling and mapping of heterogeneous catalysis trends.",
+      "canonical_repository": {
+        "url": "https://github.com/SUNCAT-Center/catmap",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "application",
+        "library"
+      ],
+      "broad_domains": [
+        "catalysis and surfaces",
+        "thermodynamics and phase diagrams"
+      ],
+      "tasks": [
+        "microkinetic modelling",
+        "catalytic trend mapping",
+        "reaction-network analysis"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": "Unknown",
+      "licenses": {
+        "repository_spdx": "GPL-3.0-only",
+        "repository_license_url": "https://github.com/SUNCAT-Center/catmap",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "source installation"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://catmap.readthedocs.io/",
+        "issues": "https://github.com/SUNCAT-Center/catmap/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "CatMAP: A Software Package for Descriptor-Based Microkinetic Mapping of Catalytic Trends",
+          "identifier": "doi:10.1007/s10562-015-1495-6",
+          "url": "https://doi.org/10.1007/s10562-015-1495-6"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CatMAP",
+            "microkinetic modelling",
+            "catalytic trend mapping"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CatMAP",
+            "catalysis and surfaces",
+            "thermodynamics and phase diagrams"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CatMAP",
+            "microkinetic modelling",
+            "catalytic trend mapping"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "CatMAP",
+            "catalysis and surfaces",
+            "thermodynamics and phase diagrams"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "Unknown",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "The authoritative documentation reviewed still describes source-based installation; a current durable package release was not verified.",
+        "Model results depend on reaction networks, energetic inputs, scaling relations, and thermodynamic assumptions."
+      ],
+      "verification_confidence": "medium",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/summary": [
+          "SRC-CATMAP-DOCS",
+          "SRC-CATMAP-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/relationships": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/repository_types": [
+          "SRC-CATMAP-DOCS",
+          "SRC-CATMAP-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-CATMAP-DOCS"
+        ],
+        "/tasks": [
+          "SRC-CATMAP-DOCS"
+        ],
+        "/languages": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/licenses": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/links": [
+          "SRC-CATMAP-DOCS",
+          "SRC-CATMAP-REPO"
+        ],
+        "/related_resources": [
+          "SRC-CATMAP-DOCS"
+        ],
+        "/status": [
+          "SRC-CATMAP-DOCS",
+          "SRC-CATMAP-REPO"
+        ],
+        "/limitations": [
+          "SRC-CATMAP-DOCS",
+          "SRC-CATMAP-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-CATMAP-DOCS",
+          "SRC-CATMAP-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/papers": [
+          "SRC-CATMAP-PAPER"
+        ],
+        "/archives": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/release": [
+          "SRC-CATMAP-REPO"
+        ],
+        "/environment": [
+          "SRC-CATMAP-DOCS"
+        ],
+        "/citation_metadata": [
+          "SRC-CATMAP-REPO"
+        ]
+      },
+      "slices": [
+        "chemistry"
+      ]
+    },
+    {
+      "id": "hyperspy",
+      "project_name": "HyperSpy",
+      "owner_organization": "HyperSpy developers",
+      "summary": "Python library for interactive and programmatic analysis of multidimensional spectroscopy and microscopy datasets.",
+      "canonical_repository": {
+        "url": "https://github.com/hyperspy/hyperspy",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "application",
+        "data tooling"
+      ],
+      "broad_domains": [
+        "characterization and microscopy",
+        "materials informatics and machine learning"
+      ],
+      "tasks": [
+        "multidimensional signal analysis",
+        "spectroscopy analysis",
+        "microscopy data processing"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "hyperspy",
+          "url": "https://pypi.org/project/hyperspy/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "GPL-3.0-or-later",
+        "repository_license_url": "https://github.com/hyperspy/hyperspy",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Input microscopy and spectroscopy data remain governed by their originating facilities, contributors, and repositories.",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://hyperspy.org/hyperspy-doc/current/",
+        "issues": "https://github.com/hyperspy/hyperspy/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": "Unknown",
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "HyperSpy",
+            "multidimensional signal analysis",
+            "spectroscopy analysis"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "HyperSpy",
+            "characterization and microscopy",
+            "materials informatics and machine learning"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "HyperSpy",
+            "multidimensional signal analysis",
+            "spectroscopy analysis"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "HyperSpy",
+            "characterization and microscopy",
+            "materials informatics and machine learning"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "File-reader and plugin support can be version- and vendor-format-specific.",
+        "The repository license does not determine rights in analysed experimental data."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/summary": [
+          "SRC-HYPERSPY-DOCS",
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/relationships": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/repository_types": [
+          "SRC-HYPERSPY-DOCS",
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-HYPERSPY-DOCS"
+        ],
+        "/tasks": [
+          "SRC-HYPERSPY-DOCS"
+        ],
+        "/languages": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/licenses": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/links": [
+          "SRC-HYPERSPY-DOCS",
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/related_resources": [
+          "SRC-HYPERSPY-DOCS"
+        ],
+        "/status": [
+          "SRC-HYPERSPY-DOCS",
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/limitations": [
+          "SRC-HYPERSPY-DOCS",
+          "SRC-HYPERSPY-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-HYPERSPY-DOCS",
+          "SRC-HYPERSPY-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-HYPERSPY-PACKAGE",
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/papers": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/archives": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/release": [
+          "SRC-HYPERSPY-REPO"
+        ],
+        "/environment": [
+          "SRC-HYPERSPY-DOCS",
+          "SRC-HYPERSPY-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-HYPERSPY-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "pyfai",
+      "project_name": "pyFAI",
+      "owner_organization": "silx-kit",
+      "summary": "Python library for azimuthal integration and geometry calibration of X-ray scattering and diffraction detector data.",
+      "canonical_repository": {
+        "url": "https://github.com/silx-kit/pyFAI",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "library",
+        "application",
+        "data tooling"
+      ],
+      "broad_domains": [
+        "characterization and microscopy",
+        "crystal and structure analysis"
+      ],
+      "tasks": [
+        "azimuthal integration",
+        "diffraction calibration",
+        "detector-data reduction"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "Cython",
+          "OpenCL"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "pyFAI",
+          "url": "https://pypi.org/project/pyFAI/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "MIT",
+        "repository_license_url": "https://github.com/silx-kit/pyFAI",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Unknown",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": {
+        "version": "2026.5.0",
+        "date": "2026-05-19",
+        "url": "https://pypi.org/project/pyFAI/2026.5.0/"
+      },
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "GPU/OpenCL availability is environment-dependent"
+      },
+      "links": {
+        "documentation": "https://pyfai.readthedocs.io/",
+        "issues": "https://github.com/silx-kit/pyFAI/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "PyFAI, a versatile library for azimuthal regrouping",
+          "identifier": "doi:10.1088/1742-6596/425/20/202012",
+          "url": "https://doi.org/10.1088/1742-6596/425/20/202012"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pyFAI",
+            "azimuthal integration",
+            "diffraction calibration"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pyFAI",
+            "characterization and microscopy",
+            "crystal and structure analysis"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pyFAI",
+            "azimuthal integration",
+            "diffraction calibration"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "pyFAI",
+            "characterization and microscopy",
+            "crystal and structure analysis"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "Calibration geometry and detector corrections materially affect reduced data.",
+        "Experimental data rights and beamline-specific procedures are outside the code license."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-PYFAI-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-PYFAI-REPO"
+        ],
+        "/summary": [
+          "SRC-PYFAI-DOCS",
+          "SRC-PYFAI-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-PYFAI-REPO"
+        ],
+        "/relationships": [
+          "SRC-PYFAI-REPO"
+        ],
+        "/repository_types": [
+          "SRC-PYFAI-DOCS",
+          "SRC-PYFAI-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-PYFAI-DOCS"
+        ],
+        "/tasks": [
+          "SRC-PYFAI-DOCS"
+        ],
+        "/languages": [
+          "SRC-PYFAI-REPO"
+        ],
+        "/licenses": [
+          "SRC-PYFAI-REPO"
+        ],
+        "/links": [
+          "SRC-PYFAI-DOCS",
+          "SRC-PYFAI-REPO"
+        ],
+        "/related_resources": [
+          "SRC-PYFAI-DOCS"
+        ],
+        "/status": [
+          "SRC-PYFAI-DOCS",
+          "SRC-PYFAI-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-PYFAI-DOCS",
+          "SRC-PYFAI-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-PYFAI-DOCS",
+          "SRC-PYFAI-REPO"
+        ],
+        "/packages": [
+          "SRC-PYFAI-PACKAGE",
+          "SRC-PYFAI-REPO"
+        ],
+        "/papers": [
+          "SRC-PYFAI-PAPER"
+        ],
+        "/archives": [
+          "SRC-PYFAI-REPO"
+        ],
+        "/release": [
+          "SRC-PYFAI-PACKAGE",
+          "SRC-PYFAI-REPO"
+        ],
+        "/environment": [
+          "SRC-PYFAI-DOCS",
+          "SRC-PYFAI-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-PYFAI-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "libertem",
+      "project_name": "LiberTEM",
+      "owner_organization": "LiberTEM project",
+      "summary": "Distributed processing platform for large multidimensional detector datasets, with a strong focus on transmission electron microscopy.",
+      "canonical_repository": {
+        "url": "https://github.com/LiberTEM/LiberTEM",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "application",
+        "library",
+        "data tooling"
+      ],
+      "broad_domains": [
+        "characterization and microscopy",
+        "materials workflow and provenance"
+      ],
+      "tasks": [
+        "distributed detector-data processing",
+        "electron microscopy analysis",
+        "interactive data reduction"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": [
+          "JavaScript"
+        ]
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "libertem",
+          "url": "https://pypi.org/project/libertem/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "MIT",
+        "repository_license_url": "https://github.com/LiberTEM/LiberTEM",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Detector datasets remain subject to facility, contributor, and repository terms.",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": {
+        "version": "0.16.0",
+        "date": "2026-05-19",
+        "url": "https://pypi.org/project/libertem/0.16.0/"
+      },
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "Conda",
+          "containers"
+        ],
+        "containers": "Deployment documentation includes container-oriented options",
+        "hpc_or_scheduler": "Distributed execution environment documented"
+      },
+      "links": {
+        "documentation": "https://libertem.github.io/LiberTEM/",
+        "issues": "https://github.com/LiberTEM/LiberTEM/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": "Unknown",
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": [
+        {
+          "kind": "Zenodo release archive",
+          "persistent_id": "doi:10.5281/zenodo.20283773",
+          "url": "https://doi.org/10.5281/zenodo.20283773",
+          "scope": "Archived release 0.16.0; the DOI does not by itself identify every later repository state."
+        }
+      ],
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "LiberTEM",
+            "distributed detector-data processing",
+            "electron microscopy analysis"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "LiberTEM",
+            "characterization and microscopy",
+            "materials workflow and provenance"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "LiberTEM",
+            "distributed detector-data processing",
+            "electron microscopy analysis"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "LiberTEM",
+            "characterization and microscopy",
+            "materials workflow and provenance"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "The verified Zenodo DOI is release-scoped and must not be presented as a persistent identifier for every future commit.",
+        "The release archive is version-scoped; catalogue license uses the current upstream repository and must be rechecked for later releases."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/summary": [
+          "SRC-LIBERTEM-DOCS",
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/relationships": [
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/repository_types": [
+          "SRC-LIBERTEM-DOCS",
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-LIBERTEM-DOCS"
+        ],
+        "/tasks": [
+          "SRC-LIBERTEM-DOCS"
+        ],
+        "/languages": [
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/licenses": [
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/links": [
+          "SRC-LIBERTEM-DOCS",
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/related_resources": [
+          "SRC-LIBERTEM-DOCS"
+        ],
+        "/status": [
+          "SRC-LIBERTEM-DOCS",
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/limitations": [
+          "SRC-LIBERTEM-DOCS",
+          "SRC-LIBERTEM-REPO",
+          "SRC-METHOD"
+        ],
+        "/verification_confidence": [
+          "SRC-LIBERTEM-DOCS",
+          "SRC-LIBERTEM-REPO",
+          "SRC-METHOD"
+        ],
+        "/packages": [
+          "SRC-LIBERTEM-PACKAGE",
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/papers": [
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/archives": [
+          "SRC-LIBERTEM-ARCHIVE"
+        ],
+        "/release": [
+          "SRC-LIBERTEM-PACKAGE",
+          "SRC-LIBERTEM-REPO"
+        ],
+        "/environment": [
+          "SRC-LIBERTEM-DOCS",
+          "SRC-LIBERTEM-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-LIBERTEM-REPO"
+        ]
+      },
+      "slices": [
+
+      ]
+    },
+    {
+      "id": "optimade-python-tools",
+      "project_name": "OPTIMADE Python tools",
+      "owner_organization": "Materials-Consortia",
+      "summary": "Reference-oriented Python implementation and tooling for the OPTIMADE materials-database API specification.",
+      "canonical_repository": {
+        "url": "https://github.com/Materials-Consortia/optimade-python-tools",
+        "host": "GitHub",
+        "upstream_status": "official_upstream",
+        "upstream_evidence": "Repository is presented by the project or official organization as its upstream source."
+      },
+      "relationships": {
+        "mirrors": "Unknown",
+        "forks": "Unknown",
+        "successors": "Unknown"
+      },
+      "repository_types": [
+        "specification tooling",
+        "library",
+        "data tooling"
+      ],
+      "broad_domains": [
+        "materials data standards and FAIR tooling",
+        "crystal and structure analysis"
+      ],
+      "tasks": [
+        "materials API implementation",
+        "data-provider interoperability",
+        "schema validation"
+      ],
+      "languages": {
+        "primary": "Python",
+        "secondary": "Unknown"
+      },
+      "packages": [
+        {
+          "ecosystem": "PyPI",
+          "name": "optimade",
+          "url": "https://pypi.org/project/optimade/",
+          "relationship": "distribution_of_repository"
+        }
+      ],
+      "licenses": {
+        "repository_spdx": "MIT",
+        "repository_license_url": "https://github.com/Materials-Consortia/optimade-python-tools",
+        "documentation_license": "Unknown",
+        "data_license_or_terms": "Data exposed by OPTIMADE providers retains provider-specific licenses, terms, and provenance.",
+        "model_license_or_terms": "Unknown",
+        "dependency_license_note": "Unknown"
+      },
+      "release": "Unknown",
+      "environment": {
+        "install_surfaces": [
+          "PyPI",
+          "source build"
+        ],
+        "containers": "Unknown",
+        "hpc_or_scheduler": "Unknown"
+      },
+      "links": {
+        "documentation": "https://www.optimade.org/optimade-python-tools/",
+        "issues": "https://github.com/Materials-Consortia/optimade-python-tools/issues",
+        "contribution_guide": "Unknown",
+        "tests_or_ci": "Unknown",
+        "security_or_contact": "Unknown"
+      },
+      "papers": [
+        {
+          "title": "OPTIMADE, an API for exchanging materials data",
+          "identifier": "doi:10.1038/s41597-021-00974-z",
+          "url": "https://doi.org/10.1038/s41597-021-00974-z"
+        }
+      ],
+      "citation_metadata": {
+        "citation_cff": "Unknown",
+        "codemeta": "Unknown"
+      },
+      "archives": "Unknown",
+      "related_resources": {
+        "workflows": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "OPTIMADE Python tools",
+            "materials API implementation",
+            "data-provider interoperability"
+          ]
+        },
+        "models": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "OPTIMADE Python tools",
+            "materials data standards and FAIR tooling",
+            "crystal and structure analysis"
+          ]
+        },
+        "datasets": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "OPTIMADE Python tools",
+            "materials API implementation",
+            "data-provider interoperability"
+          ]
+        },
+        "ontologies": {
+          "stable_ids": "Unknown",
+          "search_terms": [
+            "OPTIMADE Python tools",
+            "materials data standards and FAIR tooling",
+            "crystal and structure analysis"
+          ]
+        }
+      },
+      "status": {
+        "maintenance": "active",
+        "archive": "not_archived",
+        "access": "public_source",
+        "last_verified": "2026-08-14"
+      },
+      "limitations": [
+        "This record is the Python tooling repository, not the normative specification repository or any individual provider database.",
+        "API interoperability does not harmonize provider data licenses or quality policies."
+      ],
+      "verification_confidence": "high",
+      "provenance": {
+        "/id": [
+          "SRC-METHOD"
+        ],
+        "/project_name": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/owner_organization": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/summary": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS",
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/canonical_repository": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/relationships": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/repository_types": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS",
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/broad_domains": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS"
+        ],
+        "/tasks": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS"
+        ],
+        "/languages": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/licenses": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/links": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS",
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/related_resources": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS"
+        ],
+        "/status": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS",
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/limitations": [
+          "SRC-METHOD",
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS",
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/verification_confidence": [
+          "SRC-METHOD",
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS",
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/packages": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-PACKAGE",
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/papers": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-PAPER"
+        ],
+        "/archives": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/release": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ],
+        "/environment": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-DOCS",
+          "SRC-OPTIMADE-PYTHON-TOOLS-PACKAGE"
+        ],
+        "/citation_metadata": [
+          "SRC-OPTIMADE-PYTHON-TOOLS-REPO"
+        ]
+      },
+      "slices": [
+        "materialdigital",
+        "nfdimatwerk",
+        "standards"
+      ]
+    }
+  ],
+  "held_candidates": [
+    {
+      "id": "vasp",
+      "project_name": "VASP",
+      "disposition": "held",
+      "reason": "A public, authoritative source-code repository suitable for a read-only code-repository catalogue was not verified; source access is governed through licensed distribution.",
+      "official_url": "https://www.vasp.at/info/post/",
+      "relationship_risk": "Package/project identity exists without a public canonical source repository.",
+      "next_verification_step": "Retain as a related proprietary dependency; accept only if an official public metadata-only repository record policy is explicitly approved.",
+      "source_ids": [
+        "SRC-HELD-VASP"
+      ]
+    },
+    {
+      "id": "fhi-aims",
+      "project_name": "FHI-aims",
+      "disposition": "held",
+      "reason": "The official project distributes source under an access/licensing process rather than a verified public upstream forge suitable for inclusion under the current rules.",
+      "official_url": "https://fhi-aims.org/get-the-code",
+      "relationship_risk": "Official project site is authoritative, but no public canonical source forge was verified.",
+      "next_verification_step": "Reassess only if an official public source repository or an approved metadata-only restricted-access record class is established.",
+      "source_ids": [
+        "SRC-HELD-FHI-AIMS"
+      ]
+    },
+    {
+      "id": "lobster",
+      "project_name": "LOBSTER",
+      "disposition": "held",
+      "reason": "Official downloads and documentation were found, but an authoritative public source-code upstream was not verified.",
+      "official_url": "https://www.cohp.de/",
+      "relationship_risk": "Binary/project distribution must not be mistaken for a source repository.",
+      "next_verification_step": "Verify whether a public source repository is released and whether it is the official upstream rather than an interface or mirror.",
+      "source_ids": [
+        "SRC-HELD-LOBSTER"
+      ]
+    },
+    {
+      "id": "nomad",
+      "project_name": "NOMAD software platform",
+      "disposition": "held",
+      "reason": "NOMAD is represented by multiple official repositories and services; a single catalogue record would conflate platform, parser, API, deployment, and infrastructure units.",
+      "official_url": "https://github.com/nomad-coe",
+      "relationship_risk": "Multi-repository platform granularity and duplicate-card risk.",
+      "next_verification_step": "Define repository-level records for specific components and explicit relationships before acceptance.",
+      "source_ids": [
+        "SRC-HELD-NOMAD"
+      ]
+    },
+    {
+      "id": "dream3d",
+      "project_name": "DREAM.3D",
+      "disposition": "held",
+      "reason": "Current code is distributed across multiple repositories and organizational locations, with successor and component relationships that were not resolved to one canonical catalogue unit.",
+      "official_url": "https://github.com/BlueQuartzSoftware/DREAM3D",
+      "relationship_risk": "Potential moved-repository, successor, and multi-repository ambiguity.",
+      "next_verification_step": "Map core application, NX successor/components, documentation, and archived repositories before accepting separate records.",
+      "source_ids": [
+        "SRC-HELD-DREAM3D"
+      ]
+    },
+    {
+      "id": "abacus",
+      "project_name": "ABACUS",
+      "disposition": "held",
+      "reason": "Two prominent organization/repository identities were encountered and the authoritative transfer or mirror relationship was not resolved to the catalogue standard.",
+      "official_url": "https://github.com/deepmodeling/abacus-develop",
+      "relationship_risk": "Canonical-upstream ambiguity between organization locations.",
+      "next_verification_step": "Obtain explicit project evidence identifying the current upstream and classifying the other repository as predecessor, mirror, or fork.",
+      "source_ids": [
+        "SRC-HELD-ABACUS"
+      ]
+    }
+  ]
+}
