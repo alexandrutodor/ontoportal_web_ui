@@ -21,7 +21,14 @@ class ActiveSupport::TestCase
   Capybara.server_host = "0.0.0.0"
   Capybara.app_host = "http://#{Socket.gethostname}:#{Capybara.server_port}" 
   setup do
+    Thread.current[:session] = nil
+    Thread.current[:request] = nil
     FlipperSetup.test_configure!
+  end
+
+  teardown do
+    Thread.current[:session] = nil
+    Thread.current[:request] = nil
   end
 end
 
