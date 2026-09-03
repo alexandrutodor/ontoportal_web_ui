@@ -13,7 +13,7 @@ class OntologiesController < ApplicationController
 
   before_action :authorize_and_redirect, :only=>[:edit,:update,:create,:new]
 
-  KNOWN_PAGES = Set.new(["terms", "classes", "mappings", "notes", "widgets", "summary", "properties", "schemes", "collections"])
+  KNOWN_PAGES = Set.new(["terms", "classes", "mappings", "notes", "widgets", "summary", "properties", "schemes", "collections", "blast_radius"])
 
 
   include ActionView::Helpers::NumberHelper
@@ -304,6 +304,9 @@ class OntologiesController < ApplicationController
         self.schemes
       when 'collections'
         self.collections
+      when 'blast_radius'
+        self.blast_radius
+        return
       else
         self.summary
         return
@@ -383,6 +386,24 @@ class OntologiesController < ApplicationController
       render :partial => 'widgets', :layout => false
     else
       render :partial => 'widgets', :layout => "ontology_viewer"
+    end
+  end
+
+  def blast_radius
+    @report = BlastRadius::SimulationEngine.latest_report(@ontology.acronym)
+    if @report.nil?
+      @report = BlastRadius::SimulationEngine.simulate(
+        ontology_acronym: @ontology.acronym,
+        baseline_submission: @submission_latest,
+        candidate_submission: @submission_latest,
+        options: { simulation_mode: 'baseline_viewer_check' }
+      )
+    end
+
+    if request.xhr?
+      render :partial => 'blast_radius', :layout => false
+    else
+      render :partial => 'blast_radius', :layout => 'ontology_viewer'
     end
   end
 

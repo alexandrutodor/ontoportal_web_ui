@@ -1,0 +1,37 @@
+- shacl_data = @report&.shacl_violation_delta || {}
+- delta = (shacl_data[:delta] || shacl_data['delta'] || 0).to_i
+- new_violations = Array(shacl_data[:new_violations] || shacl_data['new_violations'])
+
+.section-card
+  .card-header
+    %span
+      %i.fas.fa-shield-alt.me-2
+      SHACL Validation Delta
+    %span.badge{class: delta > 0 ? 'bg-danger' : (delta < 0 ? 'bg-success' : 'bg-secondary')}
+      Delta: #{delta > 0 ? "+#{delta}" : delta}
+  .card-body.p-0
+    - if new_violations.empty?
+      .p-3.text-muted.text-center
+        %i.fas.fa-check-circle.text-success.me-2
+        No new SHACL shape violations detected against the candidate release.
+    - else
+      %table.table.table-hover.table-striped
+        %thead
+          %tr
+            %th Severity
+            %th Shape ID
+            %th Focus Node
+            %th Violation Message
+        %tbody
+          - new_violations.each do |v|
+            - v_hash = v.is_a?(Hash) ? v : (v.respond_to?(:to_h) ? v.to_h : {})
+            - severity = v_hash[:severity] || v_hash['severity'] || 'Violation'
+            %tr
+              %td
+                %span.badge{class: severity == 'Violation' ? 'bg-danger' : 'bg-warning text-dark'}
+                  = severity
+              %td
+                %strong= v_hash[:shape_id] || v_hash['shape_id'] || '-'
+              %td
+                %code= v_hash[:focus_node] || v_hash['focus_node'] || '-'
+              %td= v_hash[:message] || v_hash['message'] || '-'

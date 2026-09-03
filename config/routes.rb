@@ -43,6 +43,12 @@ Rails.application.routes.draw do
     resources :submissions
   end
 
+  # Digital Twin Blast-Radius Simulation Engine
+  get  'ontologies/:ontology_id/blast_radius' => 'blast_radius#show', as: :ontology_blast_radius
+  post 'ontologies/:ontology_id/blast_radius/simulate' => 'blast_radius#simulate', as: :simulate_ontology_blast_radius
+  get  'ontologies/:ontology_id/blast_radius/reports/:report_id' => 'blast_radius#report', as: :ontology_blast_radius_report
+
+
   resources :login
 
   resources :admin, only: [:index]

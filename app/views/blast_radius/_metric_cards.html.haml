@@ -1,0 +1,32 @@
+- churn = @report&.concept_churn || {}
+- added_count = Array(churn[:added] || churn['added']).size
+- removed_count = Array(churn[:removed] || churn['removed']).size
+- modified_count = Array(churn[:modified] || churn['modified']).size
+- orphaned_count = Array(@report&.orphaned_mappings).size
+- broken_queries_count = Array(@report&.broken_queries).size
+- shacl_delta = (@report&.shacl_violation_delta&.dig(:delta) || @report&.shacl_violation_delta&.dig('delta') || 0).to_i
+
+.metric-grid
+  .metric-card
+    .metric-label Concept Additions
+    .metric-value.text-success +#{added_count}
+  .metric-card
+    .metric-label Concepts Removed
+    %div{class: "metric-value #{removed_count > 0 ? 'text-danger' : 'text-success'}"}
+      = removed_count
+  .metric-card
+    .metric-label Concepts Modified
+    %div{class: "metric-value #{modified_count > 0 ? 'text-warning' : 'text-info'}"}
+      = modified_count
+  .metric-card
+    .metric-label Orphaned Mappings
+    %div{class: "metric-value #{orphaned_count > 0 ? 'text-danger' : 'text-success'}"}
+      = orphaned_count
+  .metric-card
+    .metric-label Broken Queries
+    %div{class: "metric-value #{broken_queries_count > 0 ? 'text-danger' : 'text-success'}"}
+      = broken_queries_count
+  .metric-card
+    .metric-label SHACL Violation Delta
+    %div{class: "metric-value #{shacl_delta > 0 ? 'text-danger' : (shacl_delta < 0 ? 'text-success' : 'text-info')}"}
+      = shacl_delta > 0 ? "+#{shacl_delta}" : shacl_delta

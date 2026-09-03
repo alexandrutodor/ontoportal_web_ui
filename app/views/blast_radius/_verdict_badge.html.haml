@@ -1,0 +1,23 @@
+- verdict = local_assigns[:verdict] || @report&.verdict || 'SAFE'
+- badge_class = local_assigns[:badge_class] || @report&.badge_css_class || 'badge-verdict-safe'
+
+%span{class: "verdict-badge #{badge_class}", id: 'blast-radius-verdict-badge'}
+  - case verdict
+  - when 'SAFE'
+    %i.fas.fa-check-circle
+    SAFE
+  - when 'SAFE_WITH_REVIEW'
+    %i.fas.fa-exclamation-circle
+    SAFE WITH REVIEW
+  - when 'BREAKING'
+    %i.fas.fa-times-circle
+    BREAKING CHANGE
+  - when 'POLICY_BLOCKED'
+    %i.fas.fa-ban
+    POLICY BLOCKED
+  - when 'LOGICALLY_INVALID'
+    %i.fas.fa-bug
+    LOGICALLY INVALID
+  - else
+    %i.fas.fa-info-circle
+    = verdict

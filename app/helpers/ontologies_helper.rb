@@ -399,7 +399,7 @@ module OntologiesHelper
       sections += ['classes']
       sections += %w[properties]
       sections += %w[schemes collections] if skos?
-      sections += %w[notes mappings widgets]
+      sections += %w[notes mappings widgets blast_radius]
     end
     sections
   end

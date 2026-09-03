@@ -1,0 +1,51 @@
+- churn = @report&.concept_churn || {}
+- added = Array(churn[:added] || churn['added'])
+- removed = Array(churn[:removed] || churn['removed'])
+- obsoleted = Array(churn[:obsoleted] || churn['obsoleted'])
+- modified = Array(churn[:modified] || churn['modified'])
+
+.section-card
+  .card-header
+    %span
+      %i.fas.fa-exchange-alt.me-2
+      Concept Churn Details
+    %span.badge.bg-secondary Total Changes: #{added.size + removed.size + obsoleted.size + modified.size}
+  .card-body.p-0
+    - if added.empty? && removed.empty? && obsoleted.empty? && modified.empty?
+      .p-3.text-muted.text-center Zero concept changes detected.
+    - else
+      %table.table.table-hover.table-striped
+        %thead
+          %tr
+            %th Change Type
+            %th Concept Identifier (IRI)
+            %th Severity
+        %tbody
+          - removed.each do |iri|
+            %tr
+              %td
+                %span.badge.bg-danger Removed
+              %td
+                %code= iri
+              %td.text-danger Breaking
+          - obsoleted.each do |iri|
+            %tr
+              %td
+                %span.badge.bg-warning.text-dark Obsoleted
+              %td
+                %code= iri
+              %td.text-warning Review Needed
+          - modified.each do |iri|
+            %tr
+              %td
+                %span.badge.bg-info.text-dark Modified
+              %td
+                %code= iri
+              %td.text-muted Low
+          - added.each do |iri|
+            %tr
+              %td
+                %span.badge.bg-success Added
+              %td
+                %code= iri
+              %td.text-success Safe

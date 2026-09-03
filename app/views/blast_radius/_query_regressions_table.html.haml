@@ -1,0 +1,34 @@
+- regressions = Array(@report&.broken_queries)
+
+.section-card
+  .card-header
+    %span
+      %i.fas.fa-bolt.me-2
+      Replayed Query Regressions
+    %span.badge{class: regressions.empty? ? 'bg-success' : 'bg-danger'}
+      #{regressions.size} Regressions
+  .card-body.p-0
+    - if regressions.empty?
+      .p-3.text-muted.text-center
+        %i.fas.fa-check-circle.text-success.me-2
+        All replayed benchmark SPARQL/search queries returned expected results without regressions.
+    - else
+      %table.table.table-hover.table-striped
+        %thead
+          %tr
+            %th Query ID
+            %th Type
+            %th Baseline Count
+            %th Candidate Count
+            %th Regression Details
+        %tbody
+          - regressions.each do |q|
+            - q_hash = q.is_a?(Hash) ? q : (q.respond_to?(:to_h) ? q.to_h : {})
+            %tr
+              %td
+                %strong= q_hash[:query_id] || q_hash['query_id'] || 'Query'
+              %td
+                %span.badge.bg-secondary= q_hash[:query_type] || q_hash['query_type'] || 'lookup'
+              %td= q_hash[:baseline_count] || q_hash['baseline_count'] || '-'
+              %td.text-danger= q_hash[:candidate_count] || q_hash['candidate_count'] || '-'
+              %td.text-danger= q_hash[:reason] || q_hash['reason'] || 'Query output regressed'

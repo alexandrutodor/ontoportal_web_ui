@@ -1,0 +1,65 @@
+= stylesheet_link_tag 'blast_radius'
+
+.blast-radius-dashboard
+  .hero-card.d-flex.justify-content-between.align-items-center
+    %div
+      %h3.mb-1
+        %i.fas.fa-satellite-dish.text-primary.me-2
+        Blast-Radius Digital Twin Simulation
+      %p.text-muted.mb-0
+        Pre-activation impact assessment for
+        %strong= @ontology&.acronym || params[:ontology_id]
+        - if @report&.created_at
+          %span.ms-2 &bull; Simulated at: #{Time.parse(@report.created_at.to_s).strftime('%Y-%m-%d %H:%M UTC') rescue @report.created_at}
+    %div
+      = render partial: 'blast_radius/verdict_badge', locals: { verdict: @report&.verdict, badge_class: @report&.badge_css_class }
+
+  - if @report&.rules_triggered&.any?
+    .alert.alert-secondary.rule-alert
+      %strong
+        %i.fas.fa-clipboard-check.me-1
+        Verdict Rationale:
+      %ul.mb-0.mt-1
+        - @report.rules_triggered.each do |rule|
+          %li= rule
+
+  - if @report&.policy_violations&.any?
+    .alert.alert-danger.rule-alert
+      %strong
+        %i.fas.fa-ban.me-1
+        Policy Violations:
+      %ul.mb-0.mt-1
+        - @report.policy_violations.each do |pv|
+          %li= pv
+
+  - if @report&.logical_errors&.any?
+    .alert.alert-danger.rule-alert
+      %strong
+        %i.fas.fa-bug.me-1
+        Logical Consistency Errors:
+      %ul.mb-0.mt-1
+        - @report.logical_errors.each do |le|
+          %li= le
+
+  = render partial: 'blast_radius/metric_cards'
+
+  .simulation-tray
+    %h5
+      %i.fas.fa-play-circle.text-success.me-2
+      Simulate Candidate Ontology Release
+    %p.text-muted.small Test candidate concepts, query replay, and SHACL validation before publishing or activating in production.
+    = form_with url: simulate_ontology_blast_radius_path(ontology_id: @ontology&.acronym || params[:ontology_id]), method: :post, local: true, class: 'row g-3 align-items-center' do |f|
+      .col-md-5
+        = f.label :expected_base_uri, 'Expected Base URI / Namespace', class: 'form-label small text-muted mb-0'
+        = f.text_field :expected_base_uri, class: 'form-control form-control-sm', placeholder: 'e.g. http://example.org/onto/'
+      .col-md-3
+        .form-check.mt-3
+          = f.check_box :require_license, class: 'form-check-input', id: 'require_license_check'
+          = f.label :require_license, 'Enforce Open License Policy', class: 'form-check-label small', for: 'require_license_check'
+      .col-md-4.text-end.mt-3
+        = f.submit 'Run Digital Twin Simulation', class: 'btn btn-primary btn-sm'
+
+  = render partial: 'blast_radius/churn_table'
+  = render partial: 'blast_radius/orphaned_mappings_table'
+  = render partial: 'blast_radius/query_regressions_table'
+  = render partial: 'blast_radius/shacl_violations_table'

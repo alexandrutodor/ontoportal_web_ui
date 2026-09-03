@@ -144,6 +144,7 @@ en:
       mappings: Mappings
       widgets: Widgets
       concepts: Concepts
+      blast_radius: Blast Radius
 
   concepts:
     error_valid_concept: "Error: You must provide a valid concept id"
