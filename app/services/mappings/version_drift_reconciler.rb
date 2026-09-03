@@ -78,8 +78,18 @@ module Mappings
         cls ? (cls.respond_to?(:id) ? cls.id : cls.to_s) : nil
       elsif role == :subject && mapping.respond_to?(:subject_id)
         mapping.subject_id
-      elsif role == :object && mapping.respond_to?(:object_id)
-        mapping.is_a?(OpenStruct) ? mapping.object_id : mapping.send(:object_id)
+      elsif role == :object
+        if mapping.is_a?(OpenStruct) || mapping.is_a?(Struct)
+          mapping[:object_id] rescue mapping.object_id
+        elsif mapping.respond_to?(:target_id)
+          mapping.target_id
+        elsif mapping.respond_to?(:object_target)
+          mapping.object_target
+        elsif mapping.class.instance_methods(false).include?(:object_id)
+          mapping.object_id
+        else
+          mapping.instance_variable_get(:@object_id)
+        end
       else
         nil
       end
