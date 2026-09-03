@@ -209,4 +209,12 @@ class BlastRadiusSimulationEngineTest < Minitest::Test
     assert result[:new_violations].any? { |v| v[:shape_id] == 'SHACL-PREF-LABEL-REQUIRED' }
     assert result[:new_violations].any? { |v| v[:shape_id] == 'SHACL-VALID-IRI-SYNTAX' }
   end
+
+  def test_find_report_prevents_path_traversal
+    assert_nil BlastRadius::SimulationEngine.find_report('../../../etc/passwd')
+    assert_nil BlastRadius::SimulationEngine.find_report('..\\..\\windows\\win.ini')
+    assert_nil BlastRadius::SimulationEngine.find_report('evil/payload')
+    assert_nil BlastRadius::SimulationEngine.find_report(nil)
+    assert_nil BlastRadius::SimulationEngine.find_report('')
+  end
 end

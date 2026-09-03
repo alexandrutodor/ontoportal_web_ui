@@ -22,21 +22,30 @@ module BlastRadius
         ).execute
       end
 
+      SAFE_ID_PATTERN = /\A[0-9a-zA-Z_-]{1,64}\z/.freeze
+
+      def valid_report_id?(report_id)
+        id_str = report_id.to_s
+        !id_str.empty? && id_str.match?(SAFE_ID_PATTERN) && !id_str.include?('..')
+      end
+
       def find_report(report_id)
-        return nil if report_id.nil? || report_id.to_s.strip.empty?
-        report = @memory_store[report_id.to_s]
+        id_str = report_id.to_s.strip
+        return nil unless valid_report_id?(id_str)
+
+        report = @memory_store[id_str]
         return report if report
 
         # Fallback to disk store
-        storage_file = storage_path_for(report_id)
-        if File.exist?(storage_file)
-          raw = JSON.parse(File.read(storage_file))
-          report = BlastRadiusReport.from_h(raw)
-          @memory_store[report_id.to_s] = report
-          report
-        else
-          nil
-        end
+        storage_file = storage_path_for(id_str)
+        return nil unless storage_file && File.exist?(storage_file)
+
+        raw = JSON.parse(File.read(storage_file))
+        report = BlastRadiusReport.from_h(raw)
+        @memory_store[id_str] = report
+        report
+      rescue StandardError
+        nil
       end
 
       def latest_report(ontology_acronym)
@@ -64,11 +73,14 @@ module BlastRadius
       end
 
       def storage_path_for(report_id)
-        File.join(storage_dir, "#{report_id}.json")
+        safe_id = File.basename(report_id.to_s)
+        return nil unless valid_report_id?(safe_id)
+        File.join(storage_dir, "#{safe_id}.json")
       end
 
       def save_to_disk(report)
         path = storage_path_for(report.id)
+        return unless path
         File.write(path, report.to_json)
       rescue StandardError => e
         # Best effort persistence; memory store retains report
