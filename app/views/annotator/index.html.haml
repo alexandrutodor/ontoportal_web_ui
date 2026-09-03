@@ -61,6 +61,18 @@
                    class: "form-select", style: "width: 432px")
 
   %div.mb-3
+    %label{for: "annotator_tier", class: 'form-label'} Execution Tier
+    - tier_options = @available_tiers || [["Fast (Lexical)", "fast"], ["Balanced (Contextual AI)", "balanced"], ["High Assurance (Symbolic Guard)", "assurance"]]
+    = select_tag("annotator_tier", options_for_select(tier_options, @default_tier || "fast"),
+                 class: "form-select", style: "width: 432px", id: "annotator_tier")
+    %div.form-text Fast (exact dictionary), Balanced (context-aware AI reranking), or High Assurance (symbolic constraints).
+
+  %div.mb-3
+    %label{for: "min_confidence", class: 'form-label'} Calibrated Confidence Threshold (%)
+    = number_field_tag("min_confidence", 50, min: 0, max: 100, class: "form-control", style: "width: 160px;", id: "min_confidence")
+    %div.form-text Minimum calibrated probability (0-100%) to accept or review matches. Candidates below threshold propose open-set NILs.
+
+  %div.mb-3
     %input#annotator_button{type: "button", value: "Get Annotations", class: "btn btn-primary"}/
     %span.annotator_spinner{style: "display: none;"}
       %img{src: asset_path('spinners/spinner_000000_16px.gif'), style: "vertical-align: middle;"}/
@@ -100,6 +112,7 @@
                 %div#match_type_filter_list.bp_popup_list
             %th UMLS Sem Type
             %th{class: "match_context"} Context
+            %th Decision
             %th
               Matched Class
               %span.popup_container
@@ -121,6 +134,7 @@
             %span#download_links_json.link_button.ui_button
             %span#download_links_text.link_button.ui_button
           %span#download_links_xml.link_button.ui_button
+          %span#download_links_w3c.link_button.ui_button
         %span{:style => "font-size: smaller;"}
           To reproduce these results:
           %br/
@@ -128,3 +142,5 @@
           %br/
           Additional parameters are documented at
           \#{link_to 'Annotator Web Service', "#{$REST_URL}/documentation#nav_annotator", :target => "_blank"}
+
+= render partial: 'annotator/review_drawer'

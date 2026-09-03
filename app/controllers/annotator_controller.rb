@@ -17,6 +17,12 @@ class AnnotatorController < ApplicationController
     @semantic_types_for_select.sort! {|a,b| a[0] <=> b[0]}
     @recognizers = parse_json(REST_URI + "/annotator/recognizers")
     @annotator_ontologies = LinkedData::Client::Models::Ontology.all
+    @available_tiers = [
+      ["Fast (Lexical)", "fast"],
+      ["Balanced (Contextual AI)", "balanced"],
+      ["High Assurance (Symbolic Guard)", "assurance"]
+    ]
+    @default_tier = "fast"
   end
 
 
@@ -58,19 +64,43 @@ class AnnotatorController < ApplicationController
     annotations = parse_json(query) # See application_controller.rb
     #annotations = LinkedData::Client::HTTP.get(query)
     Log.add :debug, "Retrieved #{annotations.length} annotations: #{Time.now - start}s"
+    massage_annotated_classes(annotations, options) unless annotations.empty? || params[:raw] == "true"
+
+    tier = params[:tier] || "fast"
+    output_format = params[:output_format].to_s.downcase
+    is_w3c = (output_format == "w3c") || (request.headers["Accept"].to_s.include?("application/ld+json"))
+
+    dispatched = Annotator::TierDispatcher.call(text_to_annotate, annotations, {
+      tier: tier,
+      ontologies: options[:ontologies],
+      semantic_types: options[:semantic_types]
+    })
+    annotations = dispatched[:annotations]
+
+    if is_w3c
+      w3c_payload = Annotator::W3cSerializer.serialize(annotations, text_to_annotate)
+      render json: w3c_payload, content_type: "application/ld+json"
+      return
+    end
+
     if annotations.empty? || params[:raw] == "true"
       # TODO: if params contains select ontologies and/or semantic types, only return those selected.
       response = {
           annotations: annotations,
           ontologies: get_simplified_ontologies_hash,  # application_controller
-          semantic_types: get_semantic_types           # application_controller
+          semantic_types: get_semantic_types,          # application_controller
+          tier: dispatched[:tier],
+          summary: dispatched[:summary],
+          nil_proposals: dispatched[:nil_proposals]
       }
     else
-      massage_annotated_classes(annotations, options)
       response = {
           annotations: annotations,
           ontologies: {},        # ontology data are in annotations already.
-          semantic_types: {}     # semantic types are in annotations already.
+          semantic_types: {},    # semantic types are in annotations already.
+          tier: dispatched[:tier],
+          summary: dispatched[:summary],
+          nil_proposals: dispatched[:nil_proposals]
       }
     end
 

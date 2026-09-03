@@ -1,7 +1,8 @@
 var
   bp_last_params = null,
   annotationsTable = null,
-  annotator_ontologies = null;
+  annotator_ontologies = null,
+  current_raw_annotations = [];
 
 // Note: the configuration is in config/bioportal_config.rb.
 var BP_CONFIG = jQuery(document).data().bp.config;
@@ -11,8 +12,10 @@ var BP_COLUMNS = {
   ontologies: 1,
   types: 2,
   sem_types: 3,
-  matched_classes: 5,
-  matched_ontologies: 6
+  context: 4,
+  decision: 5,
+  matched_classes: 6,
+  matched_ontologies: 7
 };
 
 var CONCEPT_MAP = {
@@ -98,6 +101,12 @@ function get_annotations() {
   }
 
   params["recognizer"] = jQuery("#recognizer").val();
+  if (jQuery("#annotator_tier").length > 0) {
+    params.tier = jQuery("#annotator_tier").val();
+  }
+  if (jQuery("#min_confidence").length > 0) {
+    params.min_confidence = parseFloat(jQuery("#min_confidence").val()) / 100.0;
+  }
 
   jQuery.ajax({
     type: "POST",
@@ -467,18 +476,20 @@ jQuery(document).ready(function() {
     "aoColumns": [{
       "sWidth": "15%"
     }, {
-      "sWidth": "15%"
+      "sWidth": "12%"
     }, {
       "sWidth": "5%"
     }, {
       "sWidth": "5%",
       "bVisible": false
     }, {
-      "sWidth": "30%"
+      "sWidth": "25%"
     }, {
-      "sWidth": "15%"
+      "sWidth": "10%"
     }, {
-      "sWidth": "15%"
+      "sWidth": "14%"
+    }, {
+      "sWidth": "14%"
     }]
   });
   filter_ontologies.init();
@@ -570,17 +581,22 @@ function get_annotation_rows(annotation, params) {
     };
   // data dependent var declarations
   var cls = get_class_details(annotation.annotatedClass);
+  var decision = annotation.decision || "accept";
+  var conf = Math.round((annotation.confidence || 0.8) * 100);
+  var badgeClass = decision === "accept" ? "anno-badge-accept" : (decision === "review" ? "anno-badge-review" : "anno-badge-abstain");
+  var decision_badge = '<a href="javascript:void(0);" class="anno-decision-badge ' + badgeClass + '" data-anno-id="' + (annotation.annotatedClass ? (annotation.annotatedClass["@id"] || annotation.annotatedClass.id || "") : "") + '">' + decision.toUpperCase() + ' ' + conf + '%</a>';
+
   jQuery.each(annotation.annotations, function(i, a) {
     text_markup = get_text_markup(params.text, a.from, a.to);
     match_type = match_type_translation[a.matchType.toLowerCase()] || 'direct';
-    cells = [cls.cls_link, cls.ont_link, match_type, cls.semantic_types, text_markup, cls.cls_link, cls.ont_link];
+    cells = [cls.cls_link, cls.ont_link, match_type, cls.semantic_types, text_markup, decision_badge, cls.cls_link, cls.ont_link];
     rows.push(cells);
     // Add rows for any classes in the hierarchy.
     match_type = 'ancestor';
     var h_c = null;
     jQuery.each(annotation.hierarchy, function(i, h) {
       h_c = get_class_details(h.annotatedClass);
-      cells = [h_c.cls_link, h_c.ont_link, match_type, cls.semantic_types, text_markup, cls.cls_link, cls.ont_link];
+      cells = [h_c.cls_link, h_c.ont_link, match_type, cls.semantic_types, text_markup, decision_badge, cls.cls_link, cls.ont_link];
       rows.push(cells);
     }); // hierarchy loop
     // Add rows for any classes in the mappings. Note the ont_link will be different.
@@ -588,7 +604,7 @@ function get_annotation_rows(annotation, params) {
     var m_c = null;
     jQuery.each(annotation.mappings, function(i, m) {
       m_c = get_class_details(m.annotatedClass);
-      cells = [m_c.cls_link, m_c.ont_link, match_type, cls.semantic_types, text_markup, cls.cls_link, cls.ont_link];
+      cells = [m_c.cls_link, m_c.ont_link, match_type, cls.semantic_types, text_markup, decision_badge, cls.cls_link, cls.ont_link];
       rows.push(cells);
     }); // mappings loop
   }); // annotations loop
@@ -610,21 +626,26 @@ function get_annotation_rows_from_raw(annotation, params) {
     };
   // data dependent var declarations
   var cls = get_class_details_from_raw(annotation.annotatedClass);
+  var raw_decision = annotation.decision || "accept";
+  var raw_conf = Math.round((annotation.confidence || 0.8) * 100);
+  var raw_badgeClass = raw_decision === "accept" ? "anno-badge-accept" : (raw_decision === "review" ? "anno-badge-review" : "anno-badge-abstain");
+  var raw_decision_badge = '<a href="javascript:void(0);" class="anno-decision-badge ' + raw_badgeClass + '" data-anno-id="' + (annotation.annotatedClass ? (annotation.annotatedClass["@id"] || "") : "") + '">' + raw_decision.toUpperCase() + ' ' + raw_conf + '%</a>';
+
   if (annotation.annotations.length == 0) {
-    cells = [cls.cls_link, cls.ont_link, "", cls.semantic_types, "", cls.cls_link, cls.ont_link];
+    cells = [cls.cls_link, cls.ont_link, "", cls.semantic_types, "", raw_decision_badge, cls.cls_link, cls.ont_link];
     rows.push(cells);
   } else {
     jQuery.each(annotation.annotations, function(i, a) {
       text_markup = get_text_markup(params.text, a.from, a.to);
       match_type = match_type_translation[a.matchType.toLowerCase()] || 'direct';
-      cells = [cls.cls_link, cls.ont_link, match_type, cls.semantic_types, text_markup, cls.cls_link, cls.ont_link];
+      cells = [cls.cls_link, cls.ont_link, match_type, cls.semantic_types, text_markup, raw_decision_badge, cls.cls_link, cls.ont_link];
       rows.push(cells);
       // Add rows for any classes in the hierarchy.
       match_type = 'ancestor';
       var h_c = null;
       jQuery.each(annotation.hierarchy, function(i, h) {
         h_c = get_class_details_from_raw(h.annotatedClass);
-        cells = [h_c.cls_link, h_c.ont_link, match_type, cls.semantic_types, text_markup, cls.cls_link, cls.ont_link];
+        cells = [h_c.cls_link, h_c.ont_link, match_type, cls.semantic_types, text_markup, raw_decision_badge, cls.cls_link, cls.ont_link];
         rows.push(cells);
       }); // hierarchy loop
       // Add rows for any classes in the mappings. Note the ont_link will be different.
@@ -632,7 +653,7 @@ function get_annotation_rows_from_raw(annotation, params) {
       var m_c = null;
       jQuery.each(annotation.mappings, function(i, m) {
         m_c = get_class_details_from_raw(m.annotatedClass);
-        cells = [m_c.cls_link, m_c.ont_link, match_type, cls.semantic_types, text_markup, cls.cls_link, cls.ont_link];
+        cells = [m_c.cls_link, m_c.ont_link, match_type, cls.semantic_types, text_markup, raw_decision_badge, cls.cls_link, cls.ont_link];
         rows.push(cells);
       }); // mappings loop
     }); // annotations loop
@@ -739,6 +760,7 @@ function update_annotations_table(rowsArray) {
 function display_annotations(data, params) {
   "use strict";
   var annotations = data.annotations;
+  current_raw_annotations = annotations || [];
   var all_rows = [];
   if (params.raw !== undefined && params.raw === true) {
     // The annotator_controller does not 'massage' the REST data.
@@ -755,6 +777,19 @@ function display_annotations(data, params) {
     }
   }
   update_annotations_table(all_rows);
+
+  // Bind click on decision badges to open review drawer
+  jQuery(".anno-decision-badge").off("click").on("click", function() {
+    var annoId = jQuery(this).data("anno-id");
+    var found = current_raw_annotations.find(function(item) {
+      var cls = item.annotatedClass || {};
+      return (cls["@id"] || cls.id || "") === annoId;
+    }) || current_raw_annotations[0];
+    if (found) {
+      populateReviewDrawer(found);
+    }
+  });
+
   // Generate parameters for list at bottom of page
   var param_string = generateParameters(); // uses bp_last_param
   var query = BP_CONFIG.rest_url + "/annotator?" + param_string;
@@ -765,9 +800,126 @@ function display_annotations(data, params) {
   //annotatorFormatLink("tabDelimited");
   annotatorFormatLink(param_string, "json");
   annotatorFormatLink(param_string, "xml");
+  setupW3cDownloadLink(params);
+
   if (params.raw !== undefined && params.raw === true) {
     // Initiate ajax calls to resolve class ID to prefLabel and ontology acronym to name.
     ajax_process_init(); // see bp_ajax_controller.js
+  }
+}
+
+function setupW3cDownloadLink(params) {
+  var w3cLink = '<a href="javascript:void(0);" id="btn_export_w3c" class="ui_button">W3C JSON-LD</a>';
+  jQuery("#download_links_w3c").html(w3cLink);
+  jQuery("#btn_export_w3c").off("click").on("click", function() {
+    exportW3cJsonLd(params);
+  });
+}
+
+function exportW3cJsonLd(params) {
+  var w3cParams = jQuery.extend({}, params, { output_format: "w3c" });
+  jQuery.ajax({
+    type: "POST",
+    url: "/annotator",
+    data: w3cParams,
+    dataType: "json",
+    headers: { "Accept": "application/ld+json" },
+    success: function(jsonLd) {
+      var blob = new Blob([JSON.stringify(jsonLd, null, 2)], { type: "application/ld+json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "annotations_w3c.jsonld";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+    error: function() {
+      alert("Unable to generate W3C JSON-LD export.");
+    }
+  });
+}
+
+function populateReviewDrawer(anno) {
+  if (!anno) return;
+  var drawerEl = document.getElementById("annotator_review_drawer");
+  if (!drawerEl) return;
+
+  var cls = anno.annotatedClass || {};
+  var prefLabel = cls.prefLabel || "Unnamed Concept";
+  var uri = cls["@id"] || cls.id || "";
+  var ont = cls.ontology ? (cls.ontology.name || cls.ontology.acronym || cls.ontology) : "";
+  var decision = (anno.decision || "accept").toLowerCase();
+  var confidence = Math.round((anno.confidence || 0.8) * 100);
+  var tier = (anno.tier || "fast").toUpperCase();
+
+  jQuery("#drawer_tier_badge").text(tier + " TIER");
+  var badgeEl = jQuery("#drawer_decision_badge");
+  badgeEl.removeClass("bg-success bg-warning bg-danger bg-purple text-dark text-white")
+         .text(decision.toUpperCase());
+  if (decision === "accept") {
+    badgeEl.addClass("bg-success text-white");
+  } else if (decision === "review") {
+    badgeEl.addClass("bg-warning text-dark");
+  } else {
+    badgeEl.addClass("bg-dark text-white");
+  }
+
+  var quote = anno.quote || (anno.annotations && anno.annotations[0] ? anno.annotations[0].text : prefLabel);
+  jQuery("#drawer_quote").text('"' + quote + '"');
+  jQuery("#drawer_confidence_percent").text(confidence + "%");
+  jQuery("#drawer_confidence_bar").css("width", confidence + "%")
+                                  .attr("aria-valuenow", confidence);
+
+  jQuery("#drawer_concept_label").text(prefLabel);
+  jQuery("#drawer_concept_uri").attr("href", uri).text(uri);
+  jQuery("#drawer_concept_ontology").text(ont || "Unknown");
+  if (cls.ui) {
+    jQuery("#drawer_open_class_btn").attr("href", cls.ui);
+  }
+
+  if (anno.nil_proposal) {
+    jQuery("#drawer_nil_card").show();
+    jQuery("#drawer_nil_curie").text(anno.nil_proposal.curie || "NIL:UNKNOWN");
+    jQuery("#drawer_nil_term").text(anno.nil_proposal.suggested_label || quote || "-");
+    jQuery("#drawer_nil_reason").text(anno.nil_proposal.reason || "abstain");
+  } else {
+    jQuery("#drawer_nil_card").hide();
+  }
+
+  if (anno.context) {
+    jQuery("#drawer_context_card").show();
+    jQuery("#drawer_context_prefix").text(anno.context.prefix || "");
+    jQuery("#drawer_context_highlight").text(quote);
+    jQuery("#drawer_context_suffix").text(anno.context.suffix || "");
+  }
+
+  jQuery("#drawer_copy_w3c_btn").off("click").on("click", function() {
+    var singleAnno = {
+      "@context": "http://www.w3.org/ns/anno.jsonld",
+      "type": "Annotation",
+      "body": {
+        "id": uri,
+        "prefLabel": prefLabel,
+        "confidence": anno.confidence,
+        "decision": decision,
+        "tier": anno.tier
+      },
+      "target": {
+        "quote": quote
+      }
+    };
+    navigator.clipboard.writeText(JSON.stringify(singleAnno, null, 2)).then(function() {
+      alert("W3C Web Annotation JSON-LD copied to clipboard!");
+    });
+  });
+
+  if (window.bootstrap && window.bootstrap.Offcanvas) {
+    var bsOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
+    bsOffcanvas.show();
+  } else {
+    jQuery(drawerEl).addClass("show").css("visibility", "visible");
   }
 }
 

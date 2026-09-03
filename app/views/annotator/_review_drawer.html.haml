@@ -1,0 +1,98 @@
+#annotator_review_drawer.offcanvas.offcanvas-end{tabindex: "-1", "aria-labelledby": "reviewDrawerLabel", style: "width: 480px;"}
+  .offcanvas-header.border-bottom
+    %h5#reviewDrawerLabel.offcanvas-title
+      %i.fas.fa-microscope.me-2
+      Annotation Inspector
+    %button.btn-close{type: "button", "data-bs-dismiss": "offcanvas", "aria-label": "Close"}
+
+  .offcanvas-body
+    / Span Mention Header
+    .card.mb-3.border-light-subtle.shadow-sm
+      .card-body
+        .d-flex.justify-content-between.align-items-start.mb-2
+          %span.badge.bg-secondary.text-uppercase#drawer_tier_badge Fast Tier
+          %span#drawer_decision_badge.badge.bg-success ACCEPT
+        %blockquote.blockquote.mb-2
+          %p.mb-0.fst-italic#drawer_quote "Sample mention"
+        .small.text-muted
+          Span offsets:
+          %span#drawer_span_offsets [1..10]
+
+    / Confidence & Calibration Gauge
+    .card.mb-3.border-light-subtle.shadow-sm
+      .card-header.bg-transparent.fw-bold.py-2
+        %i.fas.fa-tachometer-alt.me-1
+        Calibrated Confidence
+      .card-body
+        .d-flex.justify-content-between.align-items-center.mb-1
+          %span#drawer_confidence_percent.h4.mb-0 95%
+          %span.text-muted.small#drawer_calibration_note Logistic calibrated probability
+        .progress.mb-2{style: "height: 10px;"}
+          #drawer_confidence_bar.progress-bar.bg-success{role: "progressbar", style: "width: 95%", "aria-valuenow": "95", "aria-valuemin": "0", "aria-valuemax": "100"}
+        .small.text-muted.d-flex.justify-content-between
+          %span 0% Abstain
+          %span 50% Review
+          %span 80% Accept
+
+    / Concept Identification
+    .card.mb-3.border-light-subtle.shadow-sm#drawer_concept_card
+      .card-header.bg-transparent.fw-bold.py-2
+        %i.fas.fa-tag.me-1
+        Ontology Concept
+      .card-body
+        .mb-2
+          %label.small.text-muted.d-block Preferred Label
+          %span#drawer_concept_label.fw-bold Melanoma
+        .mb-2
+          %label.small.text-muted.d-block Concept URI
+          %a#drawer_concept_uri.text-truncate.d-block{href: "#", target: "_blank", rel: "noopener"} http://...
+        .row.g-2.mb-2
+          .col-6
+            %label.small.text-muted.d-block Ontology
+            %span#drawer_concept_ontology.badge.bg-info.text-dark NCIT
+          .col-6
+            %label.small.text-muted.d-block Match Type
+            %span#drawer_match_type.badge.bg-secondary PREF
+        .mb-1
+          %label.small.text-muted.d-block Semantic Types
+          #drawer_semantic_types.small Neoplastic Process
+
+    / Open-Set NIL Candidate Proposal Section
+    .card.mb-3.border-warning.shadow-sm#drawer_nil_card{style: "display: none;"}
+      .card-header.bg-warning.text-dark.fw-bold.py-2
+        %i.fas.fa-exclamation-triangle.me-1
+        Open-Set NIL Proposal
+      .card-body
+        %p.small.text-muted.mb-2
+          No single ontology concept met high-assurance acceptance criteria. A provisional NIL term has been created for review.
+        .mb-2
+          %label.small.text-muted.d-block Provisional CURIE
+          %code#drawer_nil_curie NIL:A9B8C7D6
+        .mb-2
+          %label.small.text-muted.d-block Suggested Term Name
+          %span#drawer_nil_term.fw-bold -
+        .mb-2
+          %label.small.text-muted.d-block Abstention Reason
+          %span#drawer_nil_reason.badge.bg-dark low_confidence
+        %button.btn.btn-sm.btn-outline-warning.w-100#drawer_propose_term_btn{type: "button"}
+          %i.fas.fa-plus-circle.me-1
+          Propose as New Ontology Term
+
+    / Context Window Preview
+    .card.mb-3.border-light-subtle.shadow-sm#drawer_context_card
+      .card-header.bg-transparent.fw-bold.py-2
+        %i.fas.fa-align-left.me-1
+        Context Window
+      .card-body.small.font-monospace.bg-light.p-2.rounded
+        %span#drawer_context_prefix.text-muted ...prefix
+        %mark#drawer_context_highlight.fw-bold quote
+        %span#drawer_context_suffix.text-muted suffix...
+
+    / Actions
+    .d-grid.gap-2
+      %button.btn.btn-outline-primary#drawer_copy_w3c_btn{type: "button"}
+        %i.fas.fa-copy.me-1
+        Copy W3C Web Annotation JSON-LD
+      %a.btn.btn-primary#drawer_open_class_btn{href: "#", target: "_blank"}
+        %i.fas.fa-external-link-alt.me-1
+        View in Ontology Browser

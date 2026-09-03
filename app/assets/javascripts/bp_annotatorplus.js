@@ -139,6 +139,9 @@ function get_annotations() {
   }
 
   params["recognizer"] = jQuery("#recognizer").val();
+  if (jQuery("#annotator_tier").length > 0) {
+    params.tier = jQuery("#annotator_tier").val();
+  }
 
   jQuery.ajax({
     type: "POST",
@@ -458,7 +461,8 @@ function annotatorFormatLink(param_string, format) {
     "text": "Text",
     "tabDelimited": "CSV",
     "quaero": "QUAERO",
-    "brat": "BRAT"
+    "brat": "BRAT",
+    "w3c": "W3C JSON-LD"
   };
   var query = BP_CONFIG.proxy_url + "/annotatorplus?apikey=" + BP_CONFIG.apikey + "&" + param_string;
   if (format !== 'json') {
@@ -869,6 +873,7 @@ function display_annotations(data, params) {
   annotatorFormatLink(param_string, "brat");
   annotatorFormatLink(param_string, "quaero");
   annotatorFormatLink(param_string, "rdf");
+  annotatorFormatLink(param_string, "w3c");
 
   if (params.raw !== undefined && params.raw === true) {
     // Initiate ajax calls to resolve class ID to prefLabel and ontology acronym to name.
