@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OntoPortal Modern Web Components Demo</title>
+  <link rel="stylesheet" href="ontoportal-widgets.css">
+  <script src="ontoportal-widgets.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    h1 { margin-bottom: 8px; }
+    p.lead { color: #64748b; margin-top: 0; margin-bottom: 32px; }
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    h2 { margin-top: 0; font-size: 18px; color: #1e293b; }
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>OntoPortal Web Components</h1>
+  <p class="lead">Native, zero-dependency Custom Elements with ARIA accessibility and shadow DOM encapsulation.</p>
+
+  <div class="card">
+    <h2>1. Form Autocomplete (&lt;ontoportal-autocomplete&gt;)</h2>
+    <p>Accessible combobox with asynchronous search, keyword highlighting, and form integration.</p>
+    <form id="sample-form" onsubmit="event.preventDefault(); alert('Form submitted with: ' + new FormData(this).get('class_uri'));">
+      <ontoportal-autocomplete
+        name="class_uri"
+        api-url="https://data.stage.matportal.org"
+        ontologies="CHMO"
+        placeholder="Type a chemical method (e.g., spectroscopy, chromatography)..."
+        value-field="uri"
+        required>
+      </ontoportal-autocomplete>
+      <button type="submit" style="margin-top: 10px; padding: 6px 14px; background: #1a7f5a; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Submit Form
+      </button>
+    </form>
+    <pre><code>&lt;script src="https://stage.matportal.org/widgets/modern/ontoportal-widgets.js"&gt;&lt;/script&gt;
+&lt;ontoportal-autocomplete
+  name="class_uri"
+  api-url="https://data.stage.matportal.org"
+  ontologies="CHMO"
+  placeholder="Search..."&gt;
+&lt;/ontoportal-autocomplete&gt;</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2. Interactive Hierarchy Tree & Concept Details</h2>
+    <div class="grid">
+      <div>
+        <ontoportal-tree
+          id="demo-tree"
+          api-url="https://data.stage.matportal.org"
+          ontology="CHMO"
+          searchable="true">
+        </ontoportal-tree>
+      </div>
+      <div>
+        <ontoportal-concept-card
+          id="demo-card"
+          api-url="https://data.stage.matportal.org"
+          ontology="CHMO">
+        </ontoportal-concept-card>
+      </div>
+    </div>
+    <script>
+      const tree = document.getElementById('demo-tree');
+      const card = document.getElementById('demo-card');
+      tree.addEventListener('ontoportal:node-selected', (e) => {
+        card.setAttribute('concept-id', e.detail.nodeId);
+      });
+    </script>
+    <pre><code>&lt;ontoportal-tree ontology="CHMO" searchable="true"&gt;&lt;/ontoportal-tree&gt;
+&lt;ontoportal-concept-card ontology="CHMO" concept-id="http://purl.obolibrary.org/obo/CHMO_0000000"&gt;&lt;/ontoportal-concept-card&gt;</code></pre>
+  </div>
+</body>
+</html>

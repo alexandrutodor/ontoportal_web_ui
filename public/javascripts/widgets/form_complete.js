@@ -232,6 +232,37 @@ function definitionDiv(ont, concept) {
 }
 
 function formComplete_setup_functions() {
+  // If modern custom element is available or requested, upgrade input to <ontoportal-autocomplete>
+  if (window.USE_MODERN_ONTOPORTAL_WIDGETS || (typeof customElements !== 'undefined' && customElements.get('ontoportal-autocomplete'))) {
+    jQuery("input[class*='bp_form_complete']").each(function() {
+      if (this.dataset.opModernUpgraded) return;
+      this.dataset.opModernUpgraded = "true";
+
+      var classes = this.className.split(" ");
+      var ontology_id = "";
+      var target_property = "uri";
+      jQuery(classes).each(function() {
+        if (this.indexOf("bp_form_complete") === 0) {
+          var values = this.split("-");
+          ontology_id = decodeURIComponent(values[1]);
+          if (values[2]) target_property = values[2];
+        }
+      });
+      if (ontology_id === "all") ontology_id = "";
+
+      var modernEl = document.createElement('ontoportal-autocomplete');
+      modernEl.setAttribute('name', jQuery(this).attr('name') || 'ontology_term');
+      if (ontology_id) modernEl.setAttribute('ontologies', ontology_id);
+      modernEl.setAttribute('value-field', target_property || 'uri');
+      modernEl.setAttribute('placeholder', jQuery(this).attr('placeholder') || 'Search classes...');
+      if (typeof BP_SEARCH_SERVER !== 'undefined') modernEl.setAttribute('api-url', BP_SEARCH_SERVER);
+
+      jQuery(this).after(modernEl);
+      jQuery(this).hide();
+    });
+    return;
+  }
+
   jQuery("input[class*='bp_form_complete']").each(function(){
     var classes = this.className.split(" ");
     var values;

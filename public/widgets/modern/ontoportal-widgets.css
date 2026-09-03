@@ -1,0 +1,18 @@
+/* OntoPortal Modern Web Components Default Stylesheet */
+:root {
+  --op-primary-color: #1a7f5a;
+  --op-primary-hover: #156648;
+  --op-text-color: #1e293b;
+  --op-bg-color: #ffffff;
+  --op-border-color: #cbd5e1;
+  --op-border-radius: 6px;
+  --op-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --op-tree-max-height: 480px;
+}
+
+ontoportal-autocomplete,
+ontoportal-tree,
+ontoportal-concept-card {
+  display: block;
+  margin-bottom: 1rem;
+}

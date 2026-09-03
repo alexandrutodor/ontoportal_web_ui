@@ -126,4 +126,15 @@ class OntologiesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "text/turtle; charset=utf-8" , response.content_type
   end
+
+  test 'widgets tab renders modern custom elements and shims' do
+    view_path = File.expand_path('../../app/views/ontologies/_widgets.html.haml', __dir__)
+    content = File.read(view_path)
+    assert_includes content, 'ontoportal-autocomplete'
+    assert_includes content, 'ontoportal-tree'
+    assert_includes content, 'ontoportal-concept-card'
+    assert_includes content, '/widgets/modern/ontoportal-widgets.js'
+    assert_includes content, '/widgets/modern/ontoportal-widgets.css'
+    assert_includes content, '/widgets/jquery.ncbo.tree.shim.js'
+  end
 end
