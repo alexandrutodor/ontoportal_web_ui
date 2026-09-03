@@ -368,15 +368,15 @@ export class OntoPortalAutocomplete extends HTMLElement {
       li.dataset.index = index;
 
       const ontAcronym = item.links?.ontology ? item.links.ontology.split('/').pop() : '';
-      const prefLabel = item.prefLabel || item.name || item['@id'];
+      const prefLabel = item.prefLabel || item.name || item['@id'] || '';
       const uri = item['@id'] || item.id || '';
 
       li.innerHTML = `
         <div class="op-option-header">
-          <span class="op-option-label">${prefLabel}</span>
-          ${ontAcronym ? `<span class="op-option-ontology">${ontAcronym}</span>` : ''}
+          <span class="op-option-label">${escapeHTML(prefLabel)}</span>
+          ${ontAcronym ? `<span class="op-option-ontology">${escapeHTML(ontAcronym)}</span>` : ''}
         </div>
-        <div class="op-option-uri">${uri}</div>
+        <div class="op-option-uri">${escapeHTML(uri)}</div>
       `;
 
       li.addEventListener('mousedown', (e) => {
@@ -391,7 +391,7 @@ export class OntoPortalAutocomplete extends HTMLElement {
   }
 
   _renderError(message) {
-    this._dropdownEl.innerHTML = `<li class="op-error">${message}</li>`;
+    this._dropdownEl.innerHTML = `<li class="op-error">${escapeHTML(message)}</li>`;
     this._openDropdown();
   }
 
@@ -508,6 +508,16 @@ export class OntoPortalAutocomplete extends HTMLElement {
     // Delay slightly to let click register
     setTimeout(() => this._closeDropdown(), 150);
   }
+}
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 if (typeof customElements !== 'undefined' && !customElements.get('ontoportal-autocomplete')) {
