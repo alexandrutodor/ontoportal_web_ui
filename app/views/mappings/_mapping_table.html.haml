@@ -18,11 +18,12 @@
         %th.delete_mappings_column Delete
       %th Mapping To
       %th Ontology
+      %th Relation
       %th Source
   - if @mappings.length < 1
     %tr
       %td{:class => 'delete_mappings_column', :style => "display: none;"}
-      %td{:colspan => "3"} There are currently no mappings for this class.
+      %td{:colspan => "4"} There are currently no mappings for this class.
 
   - @mappings.each do |map|
     - cls = map.classes[0]
@@ -37,5 +38,8 @@
         = link_to cls.id, ontology_path(id: ont_acronym, p: 'classes', conceptid: cls.id)
       %td
         = link_to ont_acronym, ontology_path(ont_acronym)
+      %td
+        %span.badge.bg-light.text-dark.border{title: map.respond_to?(:relation) ? map.relation : "skos:exactMatch"}
+          = map.respond_to?(:relation) && map.relation.present? ? map.relation.split('#').last : "exactMatch"
       %td
         #{map.source} #{(map.process || {})[:source_name]}

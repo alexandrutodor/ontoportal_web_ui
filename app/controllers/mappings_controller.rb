@@ -7,7 +7,7 @@ class MappingsController < ApplicationController
   include MappingStatistics,MappingsHelper
 
   layout :determine_layout
-  before_action :authorize_and_redirect, only: [:create, :new, :destroy]
+  before_action :authorize_and_redirect, only: [:create, :new, :destroy, :import_sssom]
 
   MAPPINGS_URL = "#{LinkedData::Client.settings.rest_url}/mappings"
 
@@ -156,5 +156,107 @@ class MappingsController < ApplicationController
       end
     end
     render json: { success: successes, error: errors }
+  end
+
+  # GET /mappings/export_sssom
+  def export_sssom
+    ontology_acronym = params[:ontology] || params[:id]
+    target_acronym = params[:target]
+
+    mappings = []
+    if ontology_acronym.present?
+      ontologies = [ontology_acronym]
+      ontologies << target_acronym if target_acronym.present?
+      mapping_pages = LinkedData::Client::HTTP.get(MAPPINGS_URL, { ontologies: ontologies.join(','), pagesize: 500 })
+      mappings = mapping_pages&.collection || []
+    end
+
+    metadata = {
+      mapping_set_id: "urn:ontoportal:mappings:#{ontology_acronym || 'all'}",
+      mapping_set_title: "Mappings for #{ontology_acronym || 'All'}",
+      mapping_set_version: '1.0'
+    }
+
+    tsv_data = Mappings::SssomSerializer.serialize(mappings, metadata: metadata)
+    filename = "#{ontology_acronym || 'all'}_mappings_#{Date.today.strftime('%Y%m%d')}.sssom.tsv"
+
+    send_data tsv_data, filename: filename, type: 'text/tab-separated-values; charset=utf-8'
+  end
+
+  # POST /mappings/import_sssom
+  def import_sssom
+    content = if params[:file].respond_to?(:read)
+                params[:file].read
+              else
+                params[:sssom_content] || ''
+              end
+
+    if content.strip.empty?
+      render json: { success: false, errors: ['No SSSOM content or file provided.'] }, status: :unprocessable_entity
+      return
+    end
+
+    parsed = Mappings::SssomParser.parse(content)
+    unless parsed.valid?
+      render json: { success: false, errors: parsed.errors, metadata: parsed.metadata }, status: :unprocessable_entity
+      return
+    end
+
+    # Run sanity checks on parsed mappings
+    sanity_results = Mappings::SanityGuard.validate_batch(parsed.mappings)
+    violations = sanity_results.select { |r| !r.valid? }.map(&:violations).flatten
+
+    render json: {
+      success: true,
+      mappings_count: parsed.mappings.size,
+      metadata: parsed.metadata,
+      curie_map: parsed.curie_map,
+      sanity_violations: violations,
+      valid_sanity: violations.empty?,
+      mappings_sample: parsed.mappings.first(10).map(&:raw_data)
+    }
+  end
+
+  # POST /mappings/validate_sanity
+  def validate_sanity
+    if params[:mappings].is_a?(Array)
+      results = Mappings::SanityGuard.validate_batch(params[:mappings])
+      all_valid = results.all?(&:valid?)
+      render json: {
+        valid: all_valid,
+        results: results.map do |r|
+          { valid: r.valid?, violations: r.violations, warnings: r.warnings, subject: r.subject, object: r.object }
+        end
+      }
+    else
+      result = Mappings::SanityGuard.validate_mapping(
+        params[:subject],
+        params[:object],
+        relation: params[:relation] || 'skos:exactMatch'
+      )
+      render json: {
+        valid: result.valid?,
+        violations: result.violations,
+        warnings: result.warnings,
+        subject: result.subject,
+        object: result.object
+      }
+    end
+  end
+
+  # GET /mappings/drift_report
+  def drift_report
+    ontology_acronym = params[:ontology] || params[:id]
+    mappings = []
+    if ontology_acronym.present?
+      mapping_pages = LinkedData::Client::HTTP.get(MAPPINGS_URL, { ontologies: ontology_acronym, pagesize: 500 })
+      mappings = mapping_pages&.collection || []
+    end
+
+    report = Mappings::VersionDriftReconciler.reconcile(mappings)
+    respond_to do |format|
+      format.json { render json: report.to_h }
+      format.html { render json: report.to_h }
+    end
   end
 end

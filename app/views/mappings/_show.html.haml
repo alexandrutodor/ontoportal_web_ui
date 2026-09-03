@@ -1,6 +1,12 @@
 #mappings.paginate_ajax{:style => "overflow: auto; max-height: 600px; width: 800px;"}
   #mapping_results
-    = will_paginate @page_results, :update => 'mappings', :params => { :target => params[:target] }
+    %div.d-flex.justify-content-between.align-items-center.mb-2
+      %div
+        = will_paginate @page_results, :update => 'mappings', :params => { :target => params[:target] }
+      %div
+        = link_to export_sssom_mappings_path(ontology: @ontology.acronym, target: @target_ontology&.acronym), class: "btn btn-sm btn-outline-primary", title: "Export current alignment in SSSOM 1.0 TSV standard" do
+          %i.fas.fa-file-export.me-1
+          Export SSSOM 1.0 (TSV)
     - if @mappings.nil? or @mappings.empty?
       No mappings found
     - else

@@ -51,4 +51,26 @@ module MappingsHelper
     end
   end
 
+  def sssom_relation_badge(relation)
+    rel_str = relation.to_s
+    label = if rel_str.include?('#')
+              rel_str.split('#').last
+            elsif rel_str.include?(':')
+              rel_str.split(':').last
+            else
+              rel_str
+            end
+    content_tag(:span, label, class: 'badge bg-secondary', title: rel_str)
+  end
+
+  def format_dim_vector(vector)
+    return '[-]' unless vector.is_a?(Array)
+    # [L, M, T, I, Theta, N, J]
+    units = %w[L M T I Θ N J]
+    terms = vector.each_with_index.map do |exp, i|
+      next nil if exp.zero?
+      exp == 1 ? units[i] : "#{units[i]}^#{exp}"
+    end.compact
+    terms.empty? ? '1 (dimensionless)' : terms.join('·')
+  end
 end

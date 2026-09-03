@@ -1,6 +1,15 @@
 - @title = "Mappings"
 %div#mappings_container.container-fluid
-  %h1.tab_header Mappings
+  %div.d-flex.justify-content-between.align-items-center.mb-3
+    %h1.tab_header.mb-0 Mappings
+    %div.btn-group
+      %button.btn.btn-outline-primary{type: "button", "data-bs-toggle": "modal", "data-bs-target": "#sssomImportModal"}
+        %i.fas.fa-file-import.me-1
+        SSSOM 1.0 Hub & Sanity Guard
+      = link_to export_sssom_mappings_path, class: "btn btn-outline-secondary" do
+        %i.fas.fa-file-download.me-1
+        Export SSSOM TSV
+
   %p.tab_description
     = t('mappings.intro').html_safe
     = link_to(Rails.configuration.settings.links[:help_mappings],
@@ -15,3 +24,5 @@
         %img{src: asset_path("jquery.simple.tree/spinner.gif")}/
         Loading mappings...
       #mappingCount
+
+  = render partial: 'mappings/sssom_modal'

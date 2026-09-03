@@ -15,6 +15,12 @@ Rails.application.routes.draw do
     member do
       get 'count'
     end
+    collection do
+      get 'export_sssom'
+      post 'import_sssom'
+      post 'validate_sanity'
+      get 'drift_report'
+    end
   end
 
   resources :concepts

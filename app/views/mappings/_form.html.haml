@@ -27,6 +27,9 @@
     %label{for: "mapping_relation", class: 'form-label'} Mapping relation type
     = select("mapping", "relation", options_for_select(@mapping_relation_options, @mapping_relation_options.first), {},
              class: "form-control")
+    %small.text-muted.d-block.mt-1
+      %i.fas.fa-shield-alt.text-primary.me-1
+      Sanity Guard active: SI physical dimensions & tensor rank compatibility will be verified upon creation.
   %div.mb-1
     %span#create_mapping_spinner
       = loading_spinner

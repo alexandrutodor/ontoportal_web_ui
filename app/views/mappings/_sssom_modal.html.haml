@@ -1,0 +1,92 @@
+-# SSSOM 1.0 Import & Sanity Modal
+%div.modal.fade#sssomImportModal{tabindex: "-1", "aria-labelledby": "sssomImportModalLabel", "aria-hidden": "true"}
+  %div.modal-dialog.modal-lg
+    %div.modal-content
+      %div.modal-header
+        %h5.modal-title#sssomImportModalLabel
+          %i.fas.fa-file-import.me-2
+          SSSOM 1.0 Mapping Hub & Sanity Guard
+        %button.btn-close{type: "button", "data-bs-dismiss": "modal", "aria-label": "Close"}
+      %div.modal-body
+        %p.text-muted
+          Import and validate alignments conforming to the
+          %strong SSSOM 1.0 (Simple Standard for Sharing Ontological Mappings)
+          standard with automated SI physical dimensions and tensor rank sanity checking.
+
+        = form_with url: import_sssom_mappings_path, id: "sssom_import_form", multipart: true, local: false do |f|
+          %div.mb-3
+            %label.form-label{for: "sssom_file"} Select SSSOM File (.tsv, .sssom.tsv)
+            = file_field_tag :file, id: "sssom_file", class: "form-control", accept: ".tsv,.txt"
+
+          %div.mb-3
+            %label.form-label{for: "sssom_content"} Or Paste SSSOM Content
+            = text_area_tag :sssom_content, nil, rows: 6, class: "form-control font-monospace", placeholder: "# mapping_set_id: ...\nsubject_id\tsubject_label\tpredicate_id\tobject_id\tobject_label\tmapping_justification"
+
+          %div.form-check.mb-3
+            = check_box_tag :validate_sanity, "true", true, class: "form-check-input", id: "validate_sanity_checkbox"
+            %label.form-check-label{for: "validate_sanity_checkbox"}
+              %strong Enforce Symbolic Sanity Guard
+              (Strict SI physical dimensions 7-tuple exponent check & tensor rank compatibility)
+
+          %div#sssom_import_progress.d-none.my-2
+            %div.spinner-border.spinner-border-sm.text-primary{role: "status"}
+            %span.ms-2 Processing SSSOM mappings and evaluating sanity constraints...
+
+          %div#sssom_import_results.d-none.mt-3
+            %div.alert#sssom_result_alert{role: "alert"}
+            %div#sssom_details_container
+
+      %div.modal-footer
+        %button.btn.btn-secondary{type: "button", "data-bs-dismiss": "modal"} Close
+        %button.btn.btn-primary#sssom_submit_button{type: "button", onclick: "submitSssomImport()"}
+          %i.fas.fa-upload.me-1
+          Import & Validate
+
+:javascript
+  function submitSssomImport() {
+    var form = document.getElementById('sssom_import_form');
+    var formData = new FormData(form);
+    var progress = document.getElementById('sssom_import_progress');
+    var results = document.getElementById('sssom_import_results');
+    var alertBox = document.getElementById('sssom_result_alert');
+    var details = document.getElementById('sssom_details_container');
+
+    progress.classList.remove('d-none');
+    results.classList.add('d-none');
+
+    fetch('#{import_sssom_mappings_path}', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ''
+      }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      progress.classList.add('d-none');
+      results.classList.remove('d-none');
+      if (data.success) {
+        alertBox.className = 'alert alert-success';
+        var html = '<strong>Success!</strong> Imported ' + data.mappings_count + ' mappings.';
+        if (data.sanity_violations && data.sanity_violations.length > 0) {
+          alertBox.className = 'alert alert-warning';
+          html += '<div class="mt-2"><strong>Sanity Guard Warnings/Violations (' + data.sanity_violations.length + '):</strong><ul>';
+          data.sanity_violations.forEach(function(v) { html += '<li>' + v + '</li>'; });
+          html += '</ul></div>';
+        } else {
+          html += '<div>All symbolic dimension & tensor rank checks passed cleanly.</div>';
+        }
+        alertBox.innerHTML = html;
+      } else {
+        alertBox.className = 'alert alert-danger';
+        var errs = data.errors ? data.errors.join('<br>') : 'Import failed';
+        alertBox.innerHTML = '<strong>Import Error:</strong><br>' + errs;
+      }
+    })
+    .catch(function(err) {
+      progress.classList.add('d-none');
+      results.classList.remove('d-none');
+      alertBox.className = 'alert alert-danger';
+      alertBox.innerHTML = '<strong>Network error:</strong> ' + err.message;
+    });
+  }
