@@ -28,6 +28,10 @@ class RecommenderController < ApplicationController
 
   # NOTE: this call (POST) works at a local environment but not in staging
   def create
+    if params[:algorithm] == 'pareto' || params[:pareto].to_s == 'true' || params[:license_filter].present?
+      return pareto
+    end
+
     start = Time.now
     input = params[:input].strip.gsub("\r\n", " ").gsub("\n", " ")
     # Default values are set at the service level)
@@ -44,6 +48,36 @@ class RecommenderController < ApplicationController
     recommendations = LinkedData::Client::HTTP.post(RECOMMENDER_URI, form_data, raw: true)
     Log.add :debug, "Retrieved #{recommendations.length} recommendations: #{Time.now - start}s"
     render json: recommendations
+  end
+
+  def pareto
+    input = (params[:input] || '').to_s.strip.gsub("\r\n", " ").gsub("\n", " ")
+    ontologies = params[:ontologies]
+    license_filter = params[:license_filter]
+
+    @pareto_data = Recommender::ParetoRecommenderService.call(
+      input: input,
+      ontologies: ontologies,
+      license_filter: license_filter,
+      options: {
+        output_type: params[:output_type] || 'individual',
+        max_elements_set: params[:max_elements_set] || 3,
+        require_permissive_license: params[:require_permissive].to_s == 'true'
+      }
+    )
+
+    respond_to do |format|
+      format.html do
+        if request.xhr?
+          render partial: 'recommender/pareto_results', locals: { pareto_data: @pareto_data }, layout: false
+        else
+          render :index
+        end
+      end
+      format.json do
+        render json: @pareto_data
+      end
+    end
   end
 
 end

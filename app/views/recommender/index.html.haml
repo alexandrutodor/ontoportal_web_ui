@@ -42,6 +42,16 @@
 
   -# Advanced options
   %div#advancedOptions
+    -# Algorithm selection & License Gate
+    %h6 Recommendation Optimization & Governance
+    %div.row.mb-3
+      %div.col-md-4
+        %label{for: "select_algorithm"} Optimization Model
+        = select_tag("algorithm", options_for_select([["Standard Weighted Sum", "standard"], ["Pareto Non-Dominated Frontier (Multi-Objective)", "pareto"]], "pareto"), class: "form-select", id: "select_algorithm")
+      %div.col-md-4
+        %label{for: "select_license"} SPDX License Constraint Gate
+        = select_tag("license_filter", options_for_select([["All Licenses (Unrestricted)", ""], ["Permissive Only (CC0, CC-BY, MIT, Apache, BSD)", "permissive"]], ""), class: "form-select", id: "select_license")
+
     -# Specify weights
     %h6 Weights configuration
     %div.row.mb-3
@@ -75,6 +85,8 @@
 
 %div.row#recommenderErrorsDisplay.mb-4
   %div.col
+    - if @pareto_data.present?
+      = render partial: "recommender/pareto_results", locals: { pareto_data: @pareto_data }
     %span.notTextError
       Please paste a paragraph of text or some keywords to use in calculating ontology recommendations.
       %br/

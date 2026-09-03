@@ -63,7 +63,12 @@ Rails.application.routes.draw do
 
   resources :subscriptions
 
-  resources :recommender
+  resources :recommender do
+    collection do
+      get :pareto
+      post :pareto
+    end
+  end
 
   resources :annotator
 
@@ -148,6 +153,7 @@ Rails.application.routes.draw do
   # Search
   get 'search', to: 'search#index'
   get 'search/json_search(/:id)', to: 'search#json_search'
+  get 'search/hybrid', to: 'search#hybrid'
 
   # Admin
   get '/admin/users', to: 'admin#users'

@@ -9,6 +9,41 @@ class SearchController < ApplicationController
   def index
     @search_query = params[:query].nil? ? params[:q] : params[:query]
     @search_query ||= ""
+    if params[:hybrid].present? && @search_query.present?
+      slice_param = respond_to?(:current_slice) ? current_slice : nil
+      @hybrid_results = Search::HybridSearchService.call(
+        query: @search_query,
+        ontologies: params[:ontologies],
+        slice: slice_param,
+        k: params[:k] || 60
+      )
+    end
+  end
+
+  def hybrid
+    @query = params[:query].presence || params[:q].presence || ''
+    @ontologies = params[:ontologies] || params[:ontology_ids]
+    slice_param = respond_to?(:current_slice) ? current_slice : nil
+
+    @hybrid_results = Search::HybridSearchService.call(
+      query: @query,
+      ontologies: @ontologies,
+      slice: slice_param,
+      k: params[:k] || 60
+    )
+
+    respond_to do |format|
+      format.html do
+        if request.xhr?
+          render partial: 'search/hybrid_results', locals: { search_data: @hybrid_results }, layout: false
+        else
+          render :index
+        end
+      end
+      format.json do
+        render json: @hybrid_results
+      end
+    end
   end
 
   def json_search

@@ -42,6 +42,9 @@
             = check_box(:search, :require_definition, class: "form-check-input")
             = label(:search, :require_definition, "Classes with definitions", class: "form-check-label",
                     for: 'search_require_definition')
+          %div.form-check
+            = check_box_tag(:hybrid, '1', params[:hybrid].present?, class: "form-check-input", id: "search_hybrid_toggle")
+            = label_tag("search_hybrid_toggle", "Hybrid Search (Reciprocal Rank Fusion k=60 + SSSOM expansion)", class: "form-check-label fw-bold text-primary")
 
       %div.mb-3
         %h6{style: "font-size: 10pt !important"} Categories
@@ -54,6 +57,11 @@
       %img{src: asset_path('spinners/spinner_000000_16px.gif'), style: "vertical-align: middle;"}
 
   -# Search results
+  - if @hybrid_results.present?
+    %div.row.my-4#hybrid_search_results_container
+      %div.col
+        = render partial: "search/hybrid_results", locals: { search_data: @hybrid_results }
+
   %div.row.my-4#search_results_container
     %div.col
       #result_stats

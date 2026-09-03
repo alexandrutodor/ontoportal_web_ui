@@ -1,0 +1,100 @@
+-# app/views/recommender/_pareto_results.html.haml
+- if pareto_data.nil? || pareto_data[:frontier].empty?
+  .alert.alert-info
+    %i.fas.fa-info-circle.me-2
+    No Pareto-optimal ontology recommendations found for the given criteria.
+- else
+  .card.border-0.shadow-sm.mb-4
+    .card-header.bg-light.d-flex.justify-content-between.align-items-center
+      %div
+        %strong.text-primary Pareto Multi-Objective Frontier
+        %span.badge.bg-success.ms-2= "#{pareto_data[:frontier].size} optimal ontologies"
+        - if pareto_data[:license_gated_count].to_i.positive?
+          %span.badge.bg-warning.text-dark.ms-1= "#{pareto_data[:license_gated_count]} excluded by SPDX license gate"
+      .small.text-muted
+        = "Evaluated: #{pareto_data[:total_evaluated]} candidates"
+
+    .card-body
+      %h5.card-title.border-bottom.pb-2
+        %i.fas.fa-award.text-warning.me-2
+        Non-Dominated Optimal Ontologies (Front 1)
+      %p.text-muted.small
+        These ontologies represent non-dominated trade-offs across coverage, specialization, and recency where no other candidate simultaneously outperforms them.
+
+      .table-responsive
+        %table.table.table-hover.align-middle
+          %thead.table-light
+            %tr
+              %th Ontology
+              %th Coverage
+              %th Specialization
+              %th Recency
+              %th SPDX License
+              %th Diversity (Crowding)
+          %tbody
+            - pareto_data[:frontier].each do |eval_item|
+              %tr
+                %td
+                  %strong= link_to(eval_item.acronym, "/ontologies/#{eval_item.acronym}", class: 'text-decoration-none')
+                  .small.text-muted= eval_item.name
+                %td
+                  .progress{style: "height: 18px;", title: format_metric_percentage(eval_item.coverage)}
+                    .progress-bar.bg-primary{role: "progressbar", style: "width: #{(eval_item.coverage * 100).round}%"}
+                      = format_metric_percentage(eval_item.coverage)
+                %td
+                  .progress{style: "height: 18px;", title: format_metric_percentage(eval_item.specialization)}
+                    .progress-bar.bg-info{role: "progressbar", style: "width: #{(eval_item.specialization * 100).round}%"}
+                      = format_metric_percentage(eval_item.specialization)
+                %td
+                  %span.badge.bg-light.text-dark.border= format_metric_percentage(eval_item.recency)
+                %td
+                  = license_badge(eval_item.license_spdx, eval_item.permissive_license?)
+                %td
+                  .small.font-monospace.text-muted
+                    = eval_item.crowding_distance == Float::INFINITY ? 'inf (boundary)' : sprintf('%.3f', eval_item.crowding_distance)
+
+      - if pareto_data[:sets].present? && pareto_data[:sets].any?
+        %h5.card-title.border-bottom.pb-2.mt-4
+          %i.fas.fa-layer-group.text-primary.me-2
+          Pareto-Optimal Ontology Sets (Covering)
+        %p.text-muted.small
+          Minimal non-dominated combinations maximizing aggregate coverage while minimizing redundant semantic overlap.
+
+        .table-responsive
+          %table.table.table-sm.table-bordered
+            %thead.table-light
+              %tr
+                %th Set Combination
+                %th Size
+                %th Combined Coverage
+                %th Redundancy
+                %th Permissive License
+            %tbody
+              - pareto_data[:sets].each do |set_item|
+                %tr
+                  %td
+                    - set_item[:ontologies].each do |ont|
+                      %span.badge.bg-primary.me-1= ont
+                  %td= set_item[:set_size]
+                  %td
+                    %strong.text-success= format_metric_percentage(set_item[:combined_coverage])
+                  %td
+                    %span.text-muted= sprintf('%.2f', set_item[:redundancy])
+                  %td
+                    - if set_item[:license_permissive]
+                      %span.badge.bg-success Yes
+                    - else
+                      %span.badge.bg-warning.text-dark Mixed / Restricted
+
+      - if pareto_data[:fronts].size > 1
+        .mt-3
+          %details
+            %summary.text-secondary.small.cursor-pointer
+              View Sub-Frontier Ontologies (Fronts 2..#{pareto_data[:fronts].size})
+            .mt-2
+              - pareto_data[:fronts][1..-1].each_with_index do |subfront, f_idx|
+                %h6.mt-2.text-muted= "Front #{f_idx + 2} (#{subfront.size} ontologies)"
+                .d-flex.flex-wrap.gap-1
+                  - subfront.each do |sub_item|
+                    %span.badge.bg-light.text-dark.border
+                      = "#{sub_item.acronym} (#{format_metric_percentage(sub_item.coverage)})"

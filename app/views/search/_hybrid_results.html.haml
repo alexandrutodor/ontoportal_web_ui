@@ -1,0 +1,60 @@
+-# app/views/search/_hybrid_results.html.haml
+- if search_data.nil? || search_data[:results].empty?
+  .alert.alert-info
+    %i.fas.fa-info-circle.me-2
+    No hybrid search results found for
+    %strong= search_data&.dig(:query)
+- else
+  .card.border-0.shadow-sm.mb-4
+    .card-header.bg-light.d-flex.justify-content-between.align-items-center
+      %div
+        %strong.text-primary Hybrid Search (Reciprocal Rank Fusion k=#{search_data[:k]})
+        %span.badge.bg-secondary.ms-2= "#{search_data[:total_results]} results"
+      .small.text-muted
+        Channels:
+        - search_data[:channel_counts].each do |ch, count|
+          %span.badge.badge-sm.bg-light.text-dark.border.ms-1= "#{ch}: #{count}"
+
+    .list-group.list-group-flush
+      - search_data[:results].each_with_index do |doc, idx|
+        .list-group-item.py-3
+          .d-flex.w-100.justify-content-between.align-items-start
+            %div
+              %h5.mb-1
+                = link_to(doc.pref_label, "/ontologies/#{doc.ontology_acronym}?p=classes&conceptid=#{CGI.escape(doc.iri)}", class: 'text-decoration-none fw-bold')
+                - if doc.obsolete?
+                  %span.badge.bg-danger.ms-2 Obsolete
+                %span.badge.bg-light.text-dark.border.ms-2= doc.ontology_acronym
+              
+              .small.text-muted.font-monospace.mb-1
+                %span.me-3
+                  %strong IRI:
+                  = doc.iri
+                - if doc.curie.present?
+                  %span
+                    %strong CURIE:
+                    = doc.curie
+
+              - if doc.definition.present?
+                %p.mb-2.text-secondary.small= truncate(doc.definition, length: 220)
+
+              - if doc.synonyms.any?
+                .small.text-muted.mb-1
+                  %strong Synonyms:
+                  = doc.synonyms.first(4).join(', ')
+                  - if doc.synonyms.size > 4
+                    %span.text-muted= "+#{doc.synonyms.size - 4} more"
+
+              .d-flex.flex-wrap.gap-1.mt-2
+                - doc.matched_channels.each do |channel|
+                  %span.badge{class: channel_badge_class(channel)}= channel_label(channel)
+
+            .text-end.ms-3{style: "min-width: 130px;"}
+              .badge.bg-primary.fs-6.p-2.d-block
+                RRF: #{format_rrf_score(doc.rrf_score)}
+              .small.text-muted.mt-1
+                Rank ##{idx + 1}
+              - if doc.explanation.any?
+                .small.text-muted.mt-1{title: doc.explanation.to_json}
+                  %i.fas.fa-chart-bar.me-1
+                  = "#{doc.matched_channels.size} channel hit(s)"
