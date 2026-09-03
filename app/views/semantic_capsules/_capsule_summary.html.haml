@@ -1,0 +1,56 @@
+.card.mb-3.shadow-sm
+  .card-body
+    .d-flex.justify-content-between.align-items-start
+      %div
+        %h4.card-title.mb-1
+          = link_to capsule.name, semantic_capsule_path(capsule.id), class: 'text-decoration-none'
+          %span.badge.bg-secondary.ms-2= "v#{capsule.version}"
+          - if capsule.status == 'verified'
+            %span.badge.bg-success.ms-1
+              %i.fas.fa-check-circle
+              Verified
+          - elsif capsule.status == 'tampered'
+            %span.badge.bg-danger.ms-1
+              %i.fas.fa-exclamation-triangle
+              Tampered
+          - else
+            %span.badge.bg-primary.ms-1
+              %i.fas.fa-lock
+              Locked
+        %p.text-muted.small.mb-2
+          %span.me-3
+            %i.fas.fa-user.me-1
+            = capsule.author
+          %span.me-3
+            %i.fas.fa-calendar.me-1
+            = capsule.created_at
+          %span
+            %i.fas.fa-fingerprint.me-1
+            %code= capsule.manifest_digest ? capsule.manifest_digest[0..23] + '...' : 'pending'
+      .btn-group
+        = link_to download_lock_semantic_capsule_path(capsule.id), class: 'btn btn-sm btn-outline-primary', title: 'Download semantic.lock' do
+          %i.fas.fa-file-code.me-1
+          semantic.lock
+        = link_to download_bundle_semantic_capsule_path(capsule.id), class: 'btn btn-sm btn-outline-success', title: 'Download RO-Crate 1.1 Zip' do
+          %i.fas.fa-file-archive.me-1
+          RO-Crate
+        = link_to verify_semantic_capsule_path(capsule.id), class: 'btn btn-sm btn-outline-secondary', title: 'Re-verify integrity' do
+          %i.fas.fa-shield-alt.me-1
+          Verify
+
+    - if capsule.description.present?
+      %p.card-text.mt-2= capsule.description
+
+    .d-flex.gap-3.mt-2.text-secondary.small
+      %div
+        %strong= (capsule.locked_ontologies || []).size
+        Ontologies
+      %div
+        %strong= (capsule.locked_shapes || []).size
+        Shapes
+      %div
+        %strong= (capsule.locked_mappings || []).size
+        Mappings
+      %div
+        %strong= (capsule.locked_embeddings || []).size
+        Embeddings

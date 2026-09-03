@@ -1,0 +1,153 @@
+- @title = "#{@capsule.name} (v#{@capsule.version}) - Semantic Capsule"
+
+.container-fluid.py-4
+  .d-flex.justify-content-between.align-items-center.mb-4
+    %div
+      %nav{'aria-label': 'breadcrumb'}
+        %ol.breadcrumb.mb-1
+          %li.breadcrumb-item
+            = link_to 'Semantic Capsules', semantic_capsules_path
+          %li.breadcrumb-item.active= @capsule.name
+      %h1.h2.mb-0
+        = @capsule.name
+        %span.badge.bg-secondary.ms-2= "v#{@capsule.version}"
+        - if @capsule.status == 'verified'
+          %span.badge.bg-success.ms-1
+            %i.fas.fa-check-circle
+            Verified
+        - elsif @capsule.status == 'tampered'
+          %span.badge.bg-danger.ms-1
+            %i.fas.fa-exclamation-triangle
+            Tampered
+        - else
+          %span.badge.bg-primary.ms-1
+            %i.fas.fa-lock
+            Locked
+    .btn-toolbar.gap-2
+      = link_to download_lock_semantic_capsule_path(@capsule.id), class: 'btn btn-primary' do
+        %i.fas.fa-file-code.me-1
+        Download semantic.lock
+      = link_to download_bundle_semantic_capsule_path(@capsule.id), class: 'btn btn-success' do
+        %i.fas.fa-file-archive.me-1
+        Download RO-Crate ZIP
+      = link_to verify_semantic_capsule_path(@capsule.id), class: 'btn btn-outline-secondary' do
+        %i.fas.fa-shield-alt.me-1
+        Verify Integrity
+      = link_to semantic_capsule_path(@capsule.id), method: :delete, data: { confirm: 'Are you sure you want to remove this capsule?' }, class: 'btn btn-outline-danger' do
+        %i.fas.fa-trash
+
+  - if flash[:notice]
+    .alert.alert-success.alert-dismissible.fade.show
+      = flash[:notice]
+  - if flash[:alert]
+    .alert.alert-danger.alert-dismissible.fade.show
+      = flash[:alert]
+
+  .card.mb-4
+    .card-body
+      .row
+        .col-md-3
+          %strong ID:
+          %code.d-block.text-truncate= @capsule.id
+        .col-md-3
+          %strong Author:
+          %div= @capsule.author
+        .col-md-3
+          %strong Created:
+          %div= @capsule.created_at
+        .col-md-3
+          %strong Generator:
+          %div= @capsule.generator
+      - if @capsule.description.present?
+        .mt-3
+          %strong Description:
+          %p.mb-0= @capsule.description
+      .mt-3.p-2.bg-light.rounded
+        %strong Manifest Digest:
+        %code.ms-2= @capsule.manifest_digest || 'Uncomputed'
+
+  / Locked Ontologies Table
+  .card.mb-4
+    .card-header.bg-white.d-flex.justify-content-between.align-items-center
+      %h5.card-title.mb-0
+        %i.fas.fa-book.me-2.text-primary
+        Locked Ontologies (#{(@capsule.locked_ontologies || []).size})
+    .table-responsive
+      %table.table.table-hover.align-middle.mb-0
+        %thead.table-light
+          %tr
+            %th Acronym
+            %th Version Tag
+            %th Submission ID
+            %th Triples
+            %th SHA-256 Digest
+        %tbody
+          - if (@capsule.locked_ontologies || []).empty?
+            %tr
+              %td.text-muted{colspan: 5} No ontologies locked in this capsule.
+          - else
+            - @capsule.locked_ontologies.each do |ont|
+              %tr
+                %td
+                  %strong= ont['acronym']
+                  - if ont['iri'].present?
+                    %div.small.text-muted= ont['iri']
+                %td
+                  %span.badge.bg-light.text-dark= ont['version_tag'] || 'latest'
+                %td= ont['submission_id'] || '-'
+                %td= ont['triples_count'] || '-'
+                %td
+                  %code.small= ont['sha256']
+
+  / Locked Shapes & Mappings
+  .row.mb-4
+    .col-md-6
+      .card.h-100
+        .card-header.bg-white
+          %h5.card-title.mb-0
+            %i.fas.fa-shapes.me-2.text-warning
+            SHACL Validation Shapes (#{(@capsule.locked_shapes || []).size})
+        .card-body
+          - if (@capsule.locked_shapes || []).empty?
+            %p.text-muted.mb-0 No SHACL shapes configured.
+          - else
+            %ul.list-group.list-group-flush
+              - @capsule.locked_shapes.each do |shape|
+                %li.list-group-item.px-0
+                  .fw-bold= shape['name']
+                  .text-muted.small= shape['iri']
+                  %div.small.mt-1
+                    %span.badge.bg-light.text-dark= "v#{shape['version']}"
+                    %code.ms-2= shape['sha256']
+
+    .col-md-6
+      .card.h-100
+        .card-header.bg-white
+          %h5.card-title.mb-0
+            %i.fas.fa-project-diagram.me-2.text-success
+            SSSOM Mappings (#{(@capsule.locked_mappings || []).size})
+        .card-body
+          - if (@capsule.locked_mappings || []).empty?
+            %p.text-muted.mb-0 No mapping sets attached.
+          - else
+            %ul.list-group.list-group-flush
+              - @capsule.locked_mappings.each do |mapping|
+                %li.list-group-item.px-0
+                  .fw-bold= mapping['id']
+                  .small.text-muted
+                    = "#{mapping['source_ontology']} → #{mapping['target_ontology']}"
+                    - if mapping['mapping_count']
+                      %span.ms-2= "(#{mapping['mapping_count']} mappings)"
+                  %div.small.mt-1
+                    %code= mapping['sha256']
+
+  / Raw semantic.lock Preview
+  .card
+    .card-header.bg-white.d-flex.justify-content-between.align-items-center
+      %h5.card-title.mb-0
+        %i.fas.fa-code.me-2
+        semantic.lock Source
+      %span.badge.bg-dark YAML
+    .card-body.p-0
+      %pre.m-0.p-3.bg-dark.text-light.small{style: 'max-height: 400px; overflow-y: auto;'}
+        %code= @capsule.to_lockfile(format: :yaml)

@@ -1,0 +1,78 @@
+- @title = "Semantic Capsules & semantic.lock"
+
+.container-fluid.py-4
+  .d-flex.justify-content-between.align-items-center.mb-4
+    %div
+      %h1.h2.mb-1
+        %i.fas.fa-cube.text-primary.me-2
+        Semantic Capsules
+      %p.text-muted.mb-0
+        Deterministic semantic environment locks and W3C RO-Crate 1.1 packaging for autonomous AI agents and ELNs.
+    .btn-toolbar.gap-2
+      = link_to new_semantic_capsule_path, class: 'btn btn-primary' do
+        %i.fas.fa-plus.me-1
+        Create Capsule
+      %button.btn.btn-outline-secondary{type: 'button', 'data-bs-toggle': 'collapse', 'data-bs-target': '#validateCollapse'}
+        %i.fas.fa-check-double.me-1
+        Validate Lockfile
+
+  .collapse.mb-4#validateCollapse
+    .card.card-body.bg-light
+      %h5.card-title
+        %i.fas.fa-shield-alt.me-1
+        Validate External semantic.lock
+      %p.text-muted.small
+        Verify cryptographic SHA-256 integrity and schema conformance of an external lockfile before deployment.
+      = form_with url: validate_semantic_capsules_path, method: :post, local: true, multipart: true, class: 'row g-3' do |f|
+        .col-md-6
+          = f.label :lockfile_file, 'Upload semantic.lock file', class: 'form-label'
+          = f.file_field :lockfile_file, class: 'form-control', accept: '.lock,.yaml,.yml,.json'
+        .col-md-6
+          = f.label :content, 'Or paste lockfile YAML/JSON content', class: 'form-label'
+          = f.text_area :content, rows: 2, class: 'form-control font-monospace', placeholder: 'schema_version: "semantic.lock/v1"...'
+        .col-12
+          = f.submit 'Validate Integrity', class: 'btn btn-outline-primary btn-sm'
+
+  - if flash[:notice]
+    .alert.alert-success.alert-dismissible.fade.show
+      = flash[:notice]
+  - if flash[:alert]
+    .alert.alert-danger.alert-dismissible.fade.show
+      = flash[:alert]
+
+  .row
+    .col-lg-8
+      - if @capsules.empty?
+        .card.text-center.py-5
+          .card-body
+            %i.fas.fa-box-open.fa-3x.text-muted.mb-3
+            %h4 No semantic capsules yet
+            %p.text-muted Create your first capsule to lock ontology versions and mapping sets.
+            = link_to 'Create Capsule', new_semantic_capsule_path, class: 'btn btn-primary'
+      - else
+        - @capsules.each do |capsule|
+          = render partial: 'capsule_summary', locals: { capsule: capsule }
+
+    .col-lg-4
+      .card.shadow-sm.mb-4
+        .card-header.bg-white
+          %h5.card-title.mb-0
+            %i.fas.fa-info-circle.text-info.me-2
+            What is a Semantic Capsule?
+        .card-body.small
+          %p
+            A 
+            %strong Semantic Capsule
+            freezes exact ontology versions, SHA-256 content hashes, SHACL validation shape graphs, and SSSOM mappings into a reproducible 
+            %code semantic.lock
+            manifest.
+          %ul.ps-3.mb-3
+            %li Prevents silent drift in semantic agent and ELN workflows.
+            %li Guarantees deterministic graph queries across cloud environments.
+            %li Generates W3C RO-Crate 1.1 compliant FAIR data packages.
+          %hr
+          %h6.fw-bold CLI Usage
+          %pre.bg-dark.text-light.p-2.rounded.small
+            %code
+              rake capsule:validate[semantic.lock]
+              rake capsule:export[capsule-id,bundle.zip]

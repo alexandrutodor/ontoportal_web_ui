@@ -61,6 +61,17 @@ Rails.application.routes.draw do
 
   resources :virtual_appliance
 
+  resources :semantic_capsules do
+    member do
+      get 'download_lock'
+      get 'download_bundle'
+      get 'verify'
+    end
+    collection do
+      post 'validate'
+    end
+  end
+
   # Top-level pages
   match '/feedback', to: 'home#feedback', via: [:get, :post]
   get '/help' => 'home#help'

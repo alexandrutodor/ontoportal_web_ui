@@ -1,0 +1,114 @@
+- @title = "Create Semantic Capsule"
+
+.container-fluid.py-4
+  %nav{'aria-label': 'breadcrumb'}
+    %ol.breadcrumb.mb-3
+      %li.breadcrumb-item
+        = link_to 'Semantic Capsules', semantic_capsules_path
+      %li.breadcrumb-item.active New Capsule
+
+  .d-flex.justify-content-between.align-items-center.mb-4
+    %div
+      %h1.h2.mb-1
+        %i.fas.fa-cube.text-primary.me-2
+        Create Semantic Capsule
+      %p.text-muted.mb-0
+        Lock ontology versions, SHACL shapes, SSSOM mappings, and vector models into a reproducible semantic environment.
+
+  - if flash[:alert]
+    .alert.alert-danger.alert-dismissible.fade.show
+      = flash[:alert]
+
+  .row
+    .col-lg-8
+      .card.shadow-sm.mb-4
+        .card-header.bg-white
+          %ul.nav.nav-tabs.card-header-tabs#capsuleTabs{role: 'tablist'}
+            %li.nav-item
+              %button.nav-link.active#form-tab{'data-bs-toggle': 'tab', 'data-bs-target': '#form-panel', type: 'button', role: 'tab'}
+                %i.fas.fa-edit.me-1
+                Configure Capsule
+            %li.nav-item
+              %button.nav-link#upload-tab{'data-bs-toggle': 'tab', 'data-bs-target': '#upload-panel', type: 'button', role: 'tab'}
+                %i.fas.fa-file-upload.me-1
+                Import semantic.lock
+
+        .card-body
+          .tab-content#capsuleTabsContent
+            / Panel 1: Configure Form
+            .tab-pane.fade.show.active#form-panel{role: 'tabpanel'}
+              = form_with url: semantic_capsules_path, method: :post, local: true, class: 'row g-3' do |f|
+                .col-md-8
+                  = f.label :name, 'Capsule Name', class: 'form-label fw-bold'
+                  = f.text_field :name, class: 'form-control', placeholder: 'e.g. materials-science-core-kg', required: true
+                .col-md-4
+                  = f.label :version, 'Version', class: 'form-label fw-bold'
+                  = f.text_field :version, value: '1.0.0', class: 'form-control', required: true
+
+                .col-12
+                  = f.label :description, 'Description', class: 'form-label'
+                  = f.text_area :description, rows: 2, class: 'form-control', placeholder: 'Describe the research domain, ELN integration, or agent workflow...'
+
+                .col-md-6
+                  = f.label :author, 'Author / Organization', class: 'form-label'
+                  = f.text_field :author, value: 'OntoPortal Curator', class: 'form-control'
+
+                .col-12
+                  %hr.my-3
+                  %h5.card-title.mb-2
+                    %i.fas.fa-book.text-primary.me-1
+                    Locked Ontologies (JSON Array)
+                  %p.text-muted.small.mb-2
+                    Specify ontology acronyms, version tags, IRIs, and expected SHA-256 hashes.
+                  = f.text_area :ontologies_json, rows: 4, class: 'form-control font-monospace small', placeholder: '[{"acronym": "EMMO", "iri": "http://emmo.info/emmo", "version_tag": "1.0.0-rc2", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "triples_count": 84321}]'
+
+                .col-12
+                  %h5.card-title.mb-2
+                    %i.fas.fa-shapes.text-warning.me-1
+                    SHACL Validation Shapes (JSON Array)
+                  = f.text_area :shapes_json, rows: 3, class: 'form-control font-monospace small', placeholder: '[{"name": "CoreShapes", "iri": "https://example.org/shapes.ttl", "version": "1.0", "sha256": "5d41402abc4b2a76b9719d911017c592b21c43f80879654a9382103f5dbca4a8"}]'
+
+                .col-12
+                  %h5.card-title.mb-2
+                    %i.fas.fa-project-diagram.text-success.me-1
+                    SSSOM Mappings (JSON Array)
+                  = f.text_area :mappings_json, rows: 3, class: 'form-control font-monospace small', placeholder: '[{"id": "EMMO-CHEMINF", "source_ontology": "EMMO", "target_ontology": "CHEMINF", "sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb", "mapping_count": 1420}]'
+
+                .col-12
+                  %h5.card-title.mb-2
+                    %i.fas.fa-brain.text-info.me-1
+                    Embeddings & Vector Models (JSON Array)
+                  = f.text_area :embeddings_json, rows: 2, class: 'form-control font-monospace small', placeholder: '[{"model_id": "sentence-transformers/all-MiniLM-L6-v2", "dimension": 384, "distance_metric": "cosine"}]'
+
+                .col-12.d-flex.gap-2.mt-4
+                  = f.submit 'Create & Lock Capsule', class: 'btn btn-primary'
+                  = link_to 'Cancel', semantic_capsules_path, class: 'btn btn-outline-secondary'
+
+            / Panel 2: Upload Lockfile
+            .tab-pane.fade#upload-panel{role: 'tabpanel'}
+              = form_with url: semantic_capsules_path, method: :post, local: true, multipart: true, class: 'row g-3' do |f|
+                .col-12
+                  %p.text-muted
+                    Import a previously generated 
+                    %code semantic.lock
+                    file to re-hydrate the capsule environment.
+                  = f.label :lockfile_upload, 'Select semantic.lock file', class: 'form-label fw-bold'
+                  = f.file_field :lockfile_upload, class: 'form-control', accept: '.lock,.yaml,.yml,.json', required: true
+
+                .col-12.d-flex.gap-2.mt-4
+                  = f.submit 'Import Capsule', class: 'btn btn-success'
+                  = link_to 'Cancel', semantic_capsules_path, class: 'btn btn-outline-secondary'
+
+    .col-lg-4
+      .card.shadow-sm.mb-4
+        .card-header.bg-white
+          %h5.card-title.mb-0
+            %i.fas.fa-shield-alt.text-primary.me-2
+            Determinism Guarantees
+        .card-body.small
+          %p When a capsule is created:
+          %ul.ps-3
+            %li Content hashes are canonicalized with SHA-256 digests.
+            %li A tamper-evident <code>semantic.lock</code> manifest is generated.
+            %li A W3C RO-Crate 1.1 ZIP archive is made immediately downloadable.
+            %li Autonomous agents can run offline checks against the manifest digest.
