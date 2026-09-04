@@ -1,0 +1,139 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-09-03T18:00:00Z",
+  "description": "OntoPortal Native Research Datasets Catalogue",
+  "datasets": [
+    {
+      "id": "materials-project",
+      "title": "Materials Project Computed Materials Database",
+      "description": "High-throughput density functional theory (DFT) calculations, crystalline structures, electronic band structures, and thermodynamic phase diagrams for over 150,000 inorganic compounds.",
+      "publisher": "Lawrence Berkeley National Laboratory",
+      "updated_at": "2026-08-15",
+      "homepage": "https://materialsproject.org",
+      "license": "CC-BY-4.0",
+      "tags": ["materials science", "DFT", "crystal structures", "band structures", "thermodynamics"],
+      "slices": ["materials", "chemistry"]
+    },
+    {
+      "id": "nomad-archive",
+      "title": "NOMAD Computational Materials Science Archive",
+      "description": "FAIR repository and archive for computational materials science data, containing millions of raw, parsed, and normalized input and output files from ab initio and molecular dynamics codes.",
+      "publisher": "FAIRmat Consortium / Humboldt-Universität zu Berlin",
+      "updated_at": "2026-08-20",
+      "homepage": "https://nomad-lab.eu",
+      "license": "CC-BY-4.0",
+      "tags": ["materials science", "ab initio", "FAIR", "raw calculations", "atomistic simulation"],
+      "slices": ["materials", "physics"]
+    },
+    {
+      "id": "pubchem-compounds",
+      "title": "PubChem Bioactive Substances and Compounds",
+      "description": "Open chemistry database at the National Institutes of Health (NIH) providing chemical structures, biological activities, physical properties, and safety annotations for hundreds of millions of compounds.",
+      "publisher": "National Center for Biotechnology Information (NCBI)",
+      "updated_at": "2026-09-01",
+      "homepage": "https://pubchem.ncbi.nlm.nih.gov",
+      "license": "Public Domain",
+      "tags": ["chemistry", "bioactivity", "chemical structures", "molecular properties", "pharmacology"],
+      "slices": ["chemistry", "biomedical"]
+    },
+    {
+      "id": "chembl-bioactivity",
+      "title": "ChEMBL Bioactive Drug-Like Molecules Database",
+      "description": "Manually curated database of bioactive molecules with drug-like properties, binding affinities, functional assays, and target protein associations extracted from medicinal chemistry literature.",
+      "publisher": "European Bioinformatics Institute (EMBL-EBI)",
+      "updated_at": "2026-07-30",
+      "homepage": "https://www.ebi.ac.uk/chembl/",
+      "license": "CC-BY-SA-3.0",
+      "tags": ["bioactivity", "medicinal chemistry", "assays", "drug targets", "pharmacology"],
+      "slices": ["chemistry", "biomedical"]
+    },
+    {
+      "id": "uniprot-knowledgebase",
+      "title": "UniProtKB Comprehensive Protein Sequence and Function Knowledgebase",
+      "description": "Universal Protein Resource providing accurately curated, non-redundant protein sequences, functional domain annotations, ontology mappings (Gene Ontology), and cross-references.",
+      "publisher": "UniProt Consortium",
+      "updated_at": "2026-08-25",
+      "homepage": "https://www.uniprot.org",
+      "license": "CC-BY-4.0",
+      "tags": ["proteins", "proteomics", "gene ontology", "amino acid sequences", "structural biology"],
+      "slices": ["biomedical"]
+    },
+    {
+      "id": "wikidata-semantic-core",
+      "title": "Wikidata Semantic Web Core Knowledge Graph",
+      "description": "Structured multilingual knowledge base collecting linked open data statements, item identifiers, ontology cross-references, and semantic classifications across scientific domains.",
+      "publisher": "Wikimedia Foundation",
+      "updated_at": "2026-09-02",
+      "homepage": "https://www.wikidata.org",
+      "license": "CC0-1.0",
+      "tags": ["linked data", "knowledge graph", "RDF", "entities", "multilingual"],
+      "slices": ["general", "chemistry", "materials"]
+    },
+    {
+      "id": "crystallography-open-db",
+      "title": "Crystallography Open Database (COD)",
+      "description": "Open-access collection of crystal structures of organic, inorganic, metal-organic compounds and minerals, excluding biopolymers, validated with full CIF crystallographic data.",
+      "publisher": "COD Advisory Board",
+      "updated_at": "2026-08-10",
+      "homepage": "https://www.crystallography.net/cod/",
+      "license": "CC0-1.0",
+      "tags": ["crystallography", "crystal structures", "CIF", "minerals", "inorganics"],
+      "slices": ["materials", "chemistry"]
+    },
+    {
+      "id": "open-reaction-database",
+      "title": "Open Reaction Database (ORD)",
+      "description": "Open-access schema and structured data repository for organic and chemical reaction datasets, reaction conditions, yields, kinetic data, and laboratory automation protocols.",
+      "publisher": "Open Reaction Database Consortium",
+      "updated_at": "2026-08-05",
+      "homepage": "https://open-reaction-database.org",
+      "license": "CC-BY-SA-4.0",
+      "tags": ["chemical reactions", "organic chemistry", "reaction data", "synthesis", "automation"],
+      "slices": ["chemistry"]
+    },
+    {
+      "id": "open-catalyst-20",
+      "title": "Open Catalyst 2020 (OC20) Adsorption Energy Dataset",
+      "description": "Dataset of 1.3 million molecular relaxations and 130 million DFT calculations of molecular adsorptions onto heterogeneous catalytic surfaces for renewable energy discovery.",
+      "publisher": "Meta AI Research & Carnegie Mellon University",
+      "updated_at": "2026-06-15",
+      "homepage": "https://opencatalystproject.org",
+      "license": "CC-BY-4.0",
+      "tags": ["catalysis", "adsorption", "DFT", "machine learning", "clean energy"],
+      "slices": ["materials", "chemistry"]
+    },
+    {
+      "id": "mgi-materials-genome",
+      "title": "Materials Genome Initiative Benchmark Phase Data",
+      "description": "Standard reference database of experimentally validated high-temperature phase equilibria, alloy thermodynamic data, and mechanical stress-strain curves.",
+      "publisher": "National Institute of Standards and Technology (NIST)",
+      "updated_at": "2026-07-22",
+      "homepage": "https://mgi.nist.gov",
+      "license": "Public Domain",
+      "tags": ["phase diagrams", "alloys", "thermodynamics", "mechanical properties", "NIST"],
+      "slices": ["materials"]
+    },
+    {
+      "id": "polyinfo-polymers",
+      "title": "PoLyInfo Polymer Property and Structure Database",
+      "description": "Curated database of polymeric materials covering homopolymers, copolymers, thermal transition temperatures, glass transition, crystallinity, and dielectric properties.",
+      "publisher": "National Institute for Materials Science (NIMS, Japan)",
+      "updated_at": "2026-08-18",
+      "homepage": "https://polymer.nims.go.jp",
+      "license": "NIMS Terms",
+      "tags": ["polymers", "material properties", "glass transition", "thermal properties"],
+      "slices": ["materials", "chemistry"]
+    },
+    {
+      "id": "matportal-materials-corpus",
+      "title": "MatPortal Curated Materials Semantic Corpus",
+      "description": "Curated semantic dataset linking standardized ontologies (EMMO, PMDco, BFO) to materials experiments, characterization workflows, and microstructure measurements.",
+      "publisher": "MatPortal Consortium / Materials Science Semantic Community",
+      "updated_at": "2026-08-28",
+      "homepage": "https://matportal.org",
+      "license": "CC-BY-4.0",
+      "tags": ["materials science", "ontologies", "characterization", "microstructure", "semantic web"],
+      "slices": ["materials", "chemistry"]
+    }
+  ]
+}

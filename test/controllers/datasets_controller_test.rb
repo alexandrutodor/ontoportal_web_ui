@@ -1,4 +1,7 @@
+# frozen_string_literal: true
+
 require 'test_helper'
+require 'minitest/mock'
 
 class DatasetsControllerTest < ActionController::TestCase
   tests DatasetsController
@@ -30,14 +33,24 @@ class DatasetsControllerTest < ActionController::TestCase
 
   test 'invalid ids return 404 without a provider request' do
     Flipper.stub(:enabled?, ->(feature, _actor = nil) { feature.to_sym == :datasets }) do
-      get :show, params: { id: '../secret' }
+      assert_raises(ActionController::UrlGenerationError) do
+        get :show, params: { id: '../secret' }
+      end
     end
-    assert_response :not_found
     assert_not_requested :get, %r{datasets\.example\.test}
   end
 
-  test 'enabled route reports missing provider configuration as 503' do
+  test 'enabled route uses native dataset catalogue when DATASETS_API_URL is unset' do
     ENV.delete('DATASETS_API_URL')
+    Flipper.stub(:enabled?, ->(feature, _actor = nil) { feature.to_sym == :datasets }) do
+      get :index
+    end
+    assert_response :success
+    assert_includes response.body, 'Materials Project'
+  end
+
+  test 'invalid provider configuration reports 503' do
+    ENV['DATASETS_API_URL'] = 'invalid://bad-url'
     Flipper.stub(:enabled?, ->(feature, _actor = nil) { feature.to_sym == :datasets }) do
       get :index
     end
