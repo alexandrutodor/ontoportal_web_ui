@@ -1,9 +1,17 @@
+# frozen_string_literal: true
+
+require 'net/http'
+require 'uri'
+require 'json'
+
 class DatasetsProvider
   MAX_QUERY_LENGTH = 120
   MAX_ID_LENGTH = 120
   MAX_RESPONSE_BYTES = 1_048_576
   PAGE_SIZE = 20
   ID_PATTERN = /\A[a-zA-Z0-9][a-zA-Z0-9._:-]{0,119}\z/
+
+  CATALOGUE_PATH = File.expand_path('../../config/catalogues/dataset-catalogue.json', __dir__).freeze
 
   Record = Struct.new(:id, :title, :description, :publisher, :updated_at, :homepage, keyword_init: true)
   IndexResult = Struct.new(:records, :page, :total, keyword_init: true)
@@ -18,11 +26,15 @@ class DatasetsProvider
   end
 
   def initialize(base_url: ENV['DATASETS_API_URL'])
-    raise Error.new('Dataset provider is not configured.', status: :service_unavailable) if base_url.to_s.strip.empty?
-
-    @base_uri = URI.parse(base_url.to_s)
-    unless %w[http https].include?(@base_uri.scheme) && @base_uri.host.present? && @base_uri.userinfo.nil?
-      raise Error.new('Dataset provider configuration is invalid.', status: :service_unavailable)
+    raw_url = base_url.to_s.strip
+    if raw_url.present?
+      @base_uri = URI.parse(raw_url)
+      unless %w[http https].include?(@base_uri.scheme) && @base_uri.host.present? && @base_uri.userinfo.nil?
+        raise Error.new('Dataset provider configuration is invalid.', status: :service_unavailable)
+      end
+      @mode = :remote
+    else
+      @mode = :native
     end
   rescue URI::InvalidURIError
     raise Error.new('Dataset provider configuration is invalid.', status: :service_unavailable)
@@ -30,23 +42,71 @@ class DatasetsProvider
 
   def index(query:, page:)
     page = page.to_i.clamp(1, 1000)
-    payload = get('/datasets', { q: bound(query, MAX_QUERY_LENGTH), page: page, per_page: PAGE_SIZE })
-    rows = payload.is_a?(Hash) ? payload['datasets'] : nil
-    raise Error, 'Dataset provider returned an invalid catalogue.' unless rows.is_a?(Array)
+    if @mode == :remote
+      payload = get('/datasets', { q: bound(query, MAX_QUERY_LENGTH), page: page, per_page: PAGE_SIZE })
+      rows = payload.is_a?(Hash) ? payload['datasets'] : nil
+      raise Error, 'Dataset provider returned an invalid catalogue.' unless rows.is_a?(Array)
 
-    records = rows.map { |row| normalize_record(row) }
-    total = payload['total'].to_i if payload['total']
-    IndexResult.new(records: records, page: page, total: total)
+      records = rows.map { |row| normalize_record(row) }
+      total = payload['total'].to_i if payload['total']
+      IndexResult.new(records: records, page: page, total: total)
+    else
+      native_index(query: query, page: page)
+    end
   end
 
   def detail(id)
     id = id.to_s
     raise Error.new('Dataset was not found.', status: :not_found) unless ID_PATTERN.match?(id)
 
-    normalize_record(get("/datasets/#{URI.encode_www_form_component(id)}"))
+    if @mode == :remote
+      normalize_record(get("/datasets/#{URI.encode_www_form_component(id)}"))
+    else
+      native_detail(id)
+    end
   end
 
   private
+
+  def native_datasets
+    @native_datasets ||= begin
+      if File.exist?(CATALOGUE_PATH)
+        doc = JSON.parse(File.binread(CATALOGUE_PATH))
+        doc['datasets'] || []
+      else
+        []
+      end
+    rescue JSON::ParserError
+      []
+    end
+  end
+
+  def native_index(query:, page:)
+    q = bound(query, MAX_QUERY_LENGTH).downcase
+    matching = native_datasets.select do |row|
+      next true if q.empty?
+
+      id_match = row['id'].to_s.downcase.include?(q)
+      title_match = row['title'].to_s.downcase.include?(q)
+      desc_match = row['description'].to_s.downcase.include?(q)
+      pub_match = row['publisher'].to_s.downcase.include?(q)
+      tags_match = Array(row['tags']).any? { |tag| tag.to_s.downcase.include?(q) }
+      id_match || title_match || desc_match || pub_match || tags_match
+    end
+
+    total = matching.length
+    offset = (page - 1) * PAGE_SIZE
+    page_rows = matching.slice(offset, PAGE_SIZE) || []
+    records = page_rows.map { |row| normalize_record(row) }
+    IndexResult.new(records: records, page: page, total: total)
+  end
+
+  def native_detail(id)
+    row = native_datasets.find { |d| d['id'].to_s == id }
+    raise Error.new('Dataset was not found.', status: :not_found) unless row
+
+    normalize_record(row)
+  end
 
   def get(path, params = {})
     uri = @base_uri.dup
