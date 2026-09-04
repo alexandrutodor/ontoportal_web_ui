@@ -1,5 +1,6 @@
 class ModelsController < ApplicationController
   layout :determine_layout
+  before_action :require_models_catalogue if respond_to?(:before_action)
 
   SECTIONS = %w[overview model_card datasets papers code inference].freeze
 
