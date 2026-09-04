@@ -4,7 +4,10 @@ class AssistantControllerTest < ActionController::TestCase
   tests AssistantController
 
   setup do
-    @user = Struct.new(:id, :admin?, :apikey).new('user-1', false, 'test-apikey')
+    @user = Struct.new(:id, :admin?, :apikey, :username) do
+      def to_hash = to_h
+      def flipper_id = id.to_s
+    end.new('user-1', false, 'test-apikey', 'test-user')
     @request.session[:user] = @user
     @actor = Flipper::Actor.new(@user.id.to_s)
     @original_url = ENV['AI_ASSISTANT_BACKEND_URL']
@@ -61,10 +64,22 @@ class AssistantControllerTest < ActionController::TestCase
     assert_response :unprocessable_entity
   end
 
-  test 'missing backend configuration returns 503 after authorization' do
-    ENV.delete('AI_ASSISTANT_BACKEND_URL')
+  test 'invalid backend configuration returns 503 after authorization' do
+    ENV['AI_ASSISTANT_BACKEND_URL'] = 'invalid://not-http-or-https'
     Flipper.enable_actor(:ai_assistant, @actor)
     get :index
     assert_response :service_unavailable
+  end
+
+  test 'unconfigured backend falls back to native assistant backend' do
+    ENV.delete('AI_ASSISTANT_BACKEND_URL')
+    Flipper.enable_actor(:ai_assistant, @actor)
+    get :index
+    assert_response :success
+
+    post :stream, params: { prompt: 'Hello' }, as: :json
+    assert_response :success
+    assert_equal 'text/event-stream', response.media_type
+    assert_includes response.body, 'OntoPortal Semantic Assistant'
   end
 end

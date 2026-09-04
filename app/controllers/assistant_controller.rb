@@ -24,7 +24,12 @@ class AssistantController < ApplicationController
     response.headers['Cache-Control'] = 'no-cache'
     response.headers['X-Accel-Buffering'] = 'no'
     response.headers['Content-Type'] = 'text/event-stream'
-    AssistantBackend.new.stream(payload) do |chunk|
+    backend = if ENV['AI_ASSISTANT_BACKEND_URL'].present?
+                AssistantBackend.new(url: ENV['AI_ASSISTANT_BACKEND_URL'])
+              else
+                AssistantNativeBackend.new
+              end
+    backend.stream(payload) do |chunk|
       stream_started = true
       response.stream.write(chunk)
     end
@@ -68,6 +73,8 @@ class AssistantController < ApplicationController
   end
 
   def require_assistant_backend
+    return if ENV['AI_ASSISTANT_BACKEND_URL'].blank?
+
     AssistantBackend.validated_uri(ENV['AI_ASSISTANT_BACKEND_URL'])
   rescue AssistantBackend::Error => error
     render json: { error: error.message }, status: error.status
