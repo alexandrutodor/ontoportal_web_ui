@@ -14,4 +14,3 @@ Rails.application.config.middleware.use OmniAuth::Builder do
     provider config[:strategy] || provider_key, config[:client_id], config[:client_secret], options
   end
 end
-

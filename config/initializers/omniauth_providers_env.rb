@@ -8,7 +8,7 @@ keycloak_realm = ENV['KEYCLOAK_REALM']
 keycloak_client_id = ENV['KEYCLOAK_CLIENT_ID']
 keycloak_client_secret = ENV['KEYCLOAK_CLIENT_SECRET']
 
-if [keycloak_site, keycloak_realm, keycloak_client_id, keycloak_client_secret].all? { |v| v.respond_to?(:present?) ? v.present? : (v && !v.to_s.strip.empty?) }
+if [keycloak_site, keycloak_realm, keycloak_client_id, keycloak_client_secret].all? { |v| v && !v.strip.empty? }
   existing = $OMNIAUTH_PROVIDERS[:keycloak] || {}
   $OMNIAUTH_PROVIDERS[:keycloak] = existing.merge(
     strategy: existing[:strategy] || :keycloak_openid,
@@ -21,4 +21,3 @@ if [keycloak_site, keycloak_realm, keycloak_client_id, keycloak_client_secret].a
     enable: ENV.fetch('KEYCLOAK_ENABLED', 'true').to_s.downcase == 'true'
   )
 end
-
