@@ -1,67 +1,7 @@
 # frozen_string_literal: true
 
-begin
-  require 'test_helper'
-rescue LoadError, StandardError
-  require 'minitest/autorun'
-  require 'pathname'
-  require 'ostruct'
-end
-
-unless defined?(ActionDispatch::IntegrationTest)
-  module ActionDispatch
-    class IntegrationTest < Minitest::Test
-      def self.test(name, &block)
-        test_name = "test_#{name.gsub(/\s+/, '_')}".to_sym
-        define_method(test_name, &block)
-      end
-    end
-  end
-end
-
-unless defined?(Rails)
-  module Rails
-    def self.root
-      @root ||= Pathname.new(File.expand_path('../..', __dir__))
-    end
-
-    def self.application
-      @application ||= OpenStruct.new(
-        config: OpenStruct.new(
-          middleware: OpenStruct.new
-        )
-      )
-    end
-  end
-end
-
-unless defined?(OmniAuth)
-  module OmniAuth
-    class Builder; end
-
-    class Configuration
-      attr_accessor :test_mode, :mock_auth
-
-      def initialize
-        @test_mode = false
-        @mock_auth = {}
-      end
-    end
-
-    def self.config
-      @config ||= Configuration.new
-    end
-  end
-end
-
-unless defined?(ApplicationHelper)
-  $LOADED_FEATURES << 'pry.rb'
-  module ModalHelper; end unless defined?(ModalHelper)
-  module MultiLanguagesHelper; end unless defined?(MultiLanguagesHelper)
-  module UrlsHelper; end unless defined?(UrlsHelper)
-  module ComponentsHelper; end unless defined?(ComponentsHelper)
-  require_relative '../../app/helpers/application_helper'
-end
+require 'test_helper'
+require 'minitest/mock'
 
 class OmniauthKeycloakTest < ActionDispatch::IntegrationTest
   KEYCLOAK_ENV_KEYS = %w[
@@ -74,44 +14,29 @@ class OmniauthKeycloakTest < ActionDispatch::IntegrationTest
   ].freeze
 
   def setup
-    super if defined?(super)
+    super
     @original_omniauth_providers = $OMNIAUTH_PROVIDERS
-    @original_env = {}
-    KEYCLOAK_ENV_KEYS.each do |k|
-      @original_env[k] = ENV[k]
-      ENV.delete(k)
+    @original_env = KEYCLOAK_ENV_KEYS.each_with_object({}) do |key, env|
+      env[key] = ENV[key]
+      ENV.delete(key)
     end
-    if defined?(OmniAuth) && OmniAuth.respond_to?(:config)
-      @original_test_mode = OmniAuth.config.test_mode if OmniAuth.config.respond_to?(:test_mode)
-      if OmniAuth.config.respond_to?(:mock_auth) && OmniAuth.config.mock_auth.is_a?(Hash)
-        @original_mock_auth = OmniAuth.config.mock_auth.dup
-      end
-    end
+    @original_test_mode = OmniAuth.config.test_mode
+    @original_mock_auth = OmniAuth.config.mock_auth.dup
   end
 
   def teardown
     $OMNIAUTH_PROVIDERS = @original_omniauth_providers
   ensure
-    if defined?(@original_env) && @original_env
-      @original_env.each do |k, v|
-        if v.nil?
-          ENV.delete(k)
-        else
-          ENV[k] = v
-        end
-      end
-    end
-    if defined?(@original_test_mode) && !@original_test_mode.nil? && defined?(OmniAuth) && OmniAuth.respond_to?(:config) && OmniAuth.config.respond_to?(:test_mode=)
-      OmniAuth.config.test_mode = @original_test_mode
-    end
-    if defined?(@original_mock_auth) && @original_mock_auth && defined?(OmniAuth) && OmniAuth.respond_to?(:config) && OmniAuth.config.respond_to?(:mock_auth)
-      if OmniAuth.config.mock_auth.respond_to?(:replace)
-        OmniAuth.config.mock_auth.replace(@original_mock_auth)
+    @original_env&.each do |key, value|
+      if value.nil?
+        ENV.delete(key)
       else
-        OmniAuth.config.mock_auth = @original_mock_auth
+        ENV[key] = value
       end
     end
-    super if defined?(super)
+    OmniAuth.config.test_mode = @original_test_mode
+    OmniAuth.config.mock_auth.replace(@original_mock_auth) if @original_mock_auth
+    super
   end
 
   test 'omniauth providers env populates keycloak provider with default name, icon, and enabled state' do
@@ -223,23 +148,12 @@ class OmniauthKeycloakTest < ActionDispatch::IntegrationTest
     captured_middleware = nil
     captured_block = nil
     middleware = Rails.application.config.middleware
-    singleton = class << middleware; self; end
-    has_own_use = singleton.method_defined?(:use, false)
-    original_use = middleware.method(:use) if has_own_use
-
-    singleton.send(:define_method, :use) do |*args, &block|
-      captured_middleware = args.first
+    capture = lambda do |builder, &block|
+      captured_middleware = builder
       captured_block = block
     end
-
-    begin
+    middleware.stub(:use, capture) do
       load Rails.root.join('config/initializers/omniauth.rb')
-    ensure
-      if has_own_use && original_use
-        singleton.send(:define_method, :use, original_use)
-      elsif singleton.method_defined?(:use, false)
-        singleton.send(:remove_method, :use)
-      end
     end
 
     assert_equal OmniAuth::Builder, captured_middleware
@@ -318,8 +232,6 @@ class OmniauthKeycloakTest < ActionDispatch::IntegrationTest
   end
 
   test 'create_omniauth authentication failure sets flash error and renders index' do
-    skip 'Full Rails HTTP integration runtime unavailable' unless respond_to?(:get) && defined?(WebMock)
-
     OmniAuth.config.test_mode = true
     OmniAuth.config.mock_auth[:keycloak] = OmniAuth::AuthHash.new(
       provider: 'keycloak',
