@@ -14,6 +14,7 @@ set -euo pipefail
 [[ "$*" == 'clone --depth=1 -b development https://github.com/ontoportal-lirmm/ontoportal_docker.git tmp/ontoportal_docker' ]]
 mkdir -p tmp/ontoportal_docker
 printf '%s\n' 'IMAGE_TAG=latest' "${HELPER_COMPOSE_LINE:-COMPOSE_API_FILE_PATH=/ontologies_api/development/docker-compose.yml}" > tmp/ontoportal_docker/.env.sample
+cp tmp/ontoportal_docker/.env.sample "$TEST_CASE_DIR/helper.env.sample.original"
 cat > tmp/ontoportal_docker/run <<'RUN'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -56,16 +57,23 @@ run_case() {
   if [ -n "$expected_path" ]; then
     grep -Fxq "COMPOSE_API_FILE_PATH=$expected_path" "$case_dir/helper.env"
     grep -Fxq 'IMAGE_TAG=latest' "$case_dir/helper.env"
+    cmp "$case_dir/helper.env" "$case_dir/tmp/ontoportal_docker/.env"
   else
     [ ! -e "$case_dir/helper.env" ]
     grep -Fq 'Error: Failed to select master API compose' "$case_dir/output"
   fi
-  echo "PASS: $name (status $status)"
+  if ! cmp -s "$case_dir/helper.env.sample.original" "$case_dir/tmp/ontoportal_docker/.env.sample"; then
+    echo "FAIL: $name modified cached helper sample" >&2
+    exit 1
+  fi
+  echo "PASS: $name (status $status; ${*:-default options})"
 }
 
 run_case master 0 /ontologies_api/master/docker-compose.yml -r agroportal -t master
-# Reusing the helper must also work after its sample has already been updated.
+# Cached master runs must leave the original selection for subsequent requests.
 run_case master 0 /ontologies_api/master/docker-compose.yml -r agroportal -t master
+run_case master 0 /ontologies_api/development/docker-compose.yml -r agroportal -t development
+run_case master 0 /ontologies_api/development/docker-compose.yml
 run_case nonmaster 0 /ontologies_api/development/docker-compose.yml -r agroportal -t development
 run_case other-repository 0 /ontologies_api/development/docker-compose.yml -r bioportal -t master
 run_case defaults 0 /ontologies_api/development/docker-compose.yml
@@ -75,3 +83,11 @@ HELPER_EXIT_STATUS=37 \
   run_case helper-error 37 /ontologies_api/master/docker-compose.yml -r agroportal -t master
 HELPER_COMPOSE_LINE=UNEXPECTED_CONFIG=value \
   run_case missing-compose-config 1 '' -r agroportal -t master
+
+cat > "$tmp_dir/stubs/sed" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' 'PARTIAL_SED_UPDATE=1' >> "${@: -1}"
+exit 1
+STUB
+chmod +x "$tmp_dir/stubs/sed"
+run_case sed-error 1 '' -r agroportal -t master
