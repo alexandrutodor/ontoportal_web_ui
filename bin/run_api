@@ -52,6 +52,29 @@ image_tag="${image_tag:-$API_IMAGE_TAG}"
 starter_ontology="${starter_ontology:-$STARTER_ONTOLOGY}"
 remote_api_url="${remote_api_url:-$OP_API_URL}"
 
+if [ "$image_repository" = agroportal ] && [ "$image_tag" = master ]; then
+  # The helper's development compose hardcodes development images, ignoring IMAGE_TAG.
+  helper_env_sample=tmp/ontoportal_docker/.env.sample
+  helper_env_backup=$(mktemp "${helper_env_sample}.XXXXXX") || exit 1
+  if ! cp -p "$helper_env_sample" "$helper_env_backup"; then
+    rm -f "$helper_env_backup"
+    exit 1
+  fi
+  trap '
+    status=$?
+    if ! mv -f "$helper_env_backup" "$helper_env_sample"; then
+      echo "Error: Failed to restore $helper_env_sample from $helper_env_backup." >&2
+      [ "$status" -ne 0 ] || status=1
+    fi
+    exit "$status"
+  ' EXIT
+  if ! sed -i 's|^COMPOSE_API_FILE_PATH=/ontologies_api/development/docker-compose\.yml$|COMPOSE_API_FILE_PATH=/ontologies_api/master/docker-compose.yml|' "$helper_env_sample" ||
+     ! grep -Fxq 'COMPOSE_API_FILE_PATH=/ontologies_api/master/docker-compose.yml' "$helper_env_sample"; then
+    echo "Error: Failed to select master API compose in $helper_env_sample." >&2
+    exit 1
+  fi
+fi
+
 if curl -sSf http://localhost:9393 > /dev/null 2>&1; then
   echo "API is already running in http://localhost:9393"
   exit 0
