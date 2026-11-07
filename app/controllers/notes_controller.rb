@@ -2,6 +2,7 @@ class NotesController < ApplicationController
   include TurboHelper
   layout 'ontology'
 
+  prepend_before_action :authorize_admin, only: :destroy
   # Prepended in reverse declaration order so :authorize_and_redirect runs before
   # :verify_note_creator, and both precede ApplicationController startup callbacks.
   prepend_before_action :verify_note_creator, only: :create
@@ -151,9 +152,11 @@ class NotesController < ApplicationController
     note = LinkedData::Client::Models::Note.get(note_id)
     response = {}
     if note
-      note.delete
+      delete_response = note.delete
 
-      if note.errors
+      if response_error?(delete_response)
+        response[:errors] = response_errors(delete_response)
+      elsif note.errors
         response[:errors] = note.errors
       else
         response[:success] = t('notes.note_deleted_successfully', note_id: note_id)
@@ -164,7 +167,7 @@ class NotesController < ApplicationController
     parent_type = params[:parent_type]
     alerts_container_id = "notes_#{parent_type}_list_table_alerts"
     if response[:errors]
-      render_turbo_stream alert_error(id: alerts_container_id) { response[:errors].join(',').to_s }
+      render_turbo_stream alert_error(id: alerts_container_id) { response[:errors].respond_to?(:join) ? response[:errors].join(',').to_s : response[:errors].to_s }
     else
       render_turbo_stream(alert_success(id: alerts_container_id) { response[:success] }, remove("#{note_id}_tr_#{parent_type}"))
     end
