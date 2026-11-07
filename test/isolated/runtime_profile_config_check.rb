@@ -152,12 +152,13 @@ end
 
 puma_config_path = File.expand_path('../../config/puma.rb', __dir__)
 saved_env = ENV.to_h
+synthetic_base_env = saved_env.reject { |k, _v| %w[PORT WEB_CONCURRENCY].include?(k) }
 
 begin
   # Synthetic Case A: Production Compose container profile
   # (PUMA_BIND=tcp://0.0.0.0:3000, RAILS_LOG_TO_STDOUT=true)
   puts "\n--- Synthetic Case A: Production Compose container ---"
-  ENV.replace(saved_env)
+  ENV.replace(synthetic_base_env)
   ENV['RAILS_ENV'] = 'production'
   ENV['PUMA_BIND'] = 'tcp://0.0.0.0:3000'
   ENV['RAILS_LOG_TO_STDOUT'] = 'true'
@@ -179,7 +180,7 @@ begin
   # Synthetic Case B: Production/Appliance Host profile
   # (No PUMA_BIND, No RAILS_LOG_TO_STDOUT -> Unix socket + file logging)
   puts "\n--- Synthetic Case B: Production/Appliance host profile ---"
-  ENV.replace(saved_env)
+  ENV.replace(synthetic_base_env)
   ENV['RAILS_ENV'] = 'production'
   ENV.delete('PUMA_BIND')
   ENV.delete('RAILS_LOG_TO_STDOUT')
@@ -195,7 +196,7 @@ begin
 
   # Synthetic Case C: Staging/Appliance with empty env strings
   puts "\n--- Synthetic Case C: Staging profile with empty string overrides ---"
-  ENV.replace(saved_env)
+  ENV.replace(synthetic_base_env)
   ENV['RAILS_ENV'] = 'staging'
   ENV['PUMA_BIND'] = ''
   ENV['RAILS_LOG_TO_STDOUT'] = ''
@@ -210,7 +211,7 @@ begin
 
   # Synthetic Case D: Appliance profile with explicit PUMA_BIND but no stdout redirect flag
   puts "\n--- Synthetic Case D: Appliance profile with custom TCP bind and file logs ---"
-  ENV.replace(saved_env)
+  ENV.replace(synthetic_base_env)
   ENV['RAILS_ENV'] = 'appliance'
   ENV['PUMA_BIND'] = 'tcp://127.0.0.1:8080'
   ENV.delete('RAILS_LOG_TO_STDOUT')
@@ -225,7 +226,7 @@ begin
 
   # Synthetic Case E: Development profile
   puts "\n--- Synthetic Case E: Development profile ---"
-  ENV.replace(saved_env)
+  ENV.replace(synthetic_base_env)
   ENV['RAILS_ENV'] = 'development'
   ENV.delete('PUMA_BIND')
   ENV.delete('RAILS_LOG_TO_STDOUT')
@@ -244,7 +245,7 @@ begin
 
   # Synthetic Case F: Test profile
   puts "\n--- Synthetic Case F: Test profile ---"
-  ENV.replace(saved_env)
+  ENV.replace(synthetic_base_env)
   ENV['RAILS_ENV'] = 'test'
   ENV.delete('PUMA_BIND')
   ENV.delete('RAILS_LOG_TO_STDOUT')
