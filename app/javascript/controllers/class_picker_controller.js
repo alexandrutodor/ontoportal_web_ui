@@ -59,8 +59,9 @@ export default class extends Controller {
     this.pickedTarget.appendChild(wrapper)
     this.pickedTarget.appendChild(hiddenInput)
 
+    // Hidden, not removed: removePicked must be able to offer the search again.
     if (this.hasSearchWrapperTarget) {
-      this.searchWrapperTarget.remove()
+      this.searchWrapperTarget.hidden = true
     }
   }
 
@@ -74,6 +75,11 @@ export default class extends Controller {
     hiddenInput.name = this.namePrefixValue
     hiddenInput.value = ""
     this.pickedTarget.appendChild(hiddenInput)
+
+    if (this.hasSearchWrapperTarget) {
+      this.searchWrapperTarget.querySelectorAll("input").forEach((input) => { input.value = "" })
+      this.searchWrapperTarget.hidden = false
+    }
   }
 
   deleteIconHtml() {
