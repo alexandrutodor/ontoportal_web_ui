@@ -60,16 +60,27 @@ RSpec.describe IssueCreatorService do
   end
 
   around(:each) do |example|
-    original_net_connect = WebMock.net_connect_allowed?
+    config = WebMock::Config.instance
+    original_allow_net_connect = config.allow_net_connect
+    original_allow_localhost = config.allow_localhost
+    original_allow = config.allow.is_a?(Array) ? config.allow.dup : config.allow
+    original_net_http_connect_on_start = config.net_http_connect_on_start
+
     WebMock.disable_net_connect!
     begin
       example.run
     ensure
       WebMock.reset!
-      if original_net_connect
-        WebMock.allow_net_connect!
+      if original_allow_net_connect
+        WebMock.allow_net_connect!(net_http_connect_on_start: original_net_http_connect_on_start)
+        config.allow_localhost = original_allow_localhost
+        config.allow = original_allow
       else
-        WebMock.disable_net_connect!
+        WebMock.disable_net_connect!(
+          allow_localhost: original_allow_localhost,
+          allow: original_allow,
+          net_http_connect_on_start: original_net_http_connect_on_start
+        )
       end
     end
   end
