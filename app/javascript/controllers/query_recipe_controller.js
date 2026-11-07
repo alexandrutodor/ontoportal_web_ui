@@ -92,7 +92,7 @@ export default class extends Controller {
     this.clearMessage()
     this.renderList()
     if (this.hasNameInputTarget) {
-      setTimeout(() => this.nameInputTarget.focus(), 50)
+      this.nameInputTarget.focus()
     }
   }
 
