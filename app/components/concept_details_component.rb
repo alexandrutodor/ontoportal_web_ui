@@ -225,6 +225,7 @@ class ConceptDetailsComponent < ViewComponent::Base
     return true if defined?(SocketError) && exception.is_a?(SocketError)
     return true if defined?(Timeout::Error) && exception.is_a?(Timeout::Error)
     return true if defined?(OpenSSL::SSL::SSLError) && exception.is_a?(OpenSSL::SSL::SSLError)
+    return true if defined?(Faraday::Error) && exception.is_a?(Faraday::Error)
     false
   end
 

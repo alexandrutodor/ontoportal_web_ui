@@ -18,6 +18,7 @@ require 'nokogiri'
 require 'cgi'
 require 'socket'
 require 'timeout'
+require 'faraday'
 
 # =============================================================================
 # Standalone Resource Property Labels Check (ONTO-T-U06 label resolution/cache)
@@ -302,9 +303,14 @@ class ResourcePropertyLabelsCheck < Minitest::Test
 
   # Case 3b: Representative transport failures fall back safely to local name
   def test_representative_transport_failures_fall_back_to_local_name
+    assert Faraday::TimeoutError < Faraday::Error
+    assert Faraday::ConnectionFailed < Faraday::Error
+
     sock_iri = 'http://example.org/transport#socketErr'
     conn_iri = 'http://example.org/transport#connRefused'
     time_iri = 'http://example.org/transport#timeoutErr'
+    faraday_time_iri = 'http://example.org/transport#faradayTimeout'
+    faraday_conn_iri = 'http://example.org/transport#faradayConn'
 
     MockSDKHTTP.handler = lambda do |path|
       if path.include?('socketErr')
@@ -313,11 +319,21 @@ class ResourcePropertyLabelsCheck < Minitest::Test
         raise Errno::ECONNREFUSED, 'Connection refused - connect(2)'
       elsif path.include?('timeoutErr')
         raise Timeout::Error, 'execution expired'
+      elsif path.include?('faradayTimeout')
+        raise Faraday::TimeoutError, 'execution expired'
+      elsif path.include?('faradayConn')
+        raise Faraday::ConnectionFailed, 'Connection refused'
       end
     end
 
-    props_class = Struct.new(sock_iri.to_sym, conn_iri.to_sym, time_iri.to_sym)
-    props = props_class.new(['Val Socket'], ['Val Conn'], ['Val Timeout'])
+    props_class = Struct.new(
+      sock_iri.to_sym, conn_iri.to_sym, time_iri.to_sym,
+      faraday_time_iri.to_sym, faraday_conn_iri.to_sym
+    )
+    props = props_class.new(
+      ['Val Socket'], ['Val Conn'], ['Val Timeout'],
+      ['Val Faraday Timeout'], ['Val Faraday Conn']
+    )
 
     comp = ConceptDetailsComponent.new(
       id: 'transport-test',
@@ -333,18 +349,22 @@ class ResourcePropertyLabelsCheck < Minitest::Test
     doc = parse_doc(html)
 
     rows = doc.css('tbody tr').reject { |tr| tr.at_css('#content_resource_formats') }
-    assert_equal 3, rows.size
+    assert_equal 5, rows.size
 
     row_headers = rows.map { |r| r.at_css('th span')&.text&.strip }
     assert_includes row_headers, 'socketErr'
     assert_includes row_headers, 'connRefused'
     assert_includes row_headers, 'timeoutErr'
+    assert_includes row_headers, 'faradayTimeout'
+    assert_includes row_headers, 'faradayConn'
 
     assert_includes html, 'Val Socket'
     assert_includes html, 'Val Conn'
     assert_includes html, 'Val Timeout'
+    assert_includes html, 'Val Faraday Timeout'
+    assert_includes html, 'Val Faraday Conn'
 
-    assert_equal 3, @fake_env['ontoportal.property_labels_miss_count']
+    assert_equal 5, @fake_env['ontoportal.property_labels_miss_count']
   end
 
   # Case 3c: Programming errors propagate and are never swallowed
