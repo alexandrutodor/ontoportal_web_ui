@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
 
     steps:
     # Checkout the repository to the GitHub Actions runner
@@ -33,16 +32,20 @@ jobs:
     - name: Setup Brakeman
       run: |
         BRAKEMAN_VERSION=$(ruby -ne 'if /^\s*brakeman \(([0-9.]+)\)/; puts $1; exit; end' Gemfile.lock)
-        BRAKEMAN_VERSION="${BRAKEMAN_VERSION:-7.0.2}"
+        if [ -z "$BRAKEMAN_VERSION" ]; then
+          echo "Error: Brakeman version could not be resolved from Gemfile.lock" >&2
+          exit 1
+        fi
         echo "Installing Brakeman version: ${BRAKEMAN_VERSION}"
         gem install brakeman --version "${BRAKEMAN_VERSION}"
 
     # Execute Brakeman CLI and validate SARIF report
     # Findings remain non-blocking baseline; scanner/report errors fail distinctly
+    # Note: --no-exit-on-warn ensures warnings exit 0 while genuine errors exit non-zero (exit-on-error remains enabled)
     - name: Scan
       run: |
         scanner_status=0
-        brakeman -f sarif -o output.sarif.json . || scanner_status=$?
+        brakeman --no-exit-on-warn -f sarif -o output.sarif.json . || scanner_status=$?
         ruby bin/brakeman_ci_summary.rb --sarif output.sarif.json --scanner-status "$scanner_status"
 
     # Always retain available SARIF and diagnostics artifacts across all events (push, PR, fork)
@@ -63,10 +66,25 @@ jobs:
         echo "::notice ::Code Scanning upload skipped: event is '${{ github.event_name }}' on ref '${{ github.ref }}'."
         echo "SARIF report and diagnostics are retained as build artifacts."
 
-    # Upload SARIF report to GitHub Code Scanning only on trusted master branch push
-    # Upload failure fails explicitly and is distinguished from scanner execution or report errors
-    - name: Upload SARIF to Code Scanning
-      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: github/codeql-action/upload-sarif@v4
-      with:
-        sarif_file: output.sarif.json
+  # Upload SARIF report to GitHub Code Scanning only on trusted master branch push
+  # Separately JOB-guarded upload-only context with security-events:write
+  # Consumes SARIF artifact without checkout or execution of PR/repository code
+  upload-sarif:
+    name: Upload SARIF to Code Scanning
+    needs: brakeman-scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Download SARIF artifact
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: brakeman-sarif
+
+      - name: Upload SARIF to Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: output.sarif.json
