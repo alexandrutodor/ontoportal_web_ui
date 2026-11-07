@@ -28,11 +28,12 @@
                 - attributes.each do |attr|
                   - key = attr.to_s
                   - attr_metadata = @catalog_metadata[key]
-                  - label_tooltip = attr_metadata_header_label(attr_metadata)
+                  - label_tooltip = attr_metadata ? attr_metadata_header_label(attr_metadata) : key.humanize
                   - value_attr = @catalog_data[key.to_sym]
+                  - enforces = Array(attr_metadata&.enforce)
                   .form-group
-                    - if attr_metadata.enforce.include?("Agent")
-                      - if attr_metadata.enforce.include?("no_list")
+                    - if enforces.include?("Agent")
+                      - if enforces.include?("no_list")
                         = render Input::InputFieldComponent.new(name: nil, label: label_tooltip, error_message: attribute_error(key.to_s)) do
                           = render TurboFrameComponent.new(id: "#{key}_0") do
                             - if value_attr
@@ -45,11 +46,11 @@
                     - elsif key == "sampleQueries"
                       = render Input::InputFieldComponent.new(name: "config[#{key}]", label: "Sample Queries", error_message: attribute_error(key.to_s)) do
                         = render SampleQueriesEditComponent.new()
-                    - elsif attr_metadata.enforce.include?("list")
+                    - elsif enforces.include?("list")
                       - if key == "themeTaxonomy"
                         = hidden_field_tag "config[#{key}][]", "", id: "empty_config_#{key}"
                         = ontologies_selector(id:'theme_taxonomy_ontologies_selector', label: label_tooltip, name: "config[#{key}]", selected: value_attr, show_advanced_options: false)
-                      - elsif attr_metadata.enforcedValues.nil?
+                      - elsif attr_metadata&.enforcedValues.nil?
                         = hidden_field_tag "config[#{key}][]", "", id: "empty_config_#{key}"
                         = render Input::InputFieldComponent.new(name: "config[#{key}]", label: label_tooltip, error_message: attribute_error(key.to_s)) do
                           = render NestedFormInputsComponent.new do |c|
@@ -61,16 +62,18 @@
                       - else
                         = render Input::InputFieldComponent.new(name: "list_fields_#{key}", label: label_tooltip) do
                           = link_to_modal("#{t('admin.catalog_configuration.edit_button')}", admin_edit_nested_form_catalog_configuration_path(key), { id: "edit_nested_form_#{key}", data: { show_modal_title_value: "#{label_tooltip}", show_modal_size_value: 'modal-xl' } })
-                    - elsif attr_metadata.enforce.include?("string")
+                    - elsif enforces.include?("string")
                       = text_input(name: "config[#{key}]", value: value_attr || "", label: label_tooltip)
-                    - elsif attr_metadata.enforce.include?("url")
+                    - elsif enforces.include?("url")
                       = url_input(name: "config[#{key}]", value: value_attr || "", label: label_tooltip)
-                    - elsif attr_metadata.enforce.include?("integer")
+                    - elsif enforces.include?("integer")
                       = text_input(name: "#{key.to_s}", value: value_attr || 0, label: label_tooltip, disabled: true)
-                    - elsif attr_metadata.enforce.include?("boolean")
+                    - elsif enforces.include?("boolean")
                       = switch_input(id: "config-boolean-#{key}", name: "config[#{key}]", label: label_tooltip, checked: (value_attr == true), value: (value_attr == true).to_s, boolean_switch: true)
-                    - elsif attr_metadata.enforce.include?("date")
+                    - elsif enforces.include?("date")
                       = date_input(name: "config[#{key}]", value: (Date.parse(value_attr).to_s rescue value_attr), label: label_tooltip, max_date: Date.today)
+                    - else
+                      = text_input(name: "config[#{key}]", value: value_attr || "", label: label_tooltip)
 
       .save-button
         = form_save_button

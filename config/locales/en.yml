@@ -126,6 +126,9 @@ en:
       edit_button: Edit
       configuration_updated_successfully: Configuration updated successfully
       configuration_update_error: 'Problem updating the configuration: %{error}'
+      catalog_load_error: 'Problem retrieving catalog data'
+      metadata_load_error: 'Problem retrieving catalog metadata'
+      update_unknown_error: 'Remote service rejected update'
     licenses:
       create:
         success: License renewed successfully
