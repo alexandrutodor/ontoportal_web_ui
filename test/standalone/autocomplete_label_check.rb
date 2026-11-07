@@ -366,4 +366,108 @@ class AutocompleteLabelCheck < Minitest::Test
     nested = [OpenStruct.new(de: 'Hund', en: 'Dog')]
     assert_equal 'Dog', ctrl.send(:search_concept_label, nested, 'dog')
   end
+
+  # ===========================================================================
+  # Test 11: json_search response=rows wire contract (ONTO-T-J02)
+  # ===========================================================================
+  def test_json_search_rows_mode_preserves_columns_ordering_and_metacharacters
+    cls_active = build_mock_class(
+      id: 'http://example.org/test#Complex\\Cat"1"',
+      pref_label: 'Complex | "Cat" \\ \n 🌍 ~!~',
+      obsolete: false,
+      synonyms: ['Syn | 1', 'Syn "2"'],
+      definition: ['Def | 1', 'Def ~!~ 2']
+    )
+    cls_obsolete = build_mock_class(
+      id: 'http://example.org/test#OldCat',
+      pref_label: 'OldCat',
+      obsolete: true,
+      synonyms: ['OldSyn'],
+      definition: ['OldDef']
+    )
+
+    # 1. Multiple/all ontologies: 10 columns
+    _ctrl_all, res_all, cap_all = dispatch_json_search('q=cat&response=rows', [cls_active, cls_obsolete])
+    assert_equal 200, res_all.status
+    assert_match(%r{\Aapplication/json\b}, res_all.content_type)
+    refute cap_all.first[:params].key?('response'),
+           'UI-wire mode response=rows must not be forwarded as API search semantics'
+
+    rows_all = JSON.parse(res_all.body)
+    assert_equal 2, rows_all.size
+    assert_equal 10, rows_all[0].size, 'Multiple ontologies must return exactly 10 columns'
+    assert_equal 10, rows_all[1].size
+
+    # Verify column indexes, types, and raw metacharacters preservation
+    row_active = rows_all[0]
+    assert_equal 'Complex | "Cat" \\ \n 🌍 ~!~', row_active[0] # label / target
+    assert_equal 'http://example.org/test#Complex\\Cat"1"', row_active[1] # id
+    assert_equal '', row_active[2] # record_type
+    assert_equal 'TEST', row_active[3] # acronym
+    assert_equal 'http://example.org/test#Complex\\Cat"1"', row_active[4] # id duplicated
+    assert_equal 'Complex | "Cat" \\ \n 🌍 ~!~', row_active[5] # target_value
+    assert_equal 'Syn | 1;Syn "2"', row_active[6] # synonyms
+    assert_equal 'TEST', row_active[7] # acronym
+    assert_equal 'TEST', row_active[8] # acronym
+    assert_equal CGI.escape('Def | 1. Def ~!~ 2'), row_active[9] # CGI-encoded definition
+    row_active.each { |col| assert_kind_of String, col, 'Every column must be a String' }
+
+    # Obsolete class ordering and marker
+    row_obs = rows_all[1]
+    assert_equal 'OldCat [obsolete]', row_obs[0]
+    assert_equal CGI.escape('OldDef'), row_obs[9]
+
+    # 2. Single ontology: 8 columns
+    _ctrl_single, res_single, _cap_single = dispatch_json_search('q=cat&response=rows&id=TEST', [cls_active])
+    assert_equal 200, res_single.status
+    rows_single = JSON.parse(res_single.body)
+    assert_equal 1, rows_single.size
+    assert_equal 8, rows_single[0].size, 'Single ontology must return exactly 8 columns'
+    assert_equal CGI.escape('Def | 1. Def ~!~ 2'), rows_single[0][7], '8th column must be CGI-encoded definition'
+  end
+
+  # ===========================================================================
+  # Test 12: json_search callback validation and safe JSONP encoding (ONTO-T-J02)
+  # ===========================================================================
+  def test_json_search_callback_validation_and_safe_jsonp
+    cls = build_mock_class(
+      id: 'http://example.org/test#Q',
+      pref_label: "Quote\" \\ \n 🌍",
+      synonyms: ['Syn"quote'],
+      definition: ['Def']
+    )
+
+    # Valid simple and dotted identifiers
+    ['portalSuggest', 'jQuery3600123_456', 'myApp.callbacks.suggest', '$custom_cb'].each do |valid_cb|
+      _ctrl, res, cap = dispatch_json_search("q=cat&response=json&callback=#{valid_cb}", [cls])
+      assert_equal 200, res.status
+      assert_match(%r{\Aapplication/javascript\b}, res.content_type)
+      assert_equal 1, cap.size, "Valid callback #{valid_cb} must call upstream search"
+      assert res.body.start_with?("#{valid_cb}({data:\"")
+      assert res.body.end_with?("\"})")
+      # Metacharacters roundtrip cleanly without quote substitution
+      assert_includes res.body, "Quote\\\" \\\\ \\n 🌍"
+    end
+
+    # Invalid callbacks rejected with 400 BEFORE upstream search (no API calls)
+    [
+      'alert(1)',
+      '<script>alert(1)</script>',
+      'foo;bar',
+      'bad"callback"',
+      '123foo',
+      'foo..bar',
+      'foo/bar'
+    ].each do |invalid_cb|
+      _ctrl, res, cap = dispatch_json_search("q=cat&response=json&callback=#{CGI.escape(invalid_cb)}", [cls])
+      assert_equal 400, res.status, "Invalid callback #{invalid_cb} must be rejected with 400"
+      assert_equal 'Invalid callback', res.body
+      assert_empty cap, "Invalid callback #{invalid_cb} must not invoke upstream search"
+    end
+
+    # response=json without callback rejected with 400 BEFORE upstream search
+    _ctrl_missing, res_missing, cap_missing = dispatch_json_search('q=cat&response=json', [cls])
+    assert_equal 400, res_missing.status
+    assert_empty cap_missing
+  end
 end

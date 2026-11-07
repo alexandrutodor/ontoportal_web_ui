@@ -297,6 +297,21 @@
         return parsed;
       };
 
+      function isRowsResponse() {
+        return (options.response === "rows" ||
+                options.responseFormat === "rows" ||
+                (options.extraParams && options.extraParams.response === "rows"));
+      }
+
+      function parseRows(data) {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        if (typeof data === "object" && Array.isArray(data.rows)) return data.rows;
+        if (typeof data === "object" && typeof data.data === "string") return parseData(data.data);
+        if (typeof data === "string") return parseData(data);
+        return [];
+      }
+
       function dataToDom(data) {
         var ul = document.createElement("ul");
         var num = data.length;
@@ -312,7 +327,7 @@
             li.innerHTML = options.formatItem(row, i, num);
             li.selectValue = row[0];
           } else {
-            li.innerHTML = row[0];
+            li.textContent = row[0];
             li.selectValue = row[0];
           }
           var extra = null;
@@ -340,22 +355,46 @@
           receiveData(q, data);
         // if an AJAX url has been supplied, try loading the data now
         } else if( (typeof options.url == "string") && (options.url.length > 0) ){
-          $.getJSON(makeUrl(q)+"&response=json&callback=?", function(data) {
-    //                alert(data.data)
-            data = parseData(data.data);
-            addToCache(q, data);
-            receiveData(q, data);
-          });
+          if (isRowsResponse()) {
+            var url = makeUrl(q, { response: "rows" }, false);
+            var req = $.get(url, function(data) {
+              var rows = parseRows(data);
+              addToCache(q, rows);
+              receiveData(q, rows);
+            }, "json");
+            if (req && req.fail) {
+              req.fail(function() {
+                $input.removeClass(options.loadingClass);
+              });
+            }
+          } else {
+            var url = makeUrl(q, { response: "json" }, true);
+            var req = $.getJSON(url, function(data) {
+              var rows = parseRows(data);
+              addToCache(q, rows);
+              receiveData(q, rows);
+            });
+            if (req && req.fail) {
+              req.fail(function() {
+                $input.removeClass(options.loadingClass);
+              });
+            }
+          }
         // if there's been no data found, remove the loading class
         } else {
           $input.removeClass(options.loadingClass);
         }
       };
 
-      function makeUrl(q) {
-        var url = options.url + "?q=" + encodeURI(q);
-        for (var i in options.extraParams) {
-          url += "&" + i + "=" + encodeURI(options.extraParams[i]);
+      function makeUrl(q, additionalParams, appendJsonpCallback) {
+        var rawUrl = (typeof options.url === "string") ? options.url : "";
+        var base = rawUrl.split("#")[0];
+        var params = $.extend({}, options.extraParams, additionalParams, { q: q });
+        var qs = $.param(params);
+        var sep = base.indexOf("?") >= 0 ? "&" : "?";
+        var url = base + (qs ? sep + qs : "");
+        if (appendJsonpCallback) {
+          url += (url.indexOf("?") >= 0 ? "&" : "?") + "callback=?";
         }
         return url;
       };
@@ -414,11 +453,31 @@
         if (data) {
           findValueCallback(q, data);
         } else if( (typeof options.url == "string") && (options.url.length > 0) ){
-          $.get(makeUrl(q), function(data) {
-            data = parseData(data)
-            addToCache(q, data);
-            findValueCallback(q, data);
-          });
+          if (isRowsResponse()) {
+            var url = makeUrl(q, { response: "rows" }, false);
+            var req = $.get(url, function(data) {
+              var rows = parseRows(data);
+              addToCache(q, rows);
+              findValueCallback(q, rows);
+            }, "json");
+            if (req && req.fail) {
+              req.fail(function() {
+                findValueCallback(q, null);
+              });
+            }
+          } else {
+            var url = makeUrl(q, {}, false);
+            var req = $.get(url, function(data) {
+              var rows = parseRows(data);
+              addToCache(q, rows);
+              findValueCallback(q, rows);
+            });
+            if (req && req.fail) {
+              req.fail(function() {
+                findValueCallback(q, null);
+              });
+            }
+          }
         } else {
           // no matches
           findValueCallback(q, null);
@@ -440,7 +499,7 @@
               li.innerHTML = options.formatItem(row, i, num);
               li.selectValue = row[0];
             } else {
-              li.innerHTML = row[0];
+              li.textContent = row[0];
               li.selectValue = row[0];
             }
             var extra = null;
