@@ -28,6 +28,7 @@ class SubmissionFlowsTest < ActionDispatch::IntegrationTest
     delete_groups
     delete_categories
     delete_ontologies([@new_ontology])
+    TestResourceOwnership.reset! if defined?(TestResourceOwnership) && TestResourceOwnership.empty?
   end
 end
 

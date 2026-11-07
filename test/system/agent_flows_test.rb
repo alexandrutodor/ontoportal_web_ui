@@ -15,6 +15,7 @@ class AgentFlowsTest < ApplicationSystemTestCase
   def teardown
     delete_agents
     delete_user(@logged_user) if @logged_user
+    TestResourceOwnership.reset! if defined?(TestResourceOwnership) && TestResourceOwnership.empty?
   end
 
   test "go agents page and create an agent person and edit it" do
@@ -32,6 +33,7 @@ class AgentFlowsTest < ApplicationSystemTestCase
     wait_for_text  @new_person.name
     edit_link = find("a[data-show-modal-title-value=\"Edit agent #{@new_person.name}\"]")
     @new_person2.id = edit_link['href'].split('/')[-2]
+    TestResourceOwnership.register(:agent, @new_person2.id) if defined?(TestResourceOwnership)
     edit_link.click
 
     edit_agent_flow(@new_person2, person_count: 1, organization_count: 3)
@@ -48,8 +50,17 @@ class AgentFlowsTest < ApplicationSystemTestCase
 
     wait_for_text "TYPE"
     agent_fill(new_agent, is_affiliation: false)
-    sleep 1
     assert_text "New agent added successfully"
+
+    edit_link = find("a[data-show-modal-title-value=\"Edit agent #{new_agent.name}\"]")
+    created_id = if edit_link && (match = edit_link['href'].match(%r{/agents/([^/?#]+)}))
+      match[1]
+    else
+      edit_link['href'].split('/')[-2]
+    end
+    new_agent.id = created_id
+    TestResourceOwnership.register(:agent, created_id) if defined?(TestResourceOwnership)
+
     find('.close').click
     within "table#agents-table" do
       puts "Person count: #{person_count}, Organization count: #{organization_count}"

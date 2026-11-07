@@ -27,6 +27,7 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
     delete_groups
     delete_categories
     delete_agents
+    TestResourceOwnership.reset! if defined?(TestResourceOwnership) && TestResourceOwnership.empty?
   end
 
   test "create a new ontology and go to it's summary page" do
@@ -37,6 +38,7 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
     fill_ontology(@new_ontology, @new_submission)
 
     assert_selector 'h2', text: 'Ontology submitted successfully!'
+    TestResourceOwnership.register(:ontology, @new_ontology) if defined?(TestResourceOwnership)
     click_on current_url.gsub("/ontologies/success/#{@new_ontology.acronym}", '') + ontology_path(@new_ontology.acronym)
 
     assert_text "#{@new_ontology.name} (#{@new_ontology.acronym})"
@@ -486,7 +488,7 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
 
     [:hasCreator, :hasContributor, :curatedBy].each do |key|
       list_inputs "#submission#{key}_from_group_input", "submission[#{key}]", [agent1, agent2] do |selector, value, index|
-        element = all("turbo-frame:last-of-type").last
+        element = all(".nested-form-wrapper").last
         within element do
           agent_id = agent_search(value.name)
           agent_fill(value, parent_id: agent_id) if agent_id

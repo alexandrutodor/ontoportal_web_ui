@@ -10,6 +10,7 @@ require 'uri'
 require 'ipaddr'
 require 'socket'
 require 'open3'
+require 'ostruct'
 
 failures = []
 
@@ -342,9 +343,21 @@ module MockLinkedData
 
     module Models
       class Category
+        attr_accessor :acronym
+        def initialize(acronym = 'TEST_CAT')
+          @acronym = acronym
+        end
+        def delete
+          $spy_client_calls << [:category_delete, @acronym]
+          OpenStruct.new(status: 204)
+        end
         def self.all
           $spy_client_calls << :category_all
           []
+        end
+        def self.find_by_acronym(acronym)
+          $spy_client_calls << [:category_find, acronym]
+          [Category.new(acronym)]
         end
       end
 
@@ -425,8 +438,14 @@ $spy_client_calls.clear
 ENV[TestTargetGuard::MARKER_ENV_VAR] = '1'
 LinkedData::Client.settings.rest_url = 'http://localhost:9393'
 
+TestResourceOwnership.register(:category, 'GUARD_CAT')
 harness.delete_categories
-assert($spy_client_calls.include?(:category_all), "delete_categories with valid target proceeds after preflight", failures)
+assert($spy_client_calls.include?([:category_find, 'GUARD_CAT']) && $spy_client_calls.include?([:category_delete, 'GUARD_CAT']),
+       "delete_categories with valid target proceeds to actual owned fake deletion after preflight", failures)
+assert(!$spy_client_calls.include?(:category_all),
+       "delete_categories does NOT call Category.all (no broad deletion/enumeration)", failures)
+assert(TestResourceOwnership.empty?(:category),
+       "Owned guard category unregistered after successful deletion", failures)
 
 puts "\n=== Step 7: bin/ontoportal test CLI preflight ==="
 ontoportal_path = File.expand_path('../../bin/ontoportal', __dir__)

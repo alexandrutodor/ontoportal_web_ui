@@ -15,8 +15,10 @@ class LoginFlowsTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
+    delete_user(@created_user) if @created_user
     delete_user(@user_bob)
     delete_user(@user_john)
+    TestResourceOwnership.reset! if defined?(TestResourceOwnership) && TestResourceOwnership.empty?
   end
 
   test 'go to sign up page, save, and see account details' do
@@ -28,8 +30,11 @@ class LoginFlowsTest < ActionDispatch::IntegrationTest
 
     get new_user_path
 
-    new_user = @user_john
-    delete_user(new_user)
+    new_user = OpenStruct.new(@user_john.to_h)
+    unique_suffix = "#{Process.pid}_#{Time.now.to_i}"
+    new_user.username = "test_john_#{unique_suffix}"
+    new_user.email = "test_john_#{unique_suffix}@example.com"
+    @created_user = new_user
 
     post users_path, params: {
       user: {
@@ -49,6 +54,7 @@ class LoginFlowsTest < ActionDispatch::IntegrationTest
     follow_redirect!
 
     assert_select '.notification', text: 'Account was successfully created'
+    TestResourceOwnership.register(:user, new_user.username) if defined?(TestResourceOwnership)
 
     get "/accounts/#{new_user.username}"
     assert_response :success
