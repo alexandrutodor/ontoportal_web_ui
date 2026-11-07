@@ -11,7 +11,7 @@ module OntologyContentSerializer
 
   class PayloadTooLargeError < StandardError; end
 
-  Result = Struct.new(:content, :content_type, :status, :error, :bytes, keyword_init: true) do
+  Result = Struct.new(:content, :content_type, :status, :error, :bytes, :format, keyword_init: true) do
     def to_ary
       [content, content_type, status]
     end
@@ -33,7 +33,7 @@ module OntologyContentSerializer
     @serialization_error = nil
 
     if ontology_acronym.blank? || concept_id.blank?
-      return Result.new(content: nil, content_type: nil, status: 200, error: nil)
+      return Result.new(content: nil, content_type: nil, status: 200, error: nil, format: nil)
     end
 
     @acronym = ontology_acronym.to_s
@@ -43,11 +43,7 @@ module OntologyContentSerializer
     url = content_finder_url(ontology_acronym, concept_id)
     accept_header = content_finder_accept_header(@format)
 
-    token = begin
-              get_apikey
-            rescue StandardError
-              defined?(API_KEY) ? API_KEY : $API_KEY
-            end
+    token = get_apikey
     conn = Faraday.new(url: url) do |faraday|
       faraday.options.open_timeout = CONNECT_TIMEOUT
       faraday.options.timeout = READ_TIMEOUT
@@ -74,17 +70,26 @@ module OntologyContentSerializer
     end
 
     status = response.status.to_i
+    actual_content_type = response.headers['content-type'].presence || accept_header
+    actual_format = format_for_content_type(actual_content_type)
+
     if status >= 200 && status < 300
-      @result = buffer.force_encoding(Encoding::UTF_8)
-      @result.scrub! unless @result.valid_encoding?
-      @serialization_status = status
-      actual_content_type = response.headers['content-type'].presence || accept_header
-      Result.new(content: @result, content_type: actual_content_type, status: status, error: nil)
+      if actual_format.nil?
+        @serialization_status = 502
+        error_msg = controlled_error_message(502)
+        @serialization_error = error_msg
+        Result.new(content: nil, content_type: 'text/plain', status: 502, error: error_msg, format: nil)
+      else
+        @result = buffer
+        @format = actual_format
+        @serialization_status = status
+        Result.new(content: buffer, content_type: actual_content_type, status: status, error: nil, format: actual_format)
+      end
     else
       @serialization_status = status
       error_msg = controlled_error_message(status)
       @serialization_error = error_msg
-      Result.new(content: nil, content_type: 'text/plain', status: status, error: error_msg)
+      Result.new(content: nil, content_type: 'text/plain', status: status, error: error_msg, format: nil)
     end
   rescue PayloadTooLargeError
     @serialization_status = 413
@@ -101,6 +106,24 @@ module OntologyContentSerializer
     error_msg = controlled_error_message(502)
     @serialization_error = error_msg
     Result.new(content: nil, content_type: 'text/plain', status: 502, error: error_msg)
+  end
+
+  SUPPORTED_MIME_FORMATS = {
+    'application/ld+json'   => 'json',
+    'application/json'      => 'json',
+    'application/rdf+xml'   => 'xml',
+    'text/xml'              => 'xml',
+    'application/xml'       => 'xml',
+    'application/n-triples' => 'ntriples',
+    'text/n3'               => 'ntriples',
+    'text/turtle'           => 'turtle',
+    'application/x-turtle'  => 'turtle'
+  }.freeze
+
+  def format_for_content_type(content_type)
+    return nil if content_type.blank?
+    media_type = content_type.to_s.split(';').first.to_s.strip.downcase
+    SUPPORTED_MIME_FORMATS[media_type]
   end
 
   def content_finder_url(acronym, uri)

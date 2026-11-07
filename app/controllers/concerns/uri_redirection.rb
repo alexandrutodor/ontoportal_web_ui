@@ -90,37 +90,34 @@ module UriRedirection
 
     req = Net::HTTP::Get.new(uri.request_uri)
     buffer = String.new(encoding: Encoding::BINARY)
+    status = nil
+    actual_content_type = nil
 
     http.request(req) do |response|
       status = response.code.to_i
-      if status >= 200 && status < 300
-        begin
-          response.read_body do |chunk|
-            if buffer.bytesize + chunk.bytesize > MAX_DOWNLOAD_SIZE
-              raise DownloadPayloadTooLargeError, "Download payload exceeds limit of #{MAX_DOWNLOAD_SIZE} bytes"
-            end
-            buffer << chunk
-          end
-        rescue IOError
-          if response.body.present?
-            if response.body.bytesize > MAX_DOWNLOAD_SIZE
-              raise DownloadPayloadTooLargeError, "Download payload exceeds limit of #{MAX_DOWNLOAD_SIZE} bytes"
-            end
-            buffer = response.body.b
-          end
+      actual_content_type = response.content_type.presence || 'application/octet-stream'
+
+      total_bytes = 0
+      response.read_body do |chunk|
+        total_bytes += chunk.bytesize
+        if total_bytes > MAX_DOWNLOAD_SIZE
+          raise DownloadPayloadTooLargeError, "Download payload exceeds limit of #{MAX_DOWNLOAD_SIZE} bytes"
         end
-        actual_content_type = response.content_type.presence || 'application/octet-stream'
-        send_data buffer, type: actual_content_type, status: status
-      else
-        error_msg = controlled_download_error_message(status)
-        render plain: error_msg, content_type: 'text/plain', status: status
+        buffer << chunk if status >= 200 && status < 300
       end
+    end
+
+    if status && status >= 200 && status < 300
+      send_data buffer, type: actual_content_type, status: status
+    else
+      error_status = status || 502
+      render plain: controlled_download_error_message(error_status), content_type: 'text/plain', status: error_status
     end
   rescue DownloadPayloadTooLargeError
     render plain: controlled_download_error_message(413), content_type: 'text/plain', status: 413
   rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error
     render plain: controlled_download_error_message(504), content_type: 'text/plain', status: 504
-  rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, OpenSSL::SSL::SSLError
+  rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, EOFError, IOError, OpenSSL::SSL::SSLError
     render plain: controlled_download_error_message(502), content_type: 'text/plain', status: 502
   rescue StandardError
     render plain: controlled_download_error_message(502), content_type: 'text/plain', status: 502

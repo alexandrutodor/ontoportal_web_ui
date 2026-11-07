@@ -103,9 +103,35 @@ module Display
   end
 
   class RdfHighlighterComponent
-    def initialize(**opts); @opts = opts; end
+    def initialize(**opts)
+      @opts = opts
+      if @opts[:format].to_s == 'json' && @opts[:text].present?
+        # Mirrors app/components/display/rdf_highlighter_component/rdf_highlighter_component_controller.js:78-80
+        JSON.parse(@opts[:text])
+      end
+    end
     def render_in(_v); "<div class=\"rdf-highlighter\" data-format=\"#{@opts[:format]}\">#{@opts[:text]}</div>".html_safe; end
   end
+end
+
+module Layout
+  class HorizontalListComponent
+    def initialize(**opts); end
+    def render_in(v, &block)
+      if block_given?
+        elem = Object.new
+        def elem.element; yield if block_given?; end
+        v.capture(elem, &block)
+      else
+        ''.html_safe
+      end
+    end
+  end
+end
+
+class LinkFieldComponent
+  def initialize(**opts); end
+  def render_in(_v); '<a href="#">link</a>'.html_safe; end
 end
 
 class PopupLinkTextComponent
@@ -131,7 +157,10 @@ class TableComponent
     def row_obj.td; yield if block_given?; end
     yield row_obj if block_given?
   end
-  def render_in(_v); '<table class="table"></table>'.html_safe; end
+  def render_in(v, &block)
+    yield self if block_given?
+    '<table class="table"></table>'.html_safe
+  end
 end
 
 # Require actual production helpers, concerns, and controllers
@@ -190,12 +219,13 @@ end
 
 # Task-owned loopback server running inside --network none container
 class LoopbackFixtureServer
-  attr_reader :port
+  attr_reader :port, :request_count
 
   def initialize
     @server = TCPServer.new('127.0.0.1', 0)
     @port = @server.addr[1]
     @routes = {}
+    @request_count = 0
     @running = true
     @thread = Thread.new { run_loop }
   end
@@ -226,6 +256,7 @@ class LoopbackFixtureServer
   end
 
   def handle_connection(s)
+    @request_count += 1
     req_line = s.gets
     return s.close unless req_line
 
@@ -261,9 +292,22 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
     $REST_URL = @original_rest_url
   end
 
-  # Helper to execute controller actions offline
-  def dispatch(ctrl_class, action, params: {}, headers: {})
+  # Helper to construct controller with attached request/session (R1 direct fixtures)
+  def build_controller(ctrl_class = ContentFinderController, session: {})
     req = ActionDispatch::TestRequest.create
+    req.set_header('rack.session', session)
+    req.flash = ActionDispatch::Flash::FlashHash.new
+    res = ActionDispatch::TestResponse.create
+    ctrl = ctrl_class.new
+    ctrl.set_request!(req)
+    ctrl.set_response!(res)
+    ctrl
+  end
+
+  # Helper to execute controller actions offline
+  def dispatch(ctrl_class, action, params: {}, headers: {}, session: {})
+    req = ActionDispatch::TestRequest.create
+    req.set_header('rack.session', session)
     req.flash = ActionDispatch::Flash::FlashHash.new
     headers.each { |k, v| req.headers[k] = v }
     params.each { |k, v| req.params[k] = v }
@@ -319,37 +363,48 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
       'turtle' => {
         accept: 'text/turtle',
         body: "@prefix ex: <http://example.org/> .\nex:Resource a ex:Class ;\n  ex:label \"Success\" .",
-        mime: 'text/turtle'
+        mime: 'text/turtle',
+        format: 'turtle'
       },
       'json' => {
         accept: 'application/ld+json',
         body: '{"@context":"http://example.org/","@id":"ex:Resource","label":"Success"}',
-        mime: 'application/ld+json'
+        mime: 'application/ld+json',
+        format: 'json'
       },
       'xml' => {
         accept: 'application/rdf+xml',
         body: '<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"></rdf:RDF>',
-        mime: 'application/rdf+xml'
+        mime: 'application/rdf+xml',
+        format: 'xml'
       },
       'ntriples' => {
         accept: 'application/n-triples',
         body: "<http://example.org/res> <http://example.org/prop> \"value\" .\n",
-        mime: 'application/n-triples'
+        mime: 'application/n-triples',
+        format: 'ntriples'
+      },
+      'xml_iso8859_1' => {
+        accept: 'application/rdf+xml',
+        body: "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:ex=\"http://example.org/\">\n  <rdf:Description rdf:about=\"http://example.org/res\">\n    <ex:label>Caf\xE9</ex:label>\n  </rdf:Description>\n</rdf:RDF>\n".b,
+        mime: 'application/rdf+xml',
+        format: 'xml'
       }
     }
 
     formats.each do |fmt_name, spec|
+      anon_auth_header = nil
       @server.route("/ontologies/TEST/resolve/#{CGI.escape('http://example.org/res')}") do |_method, _path, headers, s|
         assert_equal spec[:accept], headers['accept']
-        assert_includes headers['authorization'], 'apikey token='
+        anon_auth_header = headers['authorization']
         s.print "HTTP/1.1 200 OK\r\nContent-Type: #{spec[:mime]}\r\nContent-Length: #{spec[:body].bytesize}\r\nConnection: close\r\n\r\n#{spec[:body]}"
       end
 
-      ctrl = ContentFinderController.new
-      result = ctrl.serialize_content(
+      ctrl_anon = build_controller(ContentFinderController)
+      result = ctrl_anon.serialize_content(
         ontology_acronym: 'TEST',
         concept_id: 'http://example.org/res',
-        format: fmt_name
+        format: spec[:format]
       )
 
       assert result.success?, "Expected success for #{fmt_name}"
@@ -357,7 +412,53 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
       assert_equal spec[:mime], result.content_type
       assert_equal spec[:body], result.content
       assert_equal spec[:body].bytesize, result.bytes
+      assert_equal spec[:format], result.format
+      # R1: Assert exact configured anonymous key when session has no user
+      assert_equal "apikey token=#{$API_KEY}", anon_auth_header
+
+      if fmt_name == 'xml_iso8859_1'
+        # R2: Verify exact ISO-8859-1 byte 0xE9 is preserved without scrub! substitution to \xEF\xBF\xBD
+        cafe_offset = result.content.index('Caf')
+        assert_equal 0xE9, result.content.getbyte(cafe_offset + 3)
+        refute_includes result.content, "\xEF\xBF\xBD".b
+      end
+
+      # R1: Assert exact synthetic user key when user session is present
+      user_auth_header = nil
+      @server.route("/ontologies/TEST/resolve/#{CGI.escape('http://example.org/res')}") do |_method, _path, headers, s|
+        user_auth_header = headers['authorization']
+        s.print "HTTP/1.1 200 OK\r\nContent-Type: #{spec[:mime]}\r\nContent-Length: #{spec[:body].bytesize}\r\nConnection: close\r\n\r\n#{spec[:body]}"
+      end
+
+      ctrl_user = build_controller(ContentFinderController, session: { user: OpenStruct.new(apikey: 'synthetic-user-key-777') })
+      res_user = ctrl_user.serialize_content(
+        ontology_acronym: 'TEST',
+        concept_id: 'http://example.org/res',
+        format: spec[:format]
+      )
+      assert res_user.success?
+      assert_equal 'apikey token=synthetic-user-key-777', user_auth_header, 'Expected exact synthetic user key from session'
     end
+  end
+
+  # R1: Controlled failure and ZERO upstream requests if getter raises
+  def test_getter_failure_preserves_controlled_502_and_zero_upstream_requests
+    ctrl = build_controller(ContentFinderController)
+    ctrl.define_singleton_method(:get_apikey) { raise StandardError, 'simulated getter failure' }
+
+    start_count = @server.request_count
+    result = ctrl.serialize_content(
+      ontology_acronym: 'TEST',
+      concept_id: 'http://example.org/res',
+      format: 'turtle'
+    )
+
+    refute result.success?
+    assert_equal 502, result.status
+    assert_equal 'text/plain', result.content_type
+    assert_equal 'Bad Gateway', result.error
+    assert_nil result.content
+    assert_equal start_count, @server.request_count, 'Expected ZERO upstream requests on getter exception'
   end
 
   # ---------------------------------------------------------------------------
@@ -371,8 +472,8 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
         s.print "HTTP/1.1 #{status_code} Error\r\nContent-Type: text/html\r\nContent-Length: #{raw_upstream_leak.bytesize}\r\nConnection: close\r\n\r\n#{raw_upstream_leak}"
       end
 
-      # Direct serializer test
-      ctrl = ContentFinderController.new
+      # Direct serializer test with attached request fixture
+      ctrl = build_controller(ContentFinderController)
       result = ctrl.serialize_content(
         ontology_acronym: 'TEST',
         concept_id: 'http://example.org/res',
@@ -445,17 +546,51 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
     assert_equal 502, res_502.status
     assert_includes res_502.headers['Content-Type'], 'text/plain'
     assert_equal 'Bad Gateway', res_502.body
+
+    # R2: ISO-8859-1 RDF/XML preserves raw bytes in proxy response
+    iso_body = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<rdf:RDF><ex:label>Caf\xE9</ex:label></rdf:RDF>".b
+    @server.route("/ontologies/TEST/resolve/#{CGI.escape('http://example.org/res')}") do |_m, _p, _h, s|
+      s.print "HTTP/1.1 200 OK\r\nContent-Type: application/rdf+xml\r\nContent-Length: #{iso_body.bytesize}\r\nConnection: close\r\n\r\n#{iso_body}"
+    end
+    res_iso = dispatch(OntologiesRedirectionController, :redirect,
+                       params: { acronym: 'TEST', id: 'res' },
+                       headers: { 'HTTP_ACCEPT' => 'application/rdf+xml' })
+    assert_equal 200, res_iso.status
+    assert_includes res_iso.headers['Content-Type'], 'application/rdf+xml'
+    assert_equal iso_body, res_iso.body.b
+    assert_equal 0xE9, res_iso.body.b.getbyte(res_iso.body.index('Caf') + 3)
+    refute_includes res_iso.body.b, "\xEF\xBF\xBD".b
   end
 
   # ---------------------------------------------------------------------------
   # 5. Caller 2: ContentFinderController#index (HTML Tool)
   # ---------------------------------------------------------------------------
   def test_content_finder_missing_inputs_empty_form_200
+    # R3: Initial request without parameters
     res = dispatch(ContentFinderController, :index, params: {})
     assert_equal 200, res.status
     assert_includes res.body, 'content-finder-container'
     refute_includes res.body, 'alert-danger'
     refute_includes res.body, 'Content not found'
+    refute_includes res.body, 'rdf-highlighter'
+    refute_includes res.body, 'content-finder-result'
+
+    # R3: Missing inputs with output_format=html must render empty form and zero RDF calls
+    res_html = dispatch(ContentFinderController, :index, params: { output_format: 'html' })
+    assert_equal 200, res_html.status
+    assert_includes res_html.body, 'content-finder-container'
+    refute_includes res_html.body, 'alert-danger'
+    refute_includes res_html.body, 'Content not found'
+    refute_includes res_html.body, 'rdf-highlighter'
+    refute_includes res_html.body, 'content-finder-result'
+
+    # R3: Blank acronym and uri
+    res_blank = dispatch(ContentFinderController, :index, params: { acronym: '', uri: '', output_format: 'turtle' })
+    assert_equal 200, res_blank.status
+    assert_includes res_blank.body, 'content-finder-container'
+    refute_includes res_blank.body, 'alert-danger'
+    refute_includes res_blank.body, 'rdf-highlighter'
+    refute_includes res_blank.body, 'content-finder-result'
   end
 
   def test_content_finder_success_renders_widget
@@ -482,6 +617,57 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
     assert_equal 200, res.status
     refute_includes res.body, 'alert-danger'
     assert_includes res.body, 'content-finder-result'
+    assert_includes res.body, '<table class="table">'
+  end
+
+  # R4: Actual supported MIME chooses renderer across mismatches & unsupported media
+  def test_content_finder_actual_supported_mime_selection_and_mismatches
+    # 1. output_format=html requested, but upstream returns application/ld+json
+    json_body = '{"@context":"http://example.org/","@id":"http://example.org/res","label":"JSONLD"}'
+    @server.route("/ontologies/TEST/resolve/#{CGI.escape('http://example.org/res')}") do |_m, _p, _h, s|
+      s.print "HTTP/1.1 200 OK\r\nContent-Type: application/ld+json\r\nContent-Length: #{json_body.bytesize}\r\nConnection: close\r\n\r\n#{json_body}"
+    end
+    res_mismatch_json = dispatch(ContentFinderController, :index,
+                                 params: { acronym: 'TEST', uri: 'http://example.org/res', output_format: 'html' })
+    assert_equal 200, res_mismatch_json.status
+    assert_includes res_mismatch_json.body, 'rdf-highlighter'
+    assert_includes res_mismatch_json.body, 'data-format="json"'
+    refute_includes res_mismatch_json.body, '<table class="table">'
+
+    # 2. output_format=json requested, but upstream returns text/turtle
+    turtle_body = "@prefix ex: <http://example.org/> .\nex:res a ex:Class ."
+    @server.route("/ontologies/TEST/resolve/#{CGI.escape('http://example.org/res')}") do |_m, _p, _h, s|
+      s.print "HTTP/1.1 200 OK\r\nContent-Type: text/turtle\r\nContent-Length: #{turtle_body.bytesize}\r\nConnection: close\r\n\r\n#{turtle_body}"
+    end
+    res_mismatch_turtle = dispatch(ContentFinderController, :index,
+                                   params: { acronym: 'TEST', uri: 'http://example.org/res', output_format: 'json' })
+    assert_equal 200, res_mismatch_turtle.status
+    assert_includes res_mismatch_turtle.body, 'rdf-highlighter'
+    assert_includes res_mismatch_turtle.body, 'data-format="turtle"'
+
+    # 3. output_format=turtle requested, but upstream returns application/rdf+xml
+    xml_body = '<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"></rdf:RDF>'
+    @server.route("/ontologies/TEST/resolve/#{CGI.escape('http://example.org/res')}") do |_m, _p, _h, s|
+      s.print "HTTP/1.1 200 OK\r\nContent-Type: application/rdf+xml\r\nContent-Length: #{xml_body.bytesize}\r\nConnection: close\r\n\r\n#{xml_body}"
+    end
+    res_mismatch_xml = dispatch(ContentFinderController, :index,
+                                params: { acronym: 'TEST', uri: 'http://example.org/res', output_format: 'turtle' })
+    assert_equal 200, res_mismatch_xml.status
+    assert_includes res_mismatch_xml.body, 'rdf-highlighter'
+    assert_includes res_mismatch_xml.body, 'data-format="xml"'
+
+    # 4. Upstream 200 with unsupported MIME (e.g. text/html)
+    unsupported_body = "<html><body>Not an RDF serialization</body></html>"
+    @server.route("/ontologies/TEST/resolve/#{CGI.escape('http://example.org/res')}") do |_m, _p, _h, s|
+      s.print "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: #{unsupported_body.bytesize}\r\nConnection: close\r\n\r\n#{unsupported_body}"
+    end
+    res_unsupported = dispatch(ContentFinderController, :index,
+                               params: { acronym: 'TEST', uri: 'http://example.org/res', output_format: 'html' })
+    assert_equal 502, res_unsupported.status
+    assert_includes res_unsupported.body, 'alert alert-danger'
+    assert_includes res_unsupported.body, 'Bad Gateway'
+    refute_includes res_unsupported.body, 'rdf-highlighter'
+    refute_includes res_unsupported.body, 'content-finder-result'
   end
 
   def test_content_finder_failure_bypasses_parser_and_shows_escaped_error
@@ -544,6 +730,27 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
     assert_includes res_502.body, 'alert alert-danger'
     assert_includes res_502.body, 'Bad Gateway'
     refute_includes res_502.body, 'rdf-highlighter'
+
+    # R4: Mismatched format in modal: requested json, upstream returns turtle
+    turtle_body = "@prefix ex: <http://example.org/> .\nex:res a ex:Class ."
+    @server.route("/ontologies/TEST/resolve/#{CGI.escape('res')}") do |_m, _p, _h, s|
+      s.print "HTTP/1.1 200 OK\r\nContent-Type: text/turtle\r\nContent-Length: #{turtle_body.bytesize}\r\nConnection: close\r\n\r\n#{turtle_body}"
+    end
+    res_mismatch = dispatch(OntologiesController, :content_serializer,
+                            params: { acronym: 'TEST', id: 'res', output_format: 'json' })
+    assert_equal 200, res_mismatch.status
+    assert_includes res_mismatch.body, 'data-format="turtle"'
+
+    # R4: Unsupported 200 MIME in modal
+    @server.route("/ontologies/TEST/resolve/#{CGI.escape('res')}") do |_m, _p, _h, s|
+      s.print "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 10\r\nConnection: close\r\n\r\nFake HTML!"
+    end
+    res_unsupp = dispatch(OntologiesController, :content_serializer,
+                          params: { acronym: 'TEST', id: 'res', output_format: 'turtle' })
+    assert_equal 502, res_unsupp.status
+    assert_includes res_unsupp.body, 'alert alert-danger'
+    assert_includes res_unsupp.body, 'Bad Gateway'
+    refute_includes res_unsupp.body, 'rdf-highlighter'
   end
 
   # ---------------------------------------------------------------------------
@@ -564,7 +771,7 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
     OntologyContentSerializer.const_set(:READ_TIMEOUT, 0.2)
 
     begin
-      ctrl = ContentFinderController.new
+      ctrl = build_controller(ContentFinderController)
       result = ctrl.serialize_content(
         ontology_acronym: 'TEST',
         concept_id: 'http://example.org/res',
@@ -609,7 +816,7 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
     end
 
     begin
-      ctrl = ContentFinderController.new
+      ctrl = build_controller(ContentFinderController)
       result = ctrl.serialize_content(
         ontology_acronym: 'TEST',
         concept_id: 'http://example.org/res',
@@ -635,61 +842,33 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
   end
 
   # ---------------------------------------------------------------------------
-  # 9. Raw Download Transport (UriRedirection#fetch_and_forward_data)
+  # 9. Raw Download Transport (UriRedirection#fetch_and_forward_data via ActionController)
   # ---------------------------------------------------------------------------
   def test_raw_download_transport_success_and_errors
-    dummy_class = Class.new do
-      include UriRedirection
-
-      attr_reader :sent_data, :rendered
-
-      def send_data(data, options = {})
-        @sent_data = { data: data, options: options }
-      end
-
-      def render(options = {})
-        @rendered = options
-      end
-
-      def rest_url
-        $REST_URL
-      end
-
-      def get_apikey
-        $API_KEY
-      end
-    end
-
-    # 1. Raw download 200 byte-equivalence
+    # 1. Raw download 200 byte-equivalence dispatched through real Rails controller
     raw_ontology_payload = "<?xml version=\"1.0\"?>\n<rdf:RDF>Ontology Data</rdf:RDF>"
     @server.route('/ontologies/TEST/download') do |_m, full_path, _h, s|
       assert_includes full_path, "apikey=#{$API_KEY}"
       s.print "HTTP/1.1 200 OK\r\nContent-Type: application/rdf+xml\r\nContent-Length: #{raw_ontology_payload.bytesize}\r\nConnection: close\r\n\r\n#{raw_ontology_payload}"
     end
 
-    obj = dummy_class.new
-    obj.download_ontology({ acronym: 'TEST' })
-
-    assert obj.sent_data, 'Expected send_data to be called for 200 download'
-    assert_equal 200, obj.sent_data[:options][:status]
-    assert_equal 'application/rdf+xml', obj.sent_data[:options][:type]
-    assert_equal raw_ontology_payload, obj.sent_data[:data]
+    res_200 = dispatch(OntologiesRedirectionController, :redirect_ontology, params: { acronym: 'TEST' })
+    assert_equal 200, res_200.status
+    assert_includes res_200.headers['Content-Type'], 'application/rdf+xml'
+    assert_equal raw_ontology_payload, res_200.body
 
     # 2. Raw download 404 does not leak apikey or send raw error
     @server.route('/ontologies/TEST/download') do |_m, _p, _h, s|
       s.print "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: 9\r\nConnection: close\r\n\r\nNot Found"
     end
 
-    obj404 = dummy_class.new
-    obj404.download_ontology({ acronym: 'TEST' })
+    res_404 = dispatch(OntologiesRedirectionController, :redirect_ontology, params: { acronym: 'TEST' })
+    assert_equal 404, res_404.status
+    assert_includes res_404.headers['Content-Type'], 'text/plain'
+    assert_equal 'Not Found', res_404.body
+    refute_includes res_404.body, $API_KEY
 
-    assert obj404.rendered, 'Expected render to be called for 404 download'
-    assert_equal 404, obj404.rendered[:status]
-    assert_equal 'text/plain', obj404.rendered[:content_type]
-    assert_equal 'Not Found', obj404.rendered[:plain]
-    refute_includes obj404.rendered[:plain], $API_KEY
-
-    # 3. Raw download large payload abort
+    # 3. Raw download large 200 payload abort (bounded consumption)
     original_download_max = UriRedirection::MAX_DOWNLOAD_SIZE
     UriRedirection.send(:remove_const, :MAX_DOWNLOAD_SIZE)
     UriRedirection.const_set(:MAX_DOWNLOAD_SIZE, 32) # 32 bytes max
@@ -699,14 +878,68 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
     end
 
     begin
-      obj_large = dummy_class.new
-      obj_large.download_ontology({ acronym: 'TEST' })
-      assert obj_large.rendered
-      assert_equal 413, obj_large.rendered[:status]
-      assert_equal 'Payload Too Large', obj_large.rendered[:plain]
+      res_large_200 = dispatch(OntologiesRedirectionController, :redirect_ontology, params: { acronym: 'TEST' })
+      assert_equal 413, res_large_200.status
+      assert_equal 'Payload Too Large', res_large_200.body
     ensure
       UriRedirection.send(:remove_const, :MAX_DOWNLOAD_SIZE)
       UriRedirection.const_set(:MAX_DOWNLOAD_SIZE, original_download_max)
+    end
+
+    # 4. R5: Raw download large non-2xx payload abort (bounded error body consumption)
+    UriRedirection.send(:remove_const, :MAX_DOWNLOAD_SIZE)
+    UriRedirection.const_set(:MAX_DOWNLOAD_SIZE, 32) # 32 bytes max
+
+    server_pipe_broken = false
+    @server.route('/ontologies/TEST/download') do |_m, _p, _h, s|
+      s.print "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html\r\nTransfer-Encoding: chunked\r\n\r\n"
+      begin
+        20.times do
+          chunk = 'E' * 32
+          s.print "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+          s.flush
+          sleep 0.005
+        end
+        s.print "0\r\n\r\n"
+      rescue Errno::EPIPE, Errno::ECONNRESET
+        server_pipe_broken = true
+      end
+    end
+
+    begin
+      res_large_500 = dispatch(OntologiesRedirectionController, :redirect_ontology, params: { acronym: 'TEST' })
+      assert_equal 413, res_large_500.status
+      assert_equal 'Payload Too Large', res_large_500.body
+      10.times do
+        break if server_pipe_broken
+        sleep 0.02
+      end
+      assert server_pipe_broken, 'Expected client to abort oversized non-2xx transport before buffering full body'
+    ensure
+      UriRedirection.send(:remove_const, :MAX_DOWNLOAD_SIZE)
+      UriRedirection.const_set(:MAX_DOWNLOAD_SIZE, original_download_max)
+    end
+
+    # 5. R6: Stalled non-2xx response completes with controlled 504 and NO DoubleRenderError
+    original_read_timeout = UriRedirection::DOWNLOAD_READ_TIMEOUT
+    UriRedirection.send(:remove_const, :DOWNLOAD_READ_TIMEOUT)
+    UriRedirection.const_set(:DOWNLOAD_READ_TIMEOUT, 0.2) # 0.2s deadline
+
+    @server.route('/ontologies/TEST/download') do |_m, _p, _h, s|
+      # Send non-2xx headers, then stall body stream
+      s.print "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html\r\nContent-Length: 500\r\n\r\npartial"
+      s.flush
+      sleep 0.8
+    end
+
+    begin
+      res_stalled_500 = dispatch(OntologiesRedirectionController, :redirect_ontology, params: { acronym: 'TEST' })
+      assert_equal 504, res_stalled_500.status
+      assert_equal 'Gateway Timeout', res_stalled_500.body
+      assert_includes res_stalled_500.headers['Content-Type'], 'text/plain'
+    ensure
+      UriRedirection.send(:remove_const, :DOWNLOAD_READ_TIMEOUT)
+      UriRedirection.const_set(:DOWNLOAD_READ_TIMEOUT, original_read_timeout)
     end
   end
 end

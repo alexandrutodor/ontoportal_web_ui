@@ -16,10 +16,12 @@ class ContentFinderController < ApplicationController
                                format: params[:output_format])
     if result.success?
       @result = result.content
+      @format = result.format
       @error = nil
       render 'content_finder/index', layout: 'tool', status: result.status
     else
       @result = nil
+      @format = nil
       @error = result.error || "Upstream Service Error"
       render 'content_finder/index', layout: 'tool', status: result.status
     end

@@ -236,10 +236,12 @@ class OntologiesController < ApplicationController
 
     if result.success?
       @result = result.content
+      @format = result.format
       @error = nil
       render 'ontologies/content_serializer', layout: nil, status: result.status
     else
       @result = nil
+      @format = nil
       @error = result.error || "Upstream Service Error"
       render 'ontologies/content_serializer', layout: nil, status: result.status
     end

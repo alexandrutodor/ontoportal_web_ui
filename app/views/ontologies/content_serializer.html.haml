@@ -2,5 +2,5 @@
   #resource_content_modal
     - if @error
       %div.alert.alert-danger= @error
-    - elsif @result
+    - elsif @result && !@result.empty?
       = rdf_highlighter_container(@format, @result)
