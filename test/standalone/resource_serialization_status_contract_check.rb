@@ -941,5 +941,48 @@ class ResourceSerializationStatusContractCheck < Minitest::Test
       UriRedirection.send(:remove_const, :DOWNLOAD_READ_TIMEOUT)
       UriRedirection.const_set(:DOWNLOAD_READ_TIMEOUT, original_read_timeout)
     end
+
+    # 6. B17-C1: Automatic GET retry on partial 200 read timeout resets response buffer and enforces size cap
+    original_download_max = UriRedirection::MAX_DOWNLOAD_SIZE
+    original_read_timeout = UriRedirection::DOWNLOAD_READ_TIMEOUT
+    UriRedirection.send(:remove_const, :MAX_DOWNLOAD_SIZE)
+    UriRedirection.const_set(:MAX_DOWNLOAD_SIZE, 32)
+    UriRedirection.send(:remove_const, :DOWNLOAD_READ_TIMEOUT)
+    UriRedirection.const_set(:DOWNLOAD_READ_TIMEOUT, 0.2)
+
+    old_prefix = 'OLD_ONTOLOGY_PAYLOAD_123' # 24 bytes
+    new_body   = 'NEW_ONTOLOGY_PAYLOAD_456' # 24 bytes
+    assert_equal 24, old_prefix.bytesize
+    assert_equal 24, new_body.bytesize
+
+    retry_request_attempts = 0
+    @server.route('/ontologies/TEST/download') do |_m, _p, _h, s|
+      retry_request_attempts += 1
+      if retry_request_attempts == 1
+        # First 200 advertises chunked body, supplies partial 24-byte OLD chunk, then stalls to trigger native Net::ReadTimeout
+        s.print "HTTP/1.1 200 OK\r\nContent-Type: application/rdf+xml\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n"
+        s.print "#{old_prefix.bytesize.to_s(16)}\r\n#{old_prefix}\r\n"
+        s.flush
+        sleep 0.6
+      else
+        # Second 200 on automatic Net::HTTP GET retry supplies complete 24-byte NEW body
+        s.print "HTTP/1.1 200 OK\r\nContent-Type: application/rdf+xml\r\nContent-Length: #{new_body.bytesize}\r\nConnection: close\r\n\r\n#{new_body}"
+      end
+    end
+
+    begin
+      res_retry = dispatch(OntologiesRedirectionController, :redirect_ontology, params: { acronym: 'TEST' })
+      assert_equal 2, retry_request_attempts, 'Expected exactly 2 request attempts via automatic GET retry'
+      assert_equal 200, res_retry.status
+      assert_includes res_retry.headers['Content-Type'], 'application/rdf+xml'
+      assert_equal new_body, res_retry.body
+      assert_equal 24, res_retry.body.bytesize
+      refute_includes res_retry.body, old_prefix
+    ensure
+      UriRedirection.send(:remove_const, :MAX_DOWNLOAD_SIZE)
+      UriRedirection.const_set(:MAX_DOWNLOAD_SIZE, original_download_max)
+      UriRedirection.send(:remove_const, :DOWNLOAD_READ_TIMEOUT)
+      UriRedirection.const_set(:DOWNLOAD_READ_TIMEOUT, original_read_timeout)
+    end
   end
 end

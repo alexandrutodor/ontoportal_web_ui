@@ -96,6 +96,7 @@ module UriRedirection
     http.request(req) do |response|
       status = response.code.to_i
       actual_content_type = response.content_type.presence || 'application/octet-stream'
+      buffer = String.new(encoding: Encoding::BINARY)
 
       total_bytes = 0
       response.read_body do |chunk|
