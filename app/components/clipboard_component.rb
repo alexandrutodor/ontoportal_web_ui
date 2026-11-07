@@ -11,14 +11,7 @@ class ClipboardComponent < ViewComponent::Base
 
   def accessible_label
     raw_label = @title.presence || I18n.t("components.clipboard.copy", default: "Copy")
-    plain = if defined?(ActionController::Base) && ActionController::Base.respond_to?(:helpers)
-              ActionController::Base.helpers.strip_tags(raw_label)
-            elsif respond_to?(:helpers) && helpers.respond_to?(:strip_tags)
-              helpers.strip_tags(raw_label)
-            else
-              raw_label.to_s.gsub(/<[^>]*>/, "")
-            end
-    plain.presence || I18n.t("components.clipboard.copy", default: "Copy")
+    helpers.strip_tags(raw_label).presence || I18n.t("components.clipboard.copy", default: "Copy")
   end
 
   def copied_label

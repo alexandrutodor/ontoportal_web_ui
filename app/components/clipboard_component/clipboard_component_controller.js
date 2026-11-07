@@ -2,7 +2,7 @@ import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
 
-  static targets = ['content', 'copy', 'check', 'fail', 'error', 'button', 'feedback']
+  static targets = ['content', 'copy', 'check', 'fail', 'button', 'feedback']
   static values = {
     hiddenCss: { type: String, default: 'd-none' },
     successDuration: { type: Number, default: 2000 },
@@ -17,21 +17,13 @@ export default class extends Controller {
     }
   }
 
-  copy () {
-    const text = this.getText()
-
-    if (!navigator?.clipboard?.writeText) {
+  async copy () {
+    try {
+      await navigator.clipboard.writeText(this.getText())
+      this.#copied()
+    } catch (_) {
       this.#failed()
-      return Promise.resolve()
     }
-
-    return navigator.clipboard.writeText(text)
-      .then(() => {
-        this.#copied()
-      })
-      .catch(() => {
-        this.#failed()
-      })
   }
 
   getText () {
@@ -40,11 +32,6 @@ export default class extends Controller {
     const target = this.contentTarget
     if (this.#isInputOrTextarea(target)) {
       return target.value ?? ''
-    }
-
-    const nested = target.querySelector ? target.querySelector('input, textarea') : null
-    if (nested) {
-      return nested.value ?? ''
     }
 
     return target.textContent ?? ''
@@ -103,17 +90,12 @@ export default class extends Controller {
   #showFailure () {
     if (this.hasFailTarget) {
       this.failTarget.classList.remove(this.hiddenCssValue)
-    } else if (this.hasErrorTarget) {
-      this.errorTarget.classList.remove(this.hiddenCssValue)
     }
   }
 
   #hideFailure () {
     if (this.hasFailTarget) {
       this.failTarget.classList.add(this.hiddenCssValue)
-    }
-    if (this.hasErrorTarget) {
-      this.errorTarget.classList.add(this.hiddenCssValue)
     }
   }
 

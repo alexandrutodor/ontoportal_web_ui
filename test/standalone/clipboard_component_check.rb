@@ -51,6 +51,7 @@ class ClipboardComponentCheck < Minitest::Test
 
   def test_default_title_and_labels_in_english
     comp = ClipboardComponent.new
+    render_component(comp)
     assert_equal 'Copy', comp.accessible_label
     assert_equal 'Copied!', comp.copied_label
     assert_equal 'Copy failed', comp.failed_label
@@ -59,6 +60,7 @@ class ClipboardComponentCheck < Minitest::Test
   def test_default_title_and_labels_in_french
     I18n.locale = :fr
     comp = ClipboardComponent.new
+    render_component(comp)
     assert_equal 'Copier', comp.accessible_label
     assert_equal 'Copié !', comp.copied_label
     assert_equal 'Échec de la copie', comp.failed_label
@@ -68,6 +70,7 @@ class ClipboardComponentCheck < Minitest::Test
     # Portal helper custom title pattern: "Copy MatPortal URI <a href=...>...</a>"
     raw_title = %(Copy MatPortal URI <a href="https://stage.matportal.org/ontologies/TEST/c1">https://stage.matportal.org/ontologies/TEST/c1</a>)
     comp = ClipboardComponent.new(title: raw_title)
+    render_component(comp)
 
     plain = comp.accessible_label
     refute_includes plain, '<a'
