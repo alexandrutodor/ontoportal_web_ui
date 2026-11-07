@@ -869,6 +869,34 @@ fr:
     username_or_email: Nom d'utilisateur
     welcome: Bienvenue <b>
   mappings:
+    evidence:
+      action: Preuve
+      title: Preuves du mapping
+      view_evidence: Voir les preuves du mapping
+      header: Preuve
+      class_id: Identifiant de la classe
+      ontology_id: Identifiant de l'ontologie
+      label: Libellé
+      definition: Définition
+      synonyms: Synonymes
+      relation: Relation
+      direction: Direction
+      direction_unknown: Inconnue
+      directed: Dirigé (Source → Cible)
+      source: Source
+      target: Cible
+      process_provenance: Provenance du processus
+      source_name: Nom de la source
+      comment: Commentaire
+      unavailable: Indisponible
+      remote_details_unavailable: Détails distants indisponibles
+      previous: Précédent
+      next: Suivant
+      close: Fermer
+      retry: Réessayer
+      return: Retour
+      loading: Chargement des preuves...
+      error: Impossible de charger les preuves du mapping.
     all: Tous
     bubble_view_legend:
       bubble_size: 'Taille de la bulle :'

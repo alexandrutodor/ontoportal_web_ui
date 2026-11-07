@@ -9,6 +9,9 @@
     = ont_link
   %td
     = render ChipButtonComponent.new(class: 'chip_button_small mr-1', text: type, tooltip:"#{source_tooltip} mapping of type #{type_tooltip}")
+    - if mapping_evidence_enabled?
+      %button.btn.btn-sm.btn-link.p-0.ml-1.mapping-evidence-btn{type: 'button', title: t('mappings.evidence.view_evidence'), data: { action: 'click->mapping-evidence#open', mapping_id: map_id, evidence_url: mapping_evidence_path(map_id) }}
+        = t('mappings.evidence.action')
 
   - if current_user_admin?
     %td{:class => 'delete_mappings_column'}

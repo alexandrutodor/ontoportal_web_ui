@@ -843,6 +843,34 @@ en:
     username_or_email: Username
     welcome: Welcome <b>
   mappings:
+    evidence:
+      action: Evidence
+      title: Mapping Evidence
+      view_evidence: View mapping evidence
+      header: Evidence
+      class_id: Class ID
+      ontology_id: Ontology ID
+      label: Label
+      definition: Definition
+      synonyms: Synonyms
+      relation: Relation
+      direction: Direction
+      direction_unknown: Unknown
+      directed: Directed (Source → Target)
+      source: Source
+      target: Target
+      process_provenance: Process Provenance
+      source_name: Source name
+      comment: Comment
+      unavailable: Unavailable
+      remote_details_unavailable: Remote details unavailable
+      previous: Previous
+      next: Next
+      close: Close
+      retry: Retry
+      return: Return
+      loading: Loading evidence...
+      error: Unable to load mapping evidence.
     all: All
     bubble_view_legend:
       bubble_size: 'Bubble size:'
