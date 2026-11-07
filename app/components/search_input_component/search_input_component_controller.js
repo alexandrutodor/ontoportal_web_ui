@@ -145,7 +145,6 @@ export default class extends Controller {
         retryBtn.type = "button";
         retryBtn.className = "btn btn-link btn-sm p-0 search-retry-action ms-2";
         retryBtn.textContent = "Retry";
-        retryBtn.setAttribute("data-action", "click->search-input#retry");
         retryBtn.addEventListener("click", (e) => {
             this.retry(e);
         });
