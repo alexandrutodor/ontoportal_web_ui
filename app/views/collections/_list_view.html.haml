@@ -1,10 +1,10 @@
 = turbo_frame_tag "collections_sorted_list_view-page-1" do
   - collections_labels, selected_collection = get_collections_labels(@collections, params[:collectionid])
-  - selected_collection_id = selected_collection.nil? ? collections_labels.first["@id"] : selected_collection["@id"]
   - if collections_labels.empty?
     %div
       = no_collections_alert
   - else
+    - selected_collection_id = selected_collection.nil? ? collections_labels.first["@id"] : selected_collection["@id"]
     %div
       = render TreeViewComponent.new(id: nil,  auto_click: false) do |tree_child|
         - sort_collections_label(collections_labels).each do |collection|
