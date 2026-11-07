@@ -3,7 +3,7 @@
     = header
   %div.my-3
   %div.raw-table
-    = render DropdownContainerComponent.new(title: 'Raw data', id: "accordion-#{@id}") do
+    = render DropdownContainerComponent.new(title: t('components.raw_data'), id: "accordion-#{@id}") do
       = render TableComponent.new(stripped: true) do |t|
         - top_set, leftover_set, bottom_set = filter_properties(@top_keys, @bottom_keys, @exclude_keys, prefix_properties(@concept_properties))
         - leftover_set = convert_dates(leftover_set)

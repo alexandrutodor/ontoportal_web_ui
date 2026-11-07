@@ -404,6 +404,7 @@ en:
     type: Type
   components:
     add_another_object: "Add another %{object_name}"
+    raw_data: Raw data
     class: "class"
     contact: "contact"
     portal: "portal"

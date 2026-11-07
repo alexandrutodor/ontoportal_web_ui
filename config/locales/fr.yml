@@ -414,6 +414,7 @@ fr:
     type: Type
   components:
     add_another_object: "Ajouter un autre %{object_name}"
+    raw_data: Données brutes
     class: "classe"
     contact: "contact"
     portal: "portail"

@@ -63,4 +63,4 @@
           = t('register.terms_and_conditions', site: portal_name)
         %font{:color => "red"} *
     .register-button-container
-      = render Buttons::RegularButtonComponent.new(id: 'register-button', value: "Register", type:'submit')
+      = render Buttons::RegularButtonComponent.new(id: 'register-button', value: t('register.title'), type:'submit')

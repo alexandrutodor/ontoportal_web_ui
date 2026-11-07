@@ -16,7 +16,7 @@
       %a.login-forgot-password{:href => "/lost_pass"}
         %p= t('login.forgot_password')
       .login-button-container
-        = render Buttons::RegularButtonComponent.new(id: 'login-button', value: "Login", type:'submit')
+        = render Buttons::RegularButtonComponent.new(id: 'login-button', value: t('login.title'), type:'submit')
       %p.dont-have-account
         = t('login.no_account')
         %a.text-decoration-none{:href => new_user_path}= t('login.register')
