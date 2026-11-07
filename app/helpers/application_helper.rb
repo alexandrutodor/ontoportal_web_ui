@@ -40,11 +40,6 @@ module ApplicationHelper
     Flipper.enabled?('Agents', user)
   end
 
-  def mapping_evidence_enabled?
-    user = current_user rescue (session[:user] rescue nil)
-    Flipper.enabled?('MappingEvidence', user)
-  end
-
   def sparql_enabled?
     user = current_user rescue nil
     Flipper.enabled?('SPARQL', user) && $SPARQL_ENDPOINT_URL

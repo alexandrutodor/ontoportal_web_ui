@@ -92,8 +92,8 @@ class MappingEvidenceComponent < ViewComponent::Base
   def render_classes_comparison
     left_class = @direction[:status] == :directed ? @direction[:source] : @class_1
     right_class = @direction[:status] == :directed ? @direction[:target] : @class_2
-    left_title = @direction[:status] == :directed ? t('mappings.evidence.source', default: 'Source') : 'Class 1'
-    right_title = @direction[:status] == :directed ? t('mappings.evidence.target', default: 'Target') : 'Class 2'
+    left_title = @direction[:status] == :directed ? t('mappings.evidence.source', default: 'Source') : t('mappings.evidence.class_1')
+    right_title = @direction[:status] == :directed ? t('mappings.evidence.target', default: 'Target') : t('mappings.evidence.class_2')
 
     content_tag(:div, class: 'mapping-evidence-classes row') do
       safe_join([

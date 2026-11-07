@@ -871,6 +871,8 @@ fr:
   mappings:
     evidence:
       action: Preuve
+      class_1: Classe 1
+      class_2: Classe 2
       title: Preuves du mapping
       view_evidence: Voir les preuves du mapping
       header: Preuve

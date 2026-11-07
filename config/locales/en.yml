@@ -845,6 +845,8 @@ en:
   mappings:
     evidence:
       action: Evidence
+      class_1: Class 1
+      class_2: Class 2
       title: Mapping Evidence
       view_evidence: View mapping evidence
       header: Evidence
