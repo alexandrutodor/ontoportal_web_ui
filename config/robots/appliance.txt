@@ -11,7 +11,7 @@ Disallow: /resource_index
 Disallow: /feedback
 Disallow: /ajax
 Disallow: /javascripts
-Disalow: /widgets
+Disallow: /widgets
 Crawl-delay: 5
 
 User-agent: SemrushBot
@@ -33,7 +33,7 @@ User-agent: DataForSeoBot
 Disallow: /
 User-agent: BLEXBot
 Disallow: /
-User agent: MTRobot
+User-agent: MTRobot
 Disallow: /
 
 
