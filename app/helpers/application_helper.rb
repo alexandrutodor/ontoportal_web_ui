@@ -86,8 +86,10 @@ module ApplicationHelper
     $OMNIAUTH_PROVIDERS
   end
 
+  # strategy is the /auth/<segment> value: the configured name, the strategy or the provider key.
   def omniauth_provider_info(strategy)
-    omniauth_providers_info.select {|k,v| v[:strategy].eql?(strategy.to_sym) || k.eql?(strategy)}
+    segment = strategy.to_s
+    omniauth_providers_info.select { |k, v| [v[:name], v[:strategy], k].compact.map(&:to_s).include?(segment) }
   end
 
   def omniauth_token_provider(strategy)
