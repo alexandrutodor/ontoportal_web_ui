@@ -1125,6 +1125,7 @@ assert(!ApplicationTestHelpers.acknowledged_has_errors?(cat_base_resp), "Categor
 $http_post_log.clear
 $cache_refresh_log.clear
 $fail_cache_refresh[:category] = true
+$datastore.categories['BASE_CAT_OK'] = { acronym: 'BASE_CAT_OK', name: 'Base Cat OK', id: 'http://localhost:9393/categories/BASE_CAT_OK' }
 $http_custom_response = cat_base_resp
 refresh_raised = false
 begin
@@ -1141,6 +1142,8 @@ assert(TestResourceOwnership.owned?(:category, 'BASE_CAT_OK'), "Base response ca
 # Clean up the retained category
 harness.delete_categories(['BASE_CAT_OK'])
 assert(!TestResourceOwnership.owned?(:category, 'BASE_CAT_OK'), "Retained Base response category deleted during cleanup")
+assert($datastore.deleted_log.include?([:category, 'BASE_CAT_OK']), "Backend delete occurred for BASE_CAT_OK")
+assert(!$datastore.categories.key?('BASE_CAT_OK'), "BASE_CAT_OK row removed from datastore")
 
 # Category known error with Base response refreshes once and never adopts/registers
 $http_post_log.clear

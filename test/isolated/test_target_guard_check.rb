@@ -322,6 +322,8 @@ end
 assert(blocked_after_setup, "WebMock default-deny is restored and active after setup recovery", failures)
 
 puts "\n=== Step 6: ApplicationTestHelpers preflight runs BEFORE requests/cleanup ==="
+# Prevent NameError when rails gem is present without full Rails application boot
+$LOADED_FEATURES << 'rails/test_help' << 'rails/test_help.rb'
 # Load ApplicationTestHelpers
 require_relative '../helpers/application_test_helpers'
 
