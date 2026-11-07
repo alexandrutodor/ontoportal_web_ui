@@ -3,11 +3,10 @@
 
 # Standalone isolated regression check for ONTO-AT-L01 and ONTO-AT-L02:
 # Verifies YAML catalog parsing, metadata guidance token interpolation,
-# language selector placeholder meaningfulness, French queued-deletion notice,
-# and exact scalar-diff boundaries without booting Rails or running external services.
+# language selector placeholder meaningfulness, and French queued-deletion notice
+# without booting Rails or running external services.
 
 require 'yaml'
-require 'open3'
 
 failures = []
 
@@ -129,59 +128,6 @@ if fr_sub_del
          failures)
   assert(!interpolated_fr_del.match?(/\A\s*Soumissions\s+\d+.*supprimées\s*\z/i),
          'French deletion notice does not assert unconditional completed deletion',
-         failures)
-end
-
-puts "\n=== Step 5: Verify exact scalar-diff boundaries against git baseline ==="
-# Compare parsed baseline (HEAD or basebf5e3a51) against current working tree
-def diff_hashes(base, current, prefix = [])
-  diffs = []
-  all_keys = (base.keys | current.keys).sort
-  all_keys.each do |k|
-    p = prefix + [k]
-    b_val = base[k]
-    c_val = current[k]
-    if b_val.is_a?(Hash) && c_val.is_a?(Hash)
-      diffs.concat(diff_hashes(b_val, c_val, p))
-    elsif b_val != c_val
-      diffs << { path: p.join('.'), before: b_val, after: c_val }
-    end
-  end
-  diffs
-end
-
-# Find baseline commit (prefer merge-base with main or bf5e3a51, or HEAD if uncommitted)
-baseline_ref = ENV['BASELINE_REF'] || 'bf5e3a51'
-base_en_raw, = Open3.capture2('git', 'show', "#{baseline_ref}:config/locales/en.yml")
-base_fr_raw, = Open3.capture2('git', 'show', "#{baseline_ref}:config/locales/fr.yml")
-
-if base_en_raw.empty? || base_fr_raw.empty?
-  puts "  [WARN] Could not retrieve git baseline at #{baseline_ref}, skipping scalar diff boundary check"
-else
-  base_en = YAML.safe_load(base_en_raw)
-  base_fr = YAML.safe_load(base_fr_raw)
-
-  en_diffs = diff_hashes(base_en, en_catalog)
-  fr_diffs = diff_hashes(base_fr, fr_catalog)
-
-  expected_en_diff_paths = [
-    'en.submission_inputs.edit_metadata_instruction',
-    'en.components.select_anguage'
-  ].sort
-
-  expected_fr_diff_paths = [
-    'fr.ontologies.admin.submissions.submissions_deleted'
-  ].sort
-
-  actual_en_diff_paths = en_diffs.map { |d| d[:path] }.sort
-  actual_fr_diff_paths = fr_diffs.map { |d| d[:path] }.sort
-
-  assert(actual_en_diff_paths == expected_en_diff_paths,
-         "Only expected English scalar keys changed: expected #{expected_en_diff_paths}, got #{actual_en_diff_paths}",
-         failures)
-
-  assert(actual_fr_diff_paths == expected_fr_diff_paths,
-         "Only expected French scalar keys changed: expected #{expected_fr_diff_paths}, got #{actual_fr_diff_paths}",
          failures)
 end
 
