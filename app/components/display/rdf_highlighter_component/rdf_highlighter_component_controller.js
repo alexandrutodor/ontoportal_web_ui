@@ -97,22 +97,22 @@ export default class extends Controller {
 
   downloadNQuads () {
     this.#toNTriples(this.formatedData).then((nquads) => {
-      this.#generateDownloadFile(nquads, 'nt')
+      this.#generateDownloadFile(nquads, 'nt', 'application/n-triples')
     })
   }
 
   downloadJsonLd () {
     this.#toJSONLD().then((jsonld) => {
-      this.#generateDownloadFile(JSON.stringify(jsonld, null, '  '), 'json')
+      this.#generateDownloadFile(JSON.stringify(jsonld, null, '  '), 'json', 'application/ld+json')
     })
   }
 
   downloadXML () {
-    this.#generateDownloadFile(this.#toXML(this.formatedData, this.contextValue), 'rdf')
+    this.#generateDownloadFile(this.#toXML(this.formatedData, this.contextValue), 'rdf', 'application/rdf+xml')
   }
 
   downloadCSV () {
-    this.#generateDownloadFile(this.#toCSV(), 'csv')
+    this.#generateDownloadFile(this.#toCSV(), 'csv', 'text/csv')
   }
 
   #formatData () {
@@ -158,8 +158,17 @@ export default class extends Controller {
     return jsonld.toRDF(data, { format: 'application/n-quads' })
   }
 
+  // One row per value, so multivalued properties repeat their property column.
   #toCSV () {
-    return Object.entries(this.formatedData).map(([key, value]) => `${key},${value}`).join('\r\n')
+    const quote = (field) => {
+      const text = String(field)
+      return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+    }
+    const rows = [['property', 'value']]
+    for (const [key, value] of Object.entries(this.formatedData)) {
+      (Array.isArray(value) ? value : [value]).forEach((v) => rows.push([key, v]))
+    }
+    return rows.map((row) => row.map(quote).join(',')).join('\r\n')
   }
 
   #toJSONLD () {
@@ -169,47 +178,56 @@ export default class extends Controller {
   #toXML () {
     const data = this.formatedData
     const resolveNamespace = this.namespacesValue
-    let namespaces = {}
+    const namespaces = { rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' }
+    const escape = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
     let xmlString = ''
 
-    delete data['@id']
-    delete data['@type']
+    for (const [attr_uri, raw_values] of Object.entries(data)) {
+      if (attr_uri === '@id' || attr_uri === '@type') continue
 
-    for (let prop in data) {
-      const attr_uri = prop
-
-      // Replace the full URI by namespace:attr
+      // Replace the full URI by namespace:attr; properties outside known namespaces get a generated prefix
+      let prop = null
       for (const ns in resolveNamespace) {
-        if (prop.startsWith(resolveNamespace[ns])) {
+        if (attr_uri.startsWith(resolveNamespace[ns])) {
           namespaces[ns] = resolveNamespace[ns]
-          prop = prop.replace(resolveNamespace[ns], ns + ':')
+          prop = ns + ':' + attr_uri.slice(resolveNamespace[ns].length)
           break
         }
       }
+      if (prop === null) {
+        const [, base, local] = attr_uri.match(/^(.*[#/])([^#/]+)$/) || []
+        if (!local) continue
+        let ns = Object.keys(namespaces).find((k) => namespaces[k] === base)
+        if (!ns) {
+          ns = `ns${Object.keys(namespaces).length}`
+          namespaces[ns] = base
+        }
+        prop = ns + ':' + local
+      }
 
-      // Check if the value is an URI using simple regex
-      let prop_values = Array.isArray(data[attr_uri]) ? data[attr_uri] : [data[attr_uri]]
-
+      const prop_values = Array.isArray(raw_values) ? raw_values : [raw_values]
       prop_values.forEach(prop_value => {
-        const isUri = prop_value.toString().match(/https?:\/\//) && prop_value.toString().indexOf(' ') === -1
-        const value = isUri ? '' : `${prop_value} <${prop}/> `
-        xmlString = xmlString.concat(`    <${prop}${isUri ? ` rdf:resource="${prop_value}"/>` : '>'} ${value}\n`)
+        const text = String(prop_value)
+        // Check if the value is an URI using simple regex
+        const isUri = /^https?:\/\/\S+$/.test(text)
+        xmlString += isUri ? `\n    <${prop} rdf:resource="${escape(text)}"/>` : `\n    <${prop}>${escape(text)}</${prop}>`
       })
     }
 
-    let prefix = Object.entries(namespaces).map(([k, v]) => `xmlns:${k}="${v}"`).join(' ')
-    return `<rdf:RDF ${prefix}>\n<rdf:Description rdf:about="${data['URI'] || data['@id']}">\n    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#Ontology"/>${xmlString}</rdf:Description>\n</rdf:RDF>`
+    const prefix = Object.entries(namespaces).map(([k, v]) => `xmlns:${k}="${escape(v)}"`).join(' ')
+    return `<rdf:RDF ${prefix}>\n<rdf:Description rdf:about="${escape(data['@id'])}">\n    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#Ontology"/>${xmlString}\n</rdf:Description>\n</rdf:RDF>`
   }
 
   /**
    * Generate the file with metadata to be downloaded, given the file content
    * @param content
    * @param fileExtension
+   * @param mimeType
    */
-  #generateDownloadFile (content, fileExtension) {
+  #generateDownloadFile (content, fileExtension, mimeType) {
     var element = document.createElement('a')
-    // TODO: change MIME type?
-    element.setAttribute('href', 'data:application/rdf+json;charset=utf-8,' + encodeURIComponent(content))
+    element.setAttribute('href', `data:${mimeType};charset=utf-8,` + encodeURIComponent(content))
     element.setAttribute('download', jQuery(document).data().bp.ontology.acronym + '_metadata.' + fileExtension)
     element.style.display = 'none'
     document.body.appendChild(element)
