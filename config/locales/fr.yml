@@ -1641,6 +1641,27 @@ fr:
       visualize: Visualiser
     search_place_holder: Entrez un terme, e.g., hauteur de plante
     show_advanced_options: Afficher les options
+  query_recipes:
+    button_label: "Recettes enregistrées"
+    save_recipe: "Enregistrer la recette"
+    saved_recipes: "Recettes enregistrées"
+    save_current: "Enregistrer les filtres actuels"
+    recipe_name_placeholder: "Nom de la recette..."
+    save: "Enregistrer"
+    cancel: "Annuler"
+    reopen: "Appliquer"
+    rename: "Renommer"
+    delete: "Supprimer"
+    export: "Exporter"
+    import: "Importer"
+    clear_all: "Tout effacer"
+    empty_state: "Aucune recette enregistrée sur cet appareil."
+    local_storage_notice: "Enregistré localement sur cet appareil. Aucune requête ni identifiant n'est transmis aux serveurs."
+    storage_unavailable: "Le stockage local est indisponible dans ce navigateur. Impossible d'enregistrer les recettes."
+    import_invalid: "Échec de l'importation : format invalide ou non pris en charge."
+    import_success: "Recette importée avec succès."
+    portal_mismatch: "Portail d'origine : %{portal} (Actuel : %{current}). Vérifiez les paramètres avant d'appliquer."
+    missing_ontology: "Ontologie manquante : %{ontology} n'est pas dans le catalogue actuel."
   show_advanced_options: Afficher les options avancées
   statistics:
     agents: Agents

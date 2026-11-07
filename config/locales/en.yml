@@ -1591,6 +1591,27 @@ en:
       visualize: Vizualize
     search_place_holder: Enter a term, e.g., plant height
     show_advanced_options: Show options
+  query_recipes:
+    button_label: "Saved Recipes"
+    save_recipe: "Save Recipe"
+    saved_recipes: "Saved Recipes"
+    save_current: "Save current settings"
+    recipe_name_placeholder: "Recipe name..."
+    save: "Save"
+    cancel: "Cancel"
+    reopen: "Apply"
+    rename: "Rename"
+    delete: "Delete"
+    export: "Export"
+    import: "Import"
+    clear_all: "Clear all"
+    empty_state: "No saved recipes yet on this device."
+    local_storage_notice: "Saved locally on this device. No queries or credentials are sent to servers."
+    storage_unavailable: "Local storage is unavailable in this browser. Recipes cannot be saved."
+    import_invalid: "Failed to import recipe: invalid or unsupported format."
+    import_success: "Recipe imported successfully."
+    portal_mismatch: "Originating portal: %{portal} (Current: %{current}). Review settings before applying."
+    missing_ontology: "Missing ontology: %{ontology} is not in the current catalog."
   show_advanced_options: Show advanced options
   statistics:
     agents: Agents

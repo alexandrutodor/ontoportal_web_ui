@@ -42,6 +42,8 @@
             .search-page-number-of-results
               = "#{t('search.match_in')} #{@search_results.length} #{t('search.ontologies')} #{t('search.from')} #{request_portals_names(@federation_counts, @time)}".html_safe
           %div.d-flex
+            - if query_recipes_enabled?
+              = render QueryRecipeComponent.new(kind: 'search')
             .search-page-advanced-button.mr-4{class: @search_results.blank? ? 'd-none' : ''}
               - json_href, json_target = api_button_link_and_target(@json_url)
               %a.d-flex{href: json_href, target: json_target}

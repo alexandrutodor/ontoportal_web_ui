@@ -40,6 +40,11 @@ module ApplicationHelper
     Flipper.enabled?('Agents', user)
   end
 
+  def query_recipes_enabled?
+    user = current_user rescue nil
+    defined?(Flipper) && Flipper.enabled?('QueryRecipes', user)
+  end
+
   def sparql_enabled?
     user = current_user rescue nil
     Flipper.enabled?('SPARQL', user) && $SPARQL_ENDPOINT_URL

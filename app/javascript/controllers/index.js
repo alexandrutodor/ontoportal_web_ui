@@ -129,3 +129,6 @@ application.register("ror-search", RorSearchController)
 
 import MappingEvidenceController from "./mapping_evidence_controller.js"
 application.register("mapping-evidence", MappingEvidenceController)
+
+import QueryRecipeController from "./query_recipe_controller.js"
+application.register("query-recipe", QueryRecipeController)
