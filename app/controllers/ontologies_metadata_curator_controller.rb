@@ -78,28 +78,31 @@ class OntologiesMetadataCuratorController < ApplicationController
     @selected_ontologies = params[:selected_ontologies].map { |x| ontology_and_submission_id(x) }
     @active_ontology = ontology_and_submission_id(params[:active_ontology])
     @all_metadata = params[:all_metadata]&.split
-    error_responses = []
+    failures = []
     @submissions = []
     active_submission_data = params['submission']["#{@active_ontology[0]}_#{@active_ontology[1]}"]
 
     @selected_ontologies.each do |onto, sub_i|
-      new_data = active_submission_data
+      next unless active_submission_data
+
+      # update_submission converts and deletes keys in place; each target needs its own copy.
+      new_data = active_submission_data.deep_dup
       new_data[:ontology] = onto
       new_data[:id] = sub_i
-      error_responses << update_submission(new_data, sub_i).last if new_data
-      @submissions << @submission
+      response = update_submission(new_data, sub_i).last
+      if response && response.status != 204
+        failures << "#{onto}: #{bulk_update_error_message(response)}"
+      else
+        @submissions << @submission
+      end
     end
 
-    errors = nil
-    if error_responses.compact.any? { |x| x.status != 204 }
-      errors = error_responses.map { |error_response| response_errors(error_response) }
-    end
     respond_to do |format|
       format.turbo_stream do
-        if errors
-          render_turbo_stream(alert_error { errors.map { |e| e[:error] }.join(',') })
+        if failures.any? && @submissions.empty?
+          render_turbo_stream(alert_error { failures.join('; ') })
         else
-          streams = [alert_success { t('ontologies_metadata_curator.alert_success_submissions') }]
+          streams = [failures.any? ? alert_error { failures.join('; ') } : alert_success { t('ontologies_metadata_curator.alert_success_submissions') }]
           @submissions.each do |submission|
             submission.ontology = OpenStruct.new({ acronym: submission.ontology })
             streams << replace("#{ontology_submission_id_label(submission.ontology.acronym, submission.submissionId)}_row", partial: 'ontologies_metadata_curator/submission', locals: { submission: submission, attributes: @all_metadata })
@@ -112,6 +115,10 @@ class OntologiesMetadataCuratorController < ApplicationController
 
   private
 
+  def bulk_update_error_message(response)
+    errors = response_errors(response)
+    errors[:error] || errors.map { |attr, details| "#{attr}: #{details.is_a?(Hash) ? details.values.join(', ') : details}" }.join(', ')
+  end
 
   def build_hash_submissions(show_all_submissions: false, display_attribute: [])
     acronym_ontolog_submissions_hash = {}

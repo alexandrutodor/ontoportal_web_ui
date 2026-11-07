@@ -73,21 +73,22 @@ module SubmissionUpdater
       new_submission_hash[:contact].delete_if { |c| c[:name].empty? || c[:email].empty? }
     end
 
-    # Convert metadata that needs to be integer to int
+    # Convert typed metadata idempotently. Non-numeric integers are kept so the API rejects them.
+    # Unrecognized booleans stay nil: an unset switch submits its field name as placeholder value.
     submission_metadata.map do |hash|
       if hash["enforce"].include?("integer")
         if !new_submission_hash[hash["attribute"]].nil? && !new_submission_hash[hash["attribute"]].eql?("")
-          new_submission_hash[hash["attribute"].to_s.to_sym] = Integer(new_submission_hash[hash["attribute"].to_s.to_sym])
+          value = new_submission_hash[hash["attribute"].to_s.to_sym]
+          new_submission_hash[hash["attribute"].to_s.to_sym] = Integer(value, exception: false) || value
         end
       end
       if hash["enforce"].include?("boolean") && !new_submission_hash[hash["attribute"]].nil?
-        if new_submission_hash[hash["attribute"]].eql?("true")
-          new_submission_hash[hash["attribute"].to_s.to_sym] = true
-        elsif new_submission_hash[hash["attribute"]].eql?("false")
-          new_submission_hash[hash["attribute"].to_s.to_sym] = false
-        else
-          new_submission_hash[hash["attribute"].to_s.to_sym] = nil
-        end
+        value = new_submission_hash[hash["attribute"]]
+        new_submission_hash[hash["attribute"].to_s.to_sym] =
+          case value
+          when true, 'true' then true
+          when false, 'false' then false
+          end
       end
     end
   end

@@ -172,6 +172,7 @@ class CuratorBoundarySpy
   attr_accessor :submission_all_calls, :update_submission_calls
   attr_accessor :last_update_submission_data, :last_update_submission_id
   attr_accessor :update_submission_stub_response
+  attr_accessor :received_submission_data, :responses_by_ontology
 
   def initialize
     reset!
@@ -187,6 +188,8 @@ class CuratorBoundarySpy
     @last_update_submission_data = nil
     @last_update_submission_id = nil
     @update_submission_stub_response = nil
+    @received_submission_data = []
+    @responses_by_ontology = {}
   end
 
   def total_api_read_calls
@@ -264,13 +267,18 @@ end
 module SubmissionUpdater
   def update_submission(new_submission_hash, submission_id, ontology = nil)
     $curator_spy.update_submission_calls += 1
-    $curator_spy.last_update_submission_data = new_submission_hash
     $curator_spy.last_update_submission_id = submission_id
+    $curator_spy.received_submission_data << new_submission_hash.to_unsafe_h.deep_dup
+    $curator_spy.last_update_submission_data = $curator_spy.received_submission_data.last
 
     submission = OpenStruct.new(submissionId: submission_id, ontology: new_submission_hash[:ontology] || 'TEST')
     @submission = submission
 
-    response = $curator_spy.update_submission_stub_response || OpenStruct.new(status: 204)
+    # Mutate in place like the real update_submission (convert_values_to_types, delete :ontology).
+    onto = new_submission_hash.delete(:ontology)
+    new_submission_hash[:flag] = true if new_submission_hash[:flag] == 'true'
+
+    response = $curator_spy.responses_by_ontology[onto] || $curator_spy.update_submission_stub_response || OpenStruct.new(status: 204)
     [submission, response]
   end
 end
@@ -739,4 +747,43 @@ class BulkMetadataGuardCheck < Minitest::Test
     ctrl4.authorize_admin
     assert_nil res4.location, 'Supported admin_user context must not be redirected'
   end
+
+  # ===========================================================================
+  # ONTO-T-B05: each bulk target gets an independent copy and per-ontology results
+  # ===========================================================================
+  def test_b05_each_target_receives_independent_unconverted_values
+    dispatch(:update, user: ADMIN_ACTOR, headers: { 'Accept' => 'text/vnd.turbo-stream.html' }, params: {
+      selected_ontologies: ['A#1', 'B#2', 'C#3'],
+      active_ontology: 'A#1',
+      all_metadata: 'description',
+      submission: { 'A_1' => { description: 'Shared', flag: 'true' } }
+    })
+
+    received = $curator_spy.received_submission_data
+    assert_equal 3, received.length
+    assert_equal %w[A B C], received.map { |d| d['ontology'] }
+    assert_equal %w[1 2 3], received.map { |d| d['id'] }
+    assert_equal ['true'] * 3, received.map { |d| d['flag'] }, 'later targets must not see values converted for earlier ones'
+    assert_equal ['Shared'] * 3, received.map { |d| d['description'] }
+  end
+
+  def test_b05_partial_failure_reports_failed_ontology_and_keeps_successful_rows
+    $curator_spy.responses_by_ontology['B'] = OpenStruct.new(status: 403, errors: ['API Permission Denied: 403'])
+
+    _ctrl, _req, res = dispatch(:update, user: ADMIN_ACTOR, headers: { 'Accept' => 'text/vnd.turbo-stream.html' }, params: {
+      selected_ontologies: ['A#1', 'B#2'],
+      active_ontology: 'A#1',
+      all_metadata: 'description',
+      submission: { 'A_1' => { description: 'Partial' } }
+    })
+
+    assert_equal 2, $curator_spy.update_submission_calls
+    assert_includes res.body, 'alert-danger'
+    assert_includes res.body, 'B: API Permission Denied: 403', 'failed ontology is named with its error'
+    refute_includes res.body, 'A: ', 'successful ontology is not reported as failed'
+    refute_includes res.body, 'alert-success'
+    assert_includes res.body, 'A#1_row', 'successful target row is still refreshed'
+    refute_includes res.body, 'B#2_row', 'failed target row is not replaced'
+  end
+
 end
