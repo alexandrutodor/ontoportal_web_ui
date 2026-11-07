@@ -2,7 +2,7 @@
 
 class SelectInputComponent < ViewComponent::Base
 
-  def initialize(id:, name:, values:, selected: nil, multiple: false, open_to_add_values: false, required: false, data: {}, placeholder: '', **html_options)
+  def initialize(id:, name:, values:, selected: nil, multiple: false, open_to_add_values: false, required: false, data: {}, placeholder: '', is_language: false, **html_options)
     super
     @id = id || ''
     @name = name
@@ -11,8 +11,9 @@ class SelectInputComponent < ViewComponent::Base
     @multiple = multiple
     @open_to_add_values = open_to_add_values
     @placeholder = placeholder
-    @data = data
+    @data = data || {}
     @required = required
+    @is_language = is_language
     @html_options = html_options
   end
 
@@ -28,11 +29,15 @@ class SelectInputComponent < ViewComponent::Base
     open_to_add_values = options[:open_to_add_values] || false
     required = options[:required] || false
     placeholder = options[:placeholder] || ''
-    data = @data.merge({
+    html_options_data = @html_options[:data] || {}
+    data = @data.merge(html_options_data).merge({
                          'select-input-multiple-value': multiple,
                          'select-input-open-add-value': open_to_add_values,
                          'select-input-required-value': required,
                        })
+    if @is_language || data[:'select-input-is-language-value'] || data['select-input-is-language-value']
+      data['select-input-is-language-value'] = true
+    end
     data[:controller] = "#{data[:controller]} select-input"
 
     select_html_options = {
@@ -41,7 +46,7 @@ class SelectInputComponent < ViewComponent::Base
       autocomplete: 'off',
       multiple: multiple,
       data: data,
-    }.merge(@html_options)
+    }.merge(@html_options.except(:data))
 
     select_html_options[:style] = "#{select_html_options[:style]}; visibility: hidden"
 
