@@ -57,11 +57,9 @@ class OntologiesControllerTest < ActionDispatch::IntegrationTest
 
   test 'test get STY in xml format' do
     get '/ontologies/STY', headers: { 'Accept' => 'application/xml' }
-    if $REST_URL == "https://data.stageportal.lirmm.fr/"
-      assert_response :success
-    else
-      assert_equal 500, response.status # STY does not have xml in localhost:9393
-    end
+    assert_response :success
+    assert_not_empty response.body
+    assert_includes response.body, '<rdf:RDF'
   end
 
   test 'test get STY in csv format' do

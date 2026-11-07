@@ -12,6 +12,7 @@ class LoginFlowsTest < ActionDispatch::IntegrationTest
     @user_john = fixtures(:users)[:john]
     @user_bob = fixtures(:users)[:bob]
     @user_bob = create_user(@user_bob)
+    @created_user = nil
   end
 
   teardown do
@@ -31,30 +32,48 @@ class LoginFlowsTest < ActionDispatch::IntegrationTest
     get new_user_path
 
     new_user = OpenStruct.new(@user_john.to_h)
-    unique_suffix = "#{Process.pid}_#{Time.now.to_i}"
-    new_user.username = "test_john_#{unique_suffix}"
-    new_user.email = "test_john_#{unique_suffix}@example.com"
-    @created_user = new_user
+    unique_suffix = defined?(TestResourceOwnership) ? TestResourceOwnership.namespace_suffix.sub(/\A_+/, '') : "t#{Time.now.to_i % 100000}#{rand(1000..9999)}"
+    new_user.username = "tj_#{unique_suffix}"
+    new_user.email = "#{new_user.username}@example.com"
 
-    post users_path, params: {
-      user: {
-        firstName: new_user.firstName,
-        lastName: new_user.lastName,
-        username: new_user.username,
-        orcidId: new_user.orcidId,
-        githubId: new_user.githubId,
-        email: new_user.email,
-        password: new_user.password,
-        password_confirmation: new_user.password,
-        terms_and_conditions: true
+    begin
+      post users_path, params: {
+        user: {
+          firstName: new_user.firstName,
+          lastName: new_user.lastName,
+          username: new_user.username,
+          orcidId: new_user.orcidId,
+          githubId: new_user.githubId,
+          email: new_user.email,
+          password: new_user.password,
+          password_confirmation: new_user.password,
+          terms_and_conditions: true
+        }
       }
-    }
+    rescue StandardError => e
+      TestResourceOwnership.mark_outcome_unknown(:user, new_user.username) if defined?(TestResourceOwnership)
+      raise e
+    end
+
+    confirmed_user = session[:user] || (@controller.instance_variable_get(:@user_saved) if defined?(@controller) && @controller)
+    user_acknowledged = confirmed_user &&
+                        confirmed_user.respond_to?(:username) &&
+                        confirmed_user.username.to_s == new_user.username.to_s &&
+                        confirmed_user.respond_to?(:id) &&
+                        !confirmed_user.id.to_s.strip.empty? &&
+                        (!defined?(ApplicationTestHelpers) || !ApplicationTestHelpers.sdk_error_response?(confirmed_user))
+
+    if user_acknowledged
+      TestResourceOwnership.register(:user, confirmed_user) if defined?(TestResourceOwnership)
+      @created_user = confirmed_user
+    elsif response.redirection?
+      TestResourceOwnership.mark_outcome_unknown(:user, new_user.username) if defined?(TestResourceOwnership)
+    end
 
     assert_redirected_to "/my-ontologies"
     follow_redirect!
 
     assert_select '.notification', text: 'Account was successfully created'
-    TestResourceOwnership.register(:user, new_user.username) if defined?(TestResourceOwnership)
 
     get "/accounts/#{new_user.username}"
     assert_response :success
