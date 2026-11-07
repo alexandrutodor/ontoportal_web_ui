@@ -75,6 +75,13 @@ class QueryRecipeComponentCheck < Minitest::Test
     end
   end
 
+  def test_interpolated_values_are_escaped
+    v = ActionView::Base.empty
+    html = QueryRecipeComponent.new(kind: 'browse', portal: 'A"<b>', enabled: true).render_in(v).to_s
+    assert_includes html, 'data-query-recipe-portal-value="A&quot;&lt;b&gt;"'
+    refute_includes html, '<b>'
+  end
+
   def test_feature_on_renders_fr
     v = view(recipes_enabled: true)
     I18n.locale = :fr
