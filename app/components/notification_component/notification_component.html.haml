@@ -1,4 +1,4 @@
-.notification{class: notification_class}
+.notification{class: notification_class, data: { controller: 'notification', 'notification-auto-remove-value': auto_remove?.to_s }}
   .notification-inner
     .notification-content
       %span
@@ -9,5 +9,5 @@
         %p
           = @comment
       .ml-4.flex-shrink-0.d-flex
-        %button.notification-close{"onClick": "this.parentElement.parentElement.parentElement.style.opacity = 0"}
+        %button.notification-close{type: 'button', data: { action: 'notification#dismiss' }}
           = svg_icon('close')
