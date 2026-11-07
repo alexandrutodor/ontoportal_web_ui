@@ -1,6 +1,9 @@
 class NotesController < ApplicationController
   include TurboHelper
   layout 'ontology'
+
+  before_action :authorize_and_redirect, only: :create
+  before_action :verify_note_creator, only: :create
  
   NOTES_PROPOSAL_TYPES = {
     ProposalNewClass:  t('notes.new_class_proposal'),
@@ -184,12 +187,31 @@ class NotesController < ApplicationController
 
   private
 
+  def authenticated_actor_id
+    user = session[:user]
+    return nil if user.nil?
+
+    if user.respond_to?(:id)
+      user.id
+    elsif user.is_a?(Hash)
+      user[:id] || user['id']
+    end
+  end
+
+  def verify_note_creator
+    redirect_to_home if authenticated_actor_id.to_s.strip.empty?
+  end
+
   def note_params
-    p = params.permit(:parent, :type, :subject, :body, :creator, { relatedClass:[:class, :ontology] }, { relatedOntology:[] },
+    p = params.permit(:parent, :type, :subject, :body, { relatedClass:[:class, :ontology] }, { relatedOntology:[] },
                       proposal: [:type, :reasonForChange, :classId, :label, { synonym:[] }, { definition:[] },
                                  :parent, :newTarget, :oldTarget, { newRelationshipType:[] }, :propertyId,
                                  :newValue, :oldValue])
-    p.to_h
+    h = p.to_h
+    h.delete(:creator)
+    h.delete('creator')
+    h[:creator] = authenticated_actor_id
+    h
   end
 
   # Fix noteid parameters with bad prefixes (some application servers, e.g., Apache, NGINX, mangle encoded slashes).

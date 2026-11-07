@@ -210,9 +210,13 @@ class NoteCreateResultCheck < Minitest::Test
     @last_reply_values = nil
   end
 
+  AUTHENTICATED_ACTOR_ID = 'http://example.com/users/authenticated_b15_actor'
+  AUTHENTICATED_USER = OpenStruct.new(id: AUTHENTICATED_ACTOR_ID, username: 'authenticated_b15_actor')
+
   # Dispatch helper that invokes actual NotesController#create
-  def dispatch_create(params = {})
-    req = ActionDispatch::TestRequest.create
+  def dispatch_create(params = {}, user = AUTHENTICATED_USER)
+    req = ActionDispatch::TestRequest.create('rack.session' => {})
+    req.session[:user] = user if user
     params.each { |k, v| req.params[k] = v }
     res = ActionDispatch::TestResponse.create
     ctrl = NotesController.new
@@ -399,9 +403,10 @@ class NoteCreateResultCheck < Minitest::Test
       assert_includes res.body, 'http://example.com/ontologies/TEST_ONTO/notes/101_tr_ontology'
       assert_includes res.body, 'Ontology discussion'
 
-      # Note values passed to SDK save had parent stripped from API payload
+      # Note values passed to SDK save had parent stripped from API payload and creator bound to authenticated actor
       assert_nil @last_note_values[:parent]
       assert_equal ['TEST_ONTO'], @last_note_values[:relatedOntology]
+      assert_equal AUTHENTICATED_ACTOR_ID, @last_note_values[:creator]
     end
   end
 
@@ -435,12 +440,13 @@ class NoteCreateResultCheck < Minitest::Test
       assert_includes res.body, 'http://example.com/ontologies/TEST_ONTO/notes/102_tr_class'
       assert_includes res.body, 'Class specific comment'
 
-      # Correctly mapped relatedClass and relatedOntology
+      # Correctly mapped relatedClass and relatedOntology, and creator bound to authenticated actor
       assert_equal ['TEST_ONTO'], @last_note_values[:relatedOntology]
       mapped_class = @last_note_values[:relatedClass].first
       assert_equal 'TEST_ONTO', (mapped_class[:ontology] || mapped_class['ontology'])
       assert_equal 'http://example.com/class/42', (mapped_class[:class] || mapped_class['class'])
       assert_nil @last_note_values[:parent]
+      assert_equal AUTHENTICATED_ACTOR_ID, @last_note_values[:creator]
     end
   end
 
@@ -479,11 +485,12 @@ class NoteCreateResultCheck < Minitest::Test
       assert_equal 1, res.body.scan('action="prepend" target="ontology_notes_table_body"').length
       assert_includes res.body, expected_subject
 
-      # Verified proposal values passed to SDK had comma-separated lists cast to arrays
+      # Verified proposal values passed to SDK had comma-separated lists cast to arrays and creator bound to authenticated actor
       assert_equal ['synonymA', 'synonymB'], @last_note_values[:proposal][:synonym]
       assert_equal ['Definition 1', 'Definition 2'], @last_note_values[:proposal][:definition]
       assert_equal ['isA', 'partOf'], @last_note_values[:proposal][:newRelationshipType]
       assert_equal expected_subject, @last_note_values[:subject]
+      assert_equal AUTHENTICATED_ACTOR_ID, @last_note_values[:creator]
 
       # Original submitted values remain available in params
       assert_equal 'synonymA,synonymB', ctrl.params[:proposal][:synonym]
@@ -517,6 +524,7 @@ class NoteCreateResultCheck < Minitest::Test
       # Exact target: parent + _thread_replay_container (retaining existing spelling)
       assert_includes res.body, 'action="prepend" target="http://example.com/notes/parent_123_thread_replay_container"'
       assert_includes res.body, 'Clear affirmative reply'
+      assert_equal AUTHENTICATED_ACTOR_ID, @last_reply_values[:creator]
 
       # No false saved message or success alert for replies
       refute_includes res.body, 'alert-success'
