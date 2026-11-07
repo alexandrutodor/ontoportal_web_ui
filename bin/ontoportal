@@ -151,13 +151,21 @@ validate_test_target() {
     return 1
   fi
 
-  local proto=""
+  # Reject characters outside safe URL set (rejects userinfo '@', query '?', fragment '#',
+  # percent-encoding '%', whitespace, control chars, and shell metacharacters: $ ` \ " ' ; & | ( ) { } < > * ! etc.)
+  local forbidden_chars="[^][:alnum:].:_/~[-]"
+  if [[ "$target" =~ $forbidden_chars ]]; then
+    echo "Error: Test target API URL contains forbidden character or shell syntax in '$target'." >&2
+    return 1
+  fi
+
+  local without_proto=""
   case "$target" in
     http://*)
-      proto="http"
+      without_proto="${target#http://}"
       ;;
     https://*)
-      proto="https"
+      without_proto="${target#https://}"
       ;;
     *)
       echo "Error: Invalid test target scheme for '$target'. Only http:// or https:// is allowed." >&2
@@ -165,87 +173,153 @@ validate_test_target() {
       ;;
   esac
 
-  local without_proto="${target#*://}"
-  local host_port="${without_proto%%/*}"
-  host_port="${host_port%%\?*}"
-  host_port="${host_port%%\#*}"
-
-  if [[ "$host_port" == *"@"* ]]; then
-    host_port="${host_port##*@}"
+  if [ -z "$without_proto" ]; then
+    echo "Error: Missing host in test target API URL: '$target'" >&2
+    return 1
   fi
 
-  local host=""
-  if [[ "$host_port" =~ ^\[([a-fA-F0-9:]+)\](:[0-9]+)?$ ]]; then
-    host="${BASH_REMATCH[1]}"
-  elif [[ "$host_port" == *:* ]]; then
-    host="${host_port%%:*}"
+  # Split authority and path
+  local authority=""
+  local base_path=""
+  if [[ "$without_proto" == */* ]]; then
+    authority="${without_proto%%/*}"
+    base_path="/${without_proto#*/}"
   else
-    host="$host_port"
+    authority="$without_proto"
+    base_path=""
   fi
 
-  local host_lower
-  host_lower=$(echo "$host" | tr '[:upper:]' '[:lower:]')
+  if [ -z "$authority" ]; then
+    echo "Error: Missing host/authority in test target API URL: '$target'" >&2
+    return 1
+  fi
 
+  # Validate base path if present: safe characters only, no brackets, no traversal (..), no duplicate slashes (//)
+  if [ -n "$base_path" ] && [ "$base_path" != "/" ]; then
+    if [[ "$base_path" == *"["]* ]] || [[ "$base_path" == *"]"* ]]; then
+      echo "Error: Brackets are forbidden in test target API URL path: '$base_path'" >&2
+      return 1
+    fi
+    if [[ "$base_path" == *"/.."* ]] || [[ "$base_path" == *"../"* ]] || [[ "$base_path" == *"//"* ]]; then
+      echo "Error: Target API URL path contains path traversal or duplicate slashes: '$base_path'" >&2
+      return 1
+    fi
+    if ! [[ "$base_path" =~ ^(/[a-zA-Z0-9_.~-]+)+/?$ ]]; then
+      echo "Error: Target API URL path contains invalid characters: '$base_path'" >&2
+      return 1
+    fi
+  fi
+
+  # Extract host and optional port from authority
+  local host=""
+  local port=""
+  if [[ "$authority" =~ ^\[([a-fA-F0-9:]+)\](:([0-9]+))?$ ]]; then
+    host="${BASH_REMATCH[1]}"
+    port="${BASH_REMATCH[3]}"
+  elif [[ "$authority" =~ ^([a-zA-Z0-9._-]+)(:([0-9]+))?$ ]]; then
+    host="${BASH_REMATCH[1]}"
+    port="${BASH_REMATCH[3]}"
+  else
+    echo "Error: Malformed host/port authority in target API URL: '$authority'" >&2
+    return 1
+  fi
+
+  # Validate port number if specified
+  if [ -n "$port" ]; then
+    if [[ "$port" =~ ^0[0-9]+$ ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
+      echo "Error: Invalid port number '$port' in target API URL: '$target'" >&2
+      return 1
+    fi
+  fi
+
+  local host_lower="${host,,}"
+
+  local is_approved=false
   case "$host_lower" in
-    localhost|127.0.0.1|0.0.0.0|::1|ontoportal_docker-api|ontoportal_docker|ontologies_api)
-      return 0
-      ;;
-    127.*)
-      return 0
+    localhost|0.0.0.0|::1|ontoportal_docker-api|ontoportal_docker|ontologies_api)
+      is_approved=true
       ;;
     *)
-      echo "Error: Refusing to run tests against remote or non-isolated API target '$target'." >&2
-      echo "       Only approved local isolated targets (e.g. http://localhost:9393, http://127.0.0.1:9393, ontoportal_docker-api) are permitted." >&2
-      return 1
+      # Genuine IPv4 loopback literal (127.0.0.0/8)
+      if [[ "$host_lower" =~ ^127\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+        local o1="${BASH_REMATCH[1]}"
+        local o2="${BASH_REMATCH[2]}"
+        local o3="${BASH_REMATCH[3]}"
+        if (( o1 <= 255 && o2 <= 255 && o3 <= 255 )); then
+          is_approved=true
+        fi
+      fi
       ;;
   esac
+
+  if [ "$is_approved" != true ]; then
+    echo "Error: Refusing to run tests against remote or non-isolated API target '$target'." >&2
+    echo "       Only approved local isolated targets (e.g. http://localhost:9393, http://127.0.0.1:9393, ontoportal_docker-api) are permitted." >&2
+    return 1
+  fi
+
+  return 0
 }
 
 # Function to handle the "test" option
 test() {
-
-
   local api_url=""
-  local api_key=""
-  local test_options=""
+  local test_args=()
 
   # Check for command line arguments
   while [ "$#" -gt 0 ]; do
-     case "$1" in
-       --api-url)
-         shift
-         api_url="$1"
-         ;;
-       *)
-
-         if [ -z "$test_options" ]; then
-           test_options="$1"
-         else
-
-           test_options="$test_options $1"
-         fi
-         ;;
-     esac
-     shift
+    case "$1" in
+      --api-url)
+        if [ "$#" -lt 2 ]; then
+          echo "Error: --api-url requires an argument." >&2
+          return 1
+        fi
+        api_url="$2"
+        shift 2
+        ;;
+      --api-key)
+        if [ "$#" -lt 2 ]; then
+          echo "Error: --api-key requires an argument." >&2
+          return 1
+        fi
+        shift 2
+        ;;
+      *)
+        test_args+=("$1")
+        shift
+        ;;
+    esac
   done
 
-  # Preflight target validation: fail before starting API or running containers
-  local target_to_validate="${api_url:-http://localhost:9393}"
-  if ! validate_test_target "$target_to_validate"; then
+  # Preflight target validation: validate complete configured API base URL before starting API or running containers
+  local should_start_api=false
+  if [ -z "$api_url" ]; then
+    if [ -n "$API_URL" ]; then
+      api_url="$API_URL"
+    else
+      api_url="http://localhost:9393"
+      should_start_api=true
+    fi
+  fi
+
+  if ! validate_test_target "$api_url"; then
     echo "Aborting test execution due to target validation failure." >&2
     return 1
   fi
 
-  if [ -z "$api_url" ]; then
-      api_url=http://localhost:9393
-      echo "Running API..."
-      bin/run_api
+  if [ "$should_start_api" = true ]; then
+    echo "Running API..."
+    "${RUN_API_CMD:-bin/run_api}"
   fi
 
   echo "Running tests..."
-  echo "Run: ONTOPORTAL_ISOLATED_TEST=1 API_URL=$api_url bundle exec rails test -v $test_options"
+  echo "Run: ONTOPORTAL_ISOLATED_TEST=1 API_URL=$api_url bundle exec rails test -v${test_args:+ ${test_args[*]}}"
 
-  docker compose run --rm -it test bash -c "bundle config unset local.ontologies_api_client && (bundle check || bundle install) && RAILS_ENV=test bin/rails db:prepare && ONTOPORTAL_ISOLATED_TEST=1 API_URL=$api_url bundle exec rails test -v $test_options"
+  docker compose run --rm -it \
+    -e ONTOPORTAL_ISOLATED_TEST=1 \
+    -e API_URL="$api_url" \
+    -e RAILS_ENV=test \
+    test bash -c 'target_api="$1"; shift; bundle config unset local.ontologies_api_client && (bundle check || bundle install) && RAILS_ENV=test ONTOPORTAL_ISOLATED_TEST=1 API_URL="$target_api" bin/rails db:prepare && RAILS_ENV=test ONTOPORTAL_ISOLATED_TEST=1 API_URL="$target_api" bundle exec rails test -v "$@"' _ "$api_url" "${test_args[@]}"
 
   # echo "Stopping API..."
   # bin/stop_api
