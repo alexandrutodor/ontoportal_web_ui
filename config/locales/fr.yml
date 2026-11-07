@@ -1868,3 +1868,5 @@ fr:
     title: Éditeur de requêtes SPARQL
     private_ontology_warning: Rendez l'ontologie publique pour activer l'accès depuis l’endpoint SPARQL.
     edit_sample_queries: Éditer les requêtes d'exemple
+    sample_queries_saved: Requêtes d'exemple enregistrées.
+    sample_queries_save_error: Les requêtes d'exemple n'ont pas pu être enregistrées. Vos modifications sont toujours dans l'éditeur, vous pouvez réessayer.

@@ -64,10 +64,22 @@ SELECT * WHERE {
   #setupSaveButton() {
     const saveButton = document.getElementById('queries-save-button');
     if (saveButton) {
-      saveButton.addEventListener('click', (e) => {
+      saveButton.addEventListener('click', async (e) => {
         e.preventDefault();
-        this.#saveCurrentQuery();
-        this.#showMessage('Queries saved successfully', 'success');
+        if (this.saving) return;
+        this.saving = true;
+        saveButton.disabled = true;
+        const messages = document.querySelector('.sparql-notifications')?.dataset || {};
+        try {
+          if (await this.#saveCurrentQuery()) {
+            this.#showMessage(messages.successMessage || 'Sample queries saved.', 'success');
+          } else {
+            this.#showMessage(messages.errorMessage || 'Sample queries could not be saved. Try again.', 'error');
+          }
+        } finally {
+          this.saving = false;
+          saveButton.disabled = false;
+        }
       });
     }
   }
@@ -84,21 +96,18 @@ SELECT * WHERE {
       }
     });
 
-    if (queries.length > 0) {
-      // Pad all queries to the same length to prevent backend sorting by length
-      const maxLength = Math.max(...queries.map(q => q.length));
-      const paddedQueries = queries.map(query => {
-        // Add padding as a comment at the end to reach maxLength
-        const paddingNeeded = maxLength - query.length;
-        if (paddingNeeded > 0) {
-          return query + '\n# ' + ' '.repeat(paddingNeeded);
-        }
-        return query;
-      });
+    // Pad all queries to the same length to prevent backend sorting by length
+    const maxLength = Math.max(0, ...queries.map(q => q.length));
+    const paddedQueries = queries.map(query => {
+      // Add padding as a comment at the end to reach maxLength
+      const paddingNeeded = maxLength - query.length;
+      if (paddingNeeded > 0) {
+        return query + '\n# ' + ' '.repeat(paddingNeeded);
+      }
+      return query;
+    });
 
-      const ontologyId = this.#extractOntologyId();
-      this.#sendSaveRequest(paddedQueries, ontologyId);
-    }
+    return this.#sendSaveRequest(paddedQueries, this.#extractOntologyId());
   }
 
 
@@ -120,13 +129,10 @@ SELECT * WHERE {
     formData.append('_method', 'patch');
 
     const queryKey = ontologyId ? 'ontology[sampleQueries][]' : 'config[sampleQueries][]';
-    if (Array.isArray(queries)) {
-      queries.forEach(query => {
-        formData.append(queryKey, query);
-      });
-    } else {
-      formData.append(queryKey, queries);
-    }
+    // A single blank entry is the empty-list payload; both server paths drop blank entries.
+    (queries.length > 0 ? queries : ['']).forEach(query => {
+      formData.append(queryKey, query);
+    });
     const endpoint = ontologyId ? `${ontologyId}` : '/admin/catalog_configuration'
     const graph = this.graphValue;
 
@@ -136,23 +142,17 @@ SELECT * WHERE {
       formData.append('ontology_id', match[1]);
     }
 
-    fetch(endpoint, {
+    // Both update actions redirect back to the edited resource only on success; failures
+    // render a page or turbo stream (possibly with 200) and denials redirect elsewhere.
+    return fetch(endpoint, {
       method: 'POST',
       headers: {
         'X-CSRF-Token': csrfToken
       },
       body: formData
     })
-      .then(response => {
-        if (response.ok) {
-          console.log('Queries saved successfully');
-        } else {
-          console.error('Failed to save queries');
-        }
-      })
-      .catch(error => {
-        console.error('Error saving queries:', error);
-      });
+      .then(response => response.ok && response.redirected && new URL(response.url).pathname.startsWith(endpoint))
+      .catch(() => false);
   }
 
 

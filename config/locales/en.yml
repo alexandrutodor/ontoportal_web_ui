@@ -1812,3 +1812,5 @@ en:
     title: SPARQL Query Editor
     private_ontology_warning: Make the ontology public to enable access from the SPARQL endpoint.
     edit_sample_queries: Edit sample queries
+    sample_queries_saved: Sample queries saved.
+    sample_queries_save_error: Sample queries could not be saved. Your changes are still in the editor, so you can try again.
