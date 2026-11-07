@@ -494,16 +494,31 @@
   .browse-second-row {
     width: 68vw;
   }
-  .browse-search-bar input {
-    width: 94vw;
-  }
-  .browse-search-bar .browse-format-filter {
-    margin-left: 50%
-  }
-  .browse-search-bar .browse-sort-by-filter {
-    margin-left: 65%
-  }
 
+}
+
+// Between the stacked and desktop layouts the fixed absolute offsets overflow the 68vw column.
+@media only screen and (min-width: 1006px) and (max-width: 1250px) {
+  .browse-search-bar .browse-search-container {
+    display: flex;
+    width: 100%;
+  }
+  .browse-search-bar input {
+    position: static;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    margin-right: 5px;
+  }
+  .browse-search-bar .browse-search-filters {
+    display: flex;
+    flex: 0 0 auto;
+  }
+  .browse-search-bar .browse-format-filter,
+  .browse-search-bar .browse-sort-by-filter {
+    position: static;
+    margin-left: 0;
+  }
 }
 
 @media only screen and (max-width: 1005px) {
@@ -518,6 +533,7 @@
   }
   .browse-search-bar input {
     position: static;
+    width: 94vw;
     margin-bottom: 1vw;
   }
   .browse-search-bar .browse-format-filter {
