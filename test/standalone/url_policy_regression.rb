@@ -20,6 +20,12 @@ class UrlPolicyRegressionTest < Minitest::Test
   SERVICE_URLS = [SYNTHETIC_REST_URL, SYNTHETIC_FAIRNESS_URL].freeze
   UI_HOST = 'stage.matportal.org'
 
+  # Synthetic .invalid test origins
+  SYNTHETIC_API_URL = 'https://api.example.invalid/api'
+  PORTAL_HOST_INVALID = 'portal.example.invalid'
+  PORTAL_URL_INVALID = 'https://portal.example.invalid'
+  INVALID_SERVICE_URLS = [SYNTHETIC_API_URL].freeze
+
   # --- 1. Service Destination Allowlisting ---
 
   def test_permitted_service_url_for_exact_configured_destinations
@@ -292,5 +298,199 @@ class UrlPolicyRegressionTest < Minitest::Test
     assert_nil SafeUrlPolicy.sanitize_redirect_param('//evil.com', fallback: nil)
     assert_nil SafeUrlPolicy.sanitize_redirect_param('/\\evil.com', fallback: nil)
     assert_equal "#{SYNTHETIC_REST_URL}/ontologies", SafeUrlPolicy.sanitize_redirect_param("#{SYNTHETIC_REST_URL}/ontologies", service_urls: SERVICE_URLS)
+  end
+
+  # --- 6. Focused Regressions: Finding 1, 2, and 3 Corrections ---
+
+  def test_finding_1_candidate_first_service_resolution_prevents_double_decoding
+    # 1. Query delimiter preservation: q=A%26B%3DC must not be split into q=A&B=C
+    url_q = "#{SYNTHETIC_API_URL}/download?q=A%26B%3DC"
+    resolved_q = SafeUrlPolicy.resolve_login_redirect(url_q, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_equal "#{SYNTHETIC_API_URL}/download?q=A%26B%3DC&apikey=#{MOCK_TOKEN}", resolved_q
+
+    parsed_q = URI.parse(resolved_q)
+    params_q = URI.decode_www_form(parsed_q.query)
+    assert_equal 2, params_q.length
+    assert_equal ['q', 'A&B=C'], params_q.assoc('q')
+    assert_nil params_q.assoc('B')
+
+    # 2. Encoded # in IRI without separate outer fragment: must not split into URL fragment
+    url_iri = "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD"
+    resolved_iri = SafeUrlPolicy.resolve_login_redirect(url_iri, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_equal "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD&apikey=#{MOCK_TOKEN}", resolved_iri
+
+    parsed_iri = URI.parse(resolved_iri)
+    assert_nil parsed_iri.fragment
+    params_iri = URI.decode_www_form(parsed_iri.query)
+    assert_equal 'http://example.org/C#Term', params_iri.assoc('iri')[1]
+    assert_equal 'A+B&C=D', params_iri.assoc('label')[1]
+    assert_equal MOCK_TOKEN, params_iri.assoc('apikey')[1]
+
+    # 3. Encoded # in IRI WITH separate outer fragment: outer fragment preserved
+    url_iri_frag = "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD#view"
+    resolved_iri_frag = SafeUrlPolicy.resolve_login_redirect(url_iri_frag, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_equal "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD&apikey=#{MOCK_TOKEN}#view", resolved_iri_frag
+    assert_equal 'view', URI.parse(resolved_iri_frag).fragment
+
+    # 4. Encoded concept-path identity preserved
+    concept_path = "#{SYNTHETIC_API_URL}/ontologies/TEST/classes/http%3A%2F%2Fexample.org%2Fconcept%231"
+    resolved_concept = SafeUrlPolicy.resolve_login_redirect(concept_path, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_equal "#{SYNTHETIC_API_URL}/ontologies/TEST/classes/http%3A%2F%2Fexample.org%2Fconcept%231?apikey=#{MOCK_TOKEN}", resolved_concept
+
+    # 5. Unicode values and literal plus preserved
+    unicode_url = "#{SYNTHETIC_API_URL}/ontologies/M%C3%BCnchen?term=K%C3%B6ln%20City&formula=A%2BB"
+    resolved_unicode = SafeUrlPolicy.resolve_login_redirect(unicode_url, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_includes resolved_unicode, '/ontologies/M%C3%BCnchen'
+    assert_includes resolved_unicode, 'term=K%C3%B6ln+City'
+    assert_includes resolved_unicode, 'formula=A%2BB'
+    assert_includes resolved_unicode, "apikey=#{MOCK_TOKEN}"
+
+    # 6. Unwrapping outer redirect encoding only when necessary
+    wrapped = CGI.escape(url_iri)
+    resolved_wrapped = SafeUrlPolicy.resolve_login_redirect(wrapped, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_equal "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD&apikey=#{MOCK_TOKEN}", resolved_wrapped
+  end
+
+  def test_finding_1_login_lifecycle_roundtrips
+    dest = "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD"
+    outer_param = CGI.escape(dest)
+
+    # 1. LoginController#index sanitizes incoming redirect parameter
+    sanitized = SafeUrlPolicy.sanitize_redirect_param(outer_param, service_urls: INVALID_SERVICE_URLS)
+    assert_equal dest, sanitized
+
+    # 2a. Password login form lifecycle:
+    # Sanitized value is placed into hidden field in HTML form.
+    # Form submission sends application/x-www-form-urlencoded POST body.
+    # Rack decodes the POST parameter once, yielding form_param.
+    form_post_body = "redirect=#{CGI.escape(sanitized)}&user%5Busername%5D=tester"
+    rack_decoded_redirect = CGI.unescape(form_post_body.split('&').find { |p| p.start_with?('redirect=') }.split('=', 2)[1])
+    assert_equal dest, rack_decoded_redirect
+
+    # LoginController#create resolves rack_decoded_redirect:
+    resolved_from_form = SafeUrlPolicy.resolve_login_redirect(rack_decoded_redirect, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_equal "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD&apikey=#{MOCK_TOKEN}", resolved_from_form
+
+    # 2b. OmniAuth session lifecycle:
+    # Sanitized value stored into session[:redirect] and retrieved during callback.
+    session_redirect = sanitized
+    assert_equal dest, session_redirect
+
+    # LoginController#create_omniauth resolves session_redirect:
+    resolved_from_session = SafeUrlPolicy.resolve_login_redirect(session_redirect, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_equal "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD&apikey=#{MOCK_TOKEN}", resolved_from_session
+  end
+
+  def test_finding_2_base_path_canonical_hierarchy_enforcement
+    parent_segments = [
+      '..',
+      '%2e%2e',
+      '%2E%2E',
+      '%2e%2E',
+      '%2E%2e',
+      '.%2e',
+      '.%2E',
+      '%2e.',
+      '%2E.'
+    ]
+
+    # Rejection of parent dot segments escaping /api
+    parent_segments.each do |seg|
+      url = "#{SYNTHETIC_API_URL}/#{seg}/outside"
+      refute SafeUrlPolicy.permitted_service_url?(url, service_urls: INVALID_SERVICE_URLS), "Should reject dot segment: #{seg}"
+      assert_equal '/', SafeUrlPolicy.sanitize_redirect_param(url, service_urls: INVALID_SERVICE_URLS)
+      assert_equal '/', SafeUrlPolicy.resolve_login_redirect(url, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+
+      unmodified = SafeUrlPolicy.append_apikey_if_permitted(url, MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+      assert_equal url, unmodified
+      refute_includes unmodified, MOCK_TOKEN
+    end
+
+    # Suffix dot segments and encoded separator variants
+    escaped_variants = [
+      "#{SYNTHETIC_API_URL}/..",
+      "#{SYNTHETIC_API_URL}/../",
+      "#{SYNTHETIC_API_URL}/%2e%2e",
+      "#{SYNTHETIC_API_URL}/%2e%2e%2foutside",
+      "#{SYNTHETIC_API_URL}/%2E%2E%2Foutside"
+    ]
+
+    escaped_variants.each do |url|
+      refute SafeUrlPolicy.permitted_service_url?(url, service_urls: INVALID_SERVICE_URLS), "Should reject escaped variant: #{url}"
+      assert_equal '/', SafeUrlPolicy.sanitize_redirect_param(url, service_urls: INVALID_SERVICE_URLS)
+      assert_equal '/', SafeUrlPolicy.resolve_login_redirect(url, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+
+      unmodified = SafeUrlPolicy.append_apikey_if_permitted(url, MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+      assert_equal url, unmodified
+      refute_includes unmodified, MOCK_TOKEN
+    end
+
+    # Verify metadata attachment entry point (append_apikey_if_rest_url)
+    orig_rest = $REST_URL
+    $REST_URL = SYNTHETIC_API_URL
+    begin
+      traversal_url = "#{SYNTHETIC_API_URL}/../outside"
+      result = SafeUrlPolicy.append_apikey_if_rest_url(traversal_url, MOCK_TOKEN)
+      assert_equal traversal_url, result
+      refute_includes result, MOCK_TOKEN
+    ensure
+      $REST_URL = orig_rest
+    end
+
+    # Retain acceptance of valid base path, subpaths, and normal dotted filenames
+    accepted_paths = [
+      SYNTHETIC_API_URL,
+      "#{SYNTHETIC_API_URL}/",
+      "#{SYNTHETIC_API_URL}/download",
+      "#{SYNTHETIC_API_URL}/download.csv",
+      "#{SYNTHETIC_API_URL}/v1/schema.v1.0.owl",
+      "#{SYNTHETIC_API_URL}/ontologies/RADX",
+      "#{SYNTHETIC_API_URL}/data.2026.11.07.json"
+    ]
+
+    accepted_paths.each do |url|
+      assert SafeUrlPolicy.permitted_service_url?(url, service_urls: INVALID_SERVICE_URLS), "Should accept: #{url}"
+      resolved = SafeUrlPolicy.resolve_login_redirect(url, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+      assert_includes resolved, "apikey=#{MOCK_TOKEN}", "Should append key to: #{url}"
+    end
+  end
+
+  def test_finding_3_rejects_leading_double_slash_path_on_allowed_host
+    allowed_hosts = [PORTAL_HOST_INVALID]
+    double_slash_url = "#{PORTAL_URL_INVALID}//outside.example.invalid/x"
+
+    # Predicate rejection
+    refute SafeUrlPolicy.safe_local_path?(double_slash_url, allowed_hosts: allowed_hosts)
+
+    # Direct resolution falls back to safe local path '/' instead of protocol-relative '//outside...'
+    resolved = SafeUrlPolicy.resolve_login_redirect(double_slash_url, user: MOCK_TOKEN, allowed_hosts: allowed_hosts)
+    assert_equal '/', resolved
+    refute resolved.start_with?('//')
+
+    # Sanitizer falls back safely
+    sanitized = SafeUrlPolicy.sanitize_redirect_param(double_slash_url, allowed_hosts: allowed_hosts)
+    assert_equal '/', sanitized
+
+    # Outer redirect encoded representation also safely falls back
+    encoded_double_slash = CGI.escape(double_slash_url)
+    assert_equal '/', SafeUrlPolicy.resolve_login_redirect(encoded_double_slash, user: MOCK_TOKEN, allowed_hosts: allowed_hosts)
+    assert_equal '/', SafeUrlPolicy.sanitize_redirect_param(encoded_double_slash, allowed_hosts: allowed_hosts)
+
+    # Backslash variant rejection
+    backslash_url = "#{PORTAL_URL_INVALID}/\\outside.example.invalid/x"
+    refute SafeUrlPolicy.safe_local_path?(backslash_url, allowed_hosts: allowed_hosts)
+    assert_equal '/', SafeUrlPolicy.resolve_login_redirect(backslash_url, user: MOCK_TOKEN, allowed_hosts: allowed_hosts)
+    assert_equal '/', SafeUrlPolicy.sanitize_redirect_param(backslash_url, allowed_hosts: allowed_hosts)
+
+    # to_local_path safe fallback
+    assert_equal '/', SafeUrlPolicy.send(:to_local_path, double_slash_url)
+    assert_equal '/', SafeUrlPolicy.send(:to_local_path, backslash_url)
+    assert_equal '/', SafeUrlPolicy.send(:to_local_path, '//outside.example.invalid/x')
+    assert_equal '/', SafeUrlPolicy.send(:to_local_path, '/\\outside.example.invalid/x')
+
+    # Retain normal permitted local navigation on allowed host
+    normal_url = "#{PORTAL_URL_INVALID}/ontologies/RADX?tab=views#summary"
+    assert SafeUrlPolicy.safe_local_path?(normal_url, allowed_hosts: allowed_hosts)
+    assert_equal '/ontologies/RADX?tab=views#summary', SafeUrlPolicy.resolve_login_redirect(normal_url, user: MOCK_TOKEN, allowed_hosts: allowed_hosts)
   end
 end

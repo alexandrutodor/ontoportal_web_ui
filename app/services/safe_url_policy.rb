@@ -9,6 +9,7 @@ module SafeUrlPolicy
   DEFAULT_FALLBACK = '/'
   HTTP_SCHEMES = %w[http https].freeze
   DANGEROUS_CHARS = /[\x00-\x1F\x7F\\]/
+  COMPLETE_DOT_SEGMENT = %r{(?:\A|/|%2f|%5c)(?:\.|\%2e){1,2}(?=\z|/|%2f|%5c)}i
 
   # Check if a candidate destination matches an explicitly permitted service origin & base path
   def permitted_service_url?(url, service_urls: nil)
@@ -48,12 +49,16 @@ module SafeUrlPolicy
       return false unless parsed
       return false if parsed.scheme || parsed.host || parsed.user || parsed.password
 
-      parsed.path.start_with?('/') && !parsed.path.start_with?('//')
+      cand_path = parsed.path.to_s
+      cand_path.start_with?('/') && !cand_path.start_with?('//') && !cand_path.start_with?('/\\')
     else
       parsed = parse_clean_uri(str)
       return false unless parsed && parsed.is_a?(URI::HTTP)
       return false if parsed.user || parsed.password
       return false unless HTTP_SCHEMES.include?(parsed.scheme.downcase)
+
+      cand_path = parsed.path.to_s
+      return false if cand_path.start_with?('//') || cand_path.start_with?('/\\')
 
       hosts = allowed_hosts || configured_local_hosts
       return false if hosts.empty?
@@ -75,10 +80,10 @@ module SafeUrlPolicy
     unescaped = safe_unescape(candidate)
 
     # 1. Approved service destinations
-    if permitted_service_url?(unescaped, service_urls: service_urls)
-      return append_apikey_if_permitted(unescaped, user, service_urls: service_urls)
-    elsif permitted_service_url?(candidate, service_urls: service_urls)
+    if permitted_service_url?(candidate, service_urls: service_urls)
       return append_apikey_if_permitted(candidate, user, service_urls: service_urls)
+    elsif permitted_service_url?(unescaped, service_urls: service_urls)
+      return append_apikey_if_permitted(unescaped, user, service_urls: service_urls)
     end
 
     # 2. Safe local paths
@@ -157,6 +162,9 @@ module SafeUrlPolicy
     base_path = base.path.to_s.chomp('/')
     cand_path = candidate.path.to_s
 
+    return false if cand_path.start_with?('//') || cand_path.start_with?('/\\')
+    return false if cand_path.match?(COMPLETE_DOT_SEGMENT)
+
     if base_path.empty?
       true
     else
@@ -190,16 +198,18 @@ module SafeUrlPolicy
   end
 
   def to_local_path(url)
-    return url if url.start_with?('/') && !url.start_with?('//')
+    return DEFAULT_FALLBACK if url.start_with?('//') || url.start_with?('/\\')
+    return url if url.start_with?('/')
 
     parsed = parse_clean_uri(url)
     return DEFAULT_FALLBACK unless parsed
 
     path = parsed.path.to_s
-    path = DEFAULT_FALLBACK if path.empty? || !path.start_with?('/')
+    path = DEFAULT_FALLBACK if path.empty? || !path.start_with?('/') || path.start_with?('//') || path.start_with?('/\\')
     query = parsed.query ? "?#{parsed.query}" : ''
     fragment = parsed.fragment ? "##{parsed.fragment}" : ''
-    "#{path}#{query}#{fragment}"
+    res = "#{path}#{query}#{fragment}"
+    res.start_with?('//') || res.start_with?('/\\') ? DEFAULT_FALLBACK : res
   end
 
   def parse_clean_uri(url)
