@@ -1,4 +1,6 @@
 #!/bin/bash
+# Legacy diagnostic for the pre-Rails 7 toolchain; the required_* values below are archived and
+# do not describe the current setup (Ruby 3.1, Bundler 2.6.3, see README.md and Dockerfile).
 
 required_ruby="2.0.0-p247"
 required_bundle="Bundler version 1.3.5"

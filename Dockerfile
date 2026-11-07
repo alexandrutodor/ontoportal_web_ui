@@ -1,4 +1,4 @@
-# Make sure it matches the Ruby version in .ruby-version and Gemfile
+# Keep in line with mise.toml and the CI ruby-version (Ruby 3.1 series)
 ARG RUBY_VERSION=3.1
 FROM ruby:${RUBY_VERSION}-slim-bookworm
 
@@ -21,12 +21,13 @@ ENV RAILS_LOG_TO_STDOUT="1" \
     BUNDLE_WITHOUT="development test"
 
 COPY Gemfile* .
-RUN gem install bundler
-RUN bundle install
+# Bundler version from Gemfile.lock (BUNDLED WITH); frozen installs fail instead of rewriting the lockfile
+RUN gem install bundler -v 2.6.3
+RUN bundle config set frozen true && bundle install
 
 COPY package.json *yarn* ./
 RUN mkdir /node_modules
-RUN yarn install
+RUN yarn install --frozen-lockfile
 
 COPY . .
 
