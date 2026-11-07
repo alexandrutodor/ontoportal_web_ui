@@ -65,6 +65,7 @@ services:
 
   production:
     <<: *default-app
+    image: ${UI_IMAGE:-agroportal/ontoportal_web_ui:master}
     command: "bundle exec puma -C config/puma.rb"
     environment:
       <<: *env
@@ -74,7 +75,10 @@ services:
       #SECRET_KEY_BASE: TODO
       #RAILS_MASTER_KEY: TODO
       BIOPORTAL_WEB_UI_DATABASE_PASSWORD: root
+      DB_HOST: db
       MEMCACHE_SERVERS: "cache:11211"
+      PUMA_BIND: "tcp://0.0.0.0:3000"
+      RAILS_LOG_TO_STDOUT: "true"
     ports:
       - "3000:3000"
     links:
