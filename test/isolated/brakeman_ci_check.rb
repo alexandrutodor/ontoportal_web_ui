@@ -529,6 +529,82 @@ Dir.mktmpdir('sarif_validation_test') do |tmpdir|
   output_content = File.exist?(output_file) ? File.read(output_file) : ''
   assert(output_content.include?('gate_status=passed') && output_content.include?('findings_count=2'),
          'GITHUB_OUTPUT receives gate_status and findings_count', failures)
+
+  # Case 15: Wrong-typed tool container - scalar string (parent counterexample)
+  scalar_tool_sarif = File.join(tmpdir, 'scalar_tool.sarif.json')
+  scalar_tool_diag = File.join(tmpdir, 'scalar_tool_diag.json')
+  scalar_tool_summary = File.join(tmpdir, 'scalar_tool_summary.md')
+  scalar_tool_output = File.join(tmpdir, 'scalar_tool_output.txt')
+  create_sarif_file(scalar_tool_sarif, {
+    'version' => '2.1.0',
+    'runs' => [
+      {
+        'tool' => 'invalid',
+        'results' => []
+      }
+    ]
+  })
+  stdout, stderr, status = Open3.capture3(
+    {
+      'GITHUB_STEP_SUMMARY' => scalar_tool_summary,
+      'GITHUB_OUTPUT' => scalar_tool_output
+    },
+    helper_path,
+    '--sarif', scalar_tool_sarif,
+    '--scanner-status', '0',
+    '--diagnostics-out', scalar_tool_diag
+  )
+  assert(status.exitstatus == 3, 'Scalar tool container exits 3 without crashing', failures)
+  assert(stderr.include?("expected tool driver name 'Brakeman'"),
+         'Scalar tool container reports malformed driver expectation', failures)
+  assert(!stdout.include?('valid SARIF 2.1.0') && !stdout.include?('[Brakeman CI Gate] PASSED'),
+         'Scalar tool container does not claim valid SARIF or pass gate', failures)
+  diag = File.exist?(scalar_tool_diag) ? JSON.parse(File.read(scalar_tool_diag)) : {}
+  assert(diag['gate_status'] == 'malformed_report',
+         "Scalar tool container diagnostics record 'malformed_report'", failures)
+  assert(File.exist?(scalar_tool_summary) && File.read(scalar_tool_summary).include?('## Brakeman Scan Status: MALFORMED_REPORT'),
+         'Scalar tool container writes GITHUB_STEP_SUMMARY', failures)
+  scalar_output_content = File.exist?(scalar_tool_output) ? File.read(scalar_tool_output) : ''
+  assert(scalar_output_content.include?('gate_status=malformed_report'),
+         'Scalar tool container writes GITHUB_OUTPUT', failures)
+
+  # Case 16: Wrong-typed tool container - array (parent counterexample)
+  array_tool_sarif = File.join(tmpdir, 'array_tool.sarif.json')
+  array_tool_diag = File.join(tmpdir, 'array_tool_diag.json')
+  array_tool_summary = File.join(tmpdir, 'array_tool_summary.md')
+  array_tool_output = File.join(tmpdir, 'array_tool_output.txt')
+  create_sarif_file(array_tool_sarif, {
+    'version' => '2.1.0',
+    'runs' => [
+      {
+        'tool' => [],
+        'results' => []
+      }
+    ]
+  })
+  stdout, stderr, status = Open3.capture3(
+    {
+      'GITHUB_STEP_SUMMARY' => array_tool_summary,
+      'GITHUB_OUTPUT' => array_tool_output
+    },
+    helper_path,
+    '--sarif', array_tool_sarif,
+    '--scanner-status', '0',
+    '--diagnostics-out', array_tool_diag
+  )
+  assert(status.exitstatus == 3, 'Array tool container exits 3 without crashing', failures)
+  assert(stderr.include?("expected tool driver name 'Brakeman'"),
+         'Array tool container reports malformed driver expectation', failures)
+  assert(!stdout.include?('valid SARIF 2.1.0') && !stdout.include?('[Brakeman CI Gate] PASSED'),
+         'Array tool container does not claim valid SARIF or pass gate', failures)
+  diag = File.exist?(array_tool_diag) ? JSON.parse(File.read(array_tool_diag)) : {}
+  assert(diag['gate_status'] == 'malformed_report',
+         "Array tool container diagnostics record 'malformed_report'", failures)
+  assert(File.exist?(array_tool_summary) && File.read(array_tool_summary).include?('## Brakeman Scan Status: MALFORMED_REPORT'),
+         'Array tool container writes GITHUB_STEP_SUMMARY', failures)
+  array_output_content = File.exist?(array_tool_output) ? File.read(array_tool_output) : ''
+  assert(array_output_content.include?('gate_status=malformed_report'),
+         'Array tool container writes GITHUB_OUTPUT', failures)
 end
 
 puts "\n=== Step 4: Event Context and Job-Level Security Gate Simulation ==="

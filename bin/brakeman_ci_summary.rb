@@ -136,7 +136,8 @@ end
 run = runs.first
 
 # Check 7: Tool driver name validation (must be Brakeman)
-tool_driver = run.dig('tool', 'driver')
+tool = run['tool']
+tool_driver = tool.is_a?(Hash) ? tool['driver'] : nil
 tool_name = tool_driver.is_a?(Hash) ? tool_driver['name'] : nil
 tool_version = tool_driver.is_a?(Hash) ? tool_driver['version'] : nil
 
