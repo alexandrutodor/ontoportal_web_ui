@@ -435,7 +435,7 @@ en:
     save_button: Save
     see_less: See less...
     see_more: See more...
-    select_anguage: "/"
+    select_anguage: Select a language
     show_less: "- Show less..."
     show_more: "+ Show more ..."
     submitted: Submitted
@@ -1556,7 +1556,7 @@ en:
     deprecated_help: An ontology with status retired shall necessarily be also deprecated, but not the opposite.
     edit_metadata_instruction: Edit the metadata of your ontology here. Some of these
       values are used by %{portal_name} functionalities, including for FAIRness assessment.
-      %{link)
+      %{link}
     edit_metadata_instruction_link: See guidelines and recommendations for metadata
       here.
     edit_ontology_title: Edit ontology

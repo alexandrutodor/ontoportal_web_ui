@@ -1013,7 +1013,7 @@ fr:
         confirm_delete_selected: "Êtes-vous sûr de vouloir supprimer les soumissions sélectionnées ?"
         select_at_least_one: "Veuillez sélectionner au moins une soumission à supprimer."
         submission_deleted: "Soumission %{submission_id} supprimée"
-        submissions_deleted: "Soumissions %{submission_ids} supprimées"
+        submissions_deleted: "Soumissions mises en file d'attente pour suppression : %{submission_ids}"
         error_deleting_submissions: "Erreur lors de la suppression des soumissions: %{message}"
         loading: "Chargement des soumissions..."
       log:
