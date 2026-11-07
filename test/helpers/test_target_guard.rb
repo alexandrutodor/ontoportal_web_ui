@@ -125,15 +125,6 @@ module TestTargetGuard
         'localhost:4444'
       ]
 
-      if ENV['SELENIUM_REMOTE_URL'].to_s.strip != ''
-        begin
-          grid_uri = URI.parse(ENV['SELENIUM_REMOTE_URL'].strip)
-          grid_port = grid_uri.port || (grid_uri.scheme == 'https' ? 443 : 80)
-          allowed_hosts << "#{grid_uri.host}:#{grid_port}" if grid_uri.host
-        rescue URI::InvalidURIError
-        end
-      end
-
       if defined?(Capybara)
         if Capybara.respond_to?(:server_port)
           Capybara.server_port ||= (ENV['CAPYBARA_SERVER_PORT'] || DEFAULT_CAPYBARA_PORT).to_i

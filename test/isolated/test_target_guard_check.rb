@@ -144,19 +144,19 @@ end
 end
 
 puts "\n=== Step 5: Real WebMock exact endpoint bounds and permission predicates ==="
-# Load actual locked WebMock gem
+# Activate and load locked WebMock gem (fail clearly if unavailable rather than silently load another)
+EXPECTED_WEBMOCK_VERSION = '3.25.1'
 begin
+  gem 'webmock', "= #{EXPECTED_WEBMOCK_VERSION}"
   require 'webmock'
-rescue LoadError
-  q06_gem_path = '/tmp/q06_gems'
-  if Dir.exist?(q06_gem_path)
-    $LOAD_PATH.unshift(*Dir.glob("#{q06_gem_path}/gems/*/lib"))
-    require 'webmock'
-  end
+rescue Gem::LoadError, LoadError => e
+  abort "FATAL: WebMock #{EXPECTED_WEBMOCK_VERSION} (from Gemfile.lock) could not be activated: #{e.message}"
 end
 require 'net/http'
 
 assert(defined?(WebMock) == 'constant', "Actual WebMock gem is loaded", failures)
+assert(WebMock::VERSION == EXPECTED_WEBMOCK_VERSION,
+       "WebMock version matches locked version #{EXPECTED_WEBMOCK_VERSION} (actual: #{WebMock::VERSION})", failures)
 
 # Configure Capybara mock object before WebMock policy
 module Capybara
@@ -176,10 +176,13 @@ assert(WebMock::Config.instance.allow_localhost == false, "WebMock allow_localho
 
 allowed_list = WebMock::Config.instance.allow
 assert(allowed_list.include?('localhost:9393'), "Narrow allowlist includes validated local API host:port 'localhost:9393'", failures)
+assert(allowed_list.include?('localhost:4444'), "Narrow allowlist includes local Selenium grid host:port 'localhost:4444'", failures)
+assert(allowed_list.include?('127.0.0.1:4444'), "Narrow allowlist includes local Selenium grid host:port '127.0.0.1:4444'", failures)
 assert(!allowed_list.include?('localhost'), "Narrow allowlist excludes bare hostname 'localhost'", failures)
 assert(!allowed_list.include?('127.0.0.1'), "Narrow allowlist excludes bare hostname '127.0.0.1'", failures)
 assert(!allowed_list.include?('0.0.0.0'), "Narrow allowlist excludes bare hostname '0.0.0.0'", failures)
 assert(!allowed_list.include?('data.bioontology.org'), "Narrow allowlist excludes remote host 'data.bioontology.org'", failures)
+assert(!allowed_list.include?('data.bioontology.org:443'), "Narrow allowlist excludes remote host:port 'data.bioontology.org:443'", failures)
 
 # Capybara readiness endpoint check
 assert(allowed_list.include?('0.0.0.0:31337'), "Allowlist includes Capybara bind/readiness host:port '0.0.0.0:31337'", failures)
@@ -271,6 +274,34 @@ rescue WebMock::NetConnectNotAllowedError
   blocked_capybara_neighbor = true
 end
 assert(blocked_capybara_neighbor, "Forbidden Capybara neighbor 0.0.0.0:31338 blocked by WebMock before transport", failures)
+
+# Test 5b-5: SELENIUM_REMOTE_URL regression check (Finding 1)
+# With marked localhost:9393 target and SELENIUM_REMOTE_URL set to a remote destination,
+# actual WebMock predicate must deny remote, and request must be blocked before transport double.
+orig_selenium_url = ENV['SELENIUM_REMOTE_URL']
+begin
+  ENV['SELENIUM_REMOTE_URL'] = 'https://data.bioontology.org'
+  TestTargetGuard.configure_webmock!('http://localhost:9393')
+
+  assert(!WebMock::Config.instance.allow.include?('data.bioontology.org:443'),
+         "Allowlist excludes remote SELENIUM_REMOTE_URL host:port 'data.bioontology.org:443'", failures)
+  assert(!WebMock.net_connect_allowed?('https://data.bioontology.org/ontologies'),
+         "WebMock.net_connect_allowed? denies remote SELENIUM_REMOTE_URL destination", failures)
+
+  blocked_selenium_remote = false
+  begin
+    Net::HTTP.get(URI('https://data.bioontology.org/ontologies'))
+  rescue TransportAttemptedError
+    blocked_selenium_remote = false
+  rescue WebMock::NetConnectNotAllowedError
+    blocked_selenium_remote = true
+  end
+  assert(blocked_selenium_remote,
+         "Request to remote SELENIUM_REMOTE_URL blocked by WebMock before transport double", failures)
+ensure
+  ENV['SELENIUM_REMOTE_URL'] = orig_selenium_url
+  TestTargetGuard.configure_webmock!('http://localhost:9393')
+end
 
 puts "\n=== Step 5c: Setup recovery and adapter persistence (Finding 3) ==="
 # Simulate prior WebMock.disable! from rogue setup
