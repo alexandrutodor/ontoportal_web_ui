@@ -788,8 +788,11 @@ en:
       visit_the_site: visit the full site
   login:
     admin_logged_out: Logged out <b>%{old_user}</b>, returned to <b>%{user}</b>
+    admin_return_confirm: Return to administrator account (%{user}) and end impersonation of %{old_user}?
     authentication_failed: "%{provider} authentication failed"
     back_home_button: Back home
+    cancel: Cancel
+    confirm_reset_password: Confirm Password Reset
     custom_ontology_set: The display is now based on your <a href='/account#custom_ontology_set'>Custom
       Ontology Set</a>.
     email: Email
@@ -803,7 +806,13 @@ en:
     forgot_password: Forgot password?
     invalid_account_combination: Invalid account name/password combination
     invalid_login: Errors on the form
+    login_as_button: Log in as user
+    login_as_confirm_prompt: Are you sure you want to log in as %{username}?
+    login_as_confirm_title: Confirm Impersonation
     login_with_provider: Login with %{provider}
+    logout_button: Log out
+    logout_confirm_prompt: Are you sure you want to log out of %{user}?
+    logout_confirm_title: Confirm Logout
     no_account: Do not have an account?
     password: Password
     private_ontology: This ontology is private. Please login.
@@ -812,6 +821,8 @@ en:
     reset_password_again: ". Please reset your password again."
     reset_password_message: A password reset email has been sent to your email address,
       please follow the instructions to reset your password.
+    reset_password_prompt: Confirm password reset for %{username}.
+    reset_password_title: Reset Password
     send_instructions: Send instructions
     title: Login
     try_again_notice: ". Please try again."

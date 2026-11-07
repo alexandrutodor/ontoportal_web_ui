@@ -75,6 +75,12 @@ class LoginController < ApplicationController
       return
     end
 
+    if request.get?
+      @target_username = params[:login_as]
+      render "login/login_as_confirm"
+      return
+    end
+
     user = params[:login_as]
     new_user = LinkedData::Client::Models::User.find_by_username(user).first
 
@@ -84,12 +90,20 @@ class LoginController < ApplicationController
       session[:user].apikey = session[:admin_user].apikey
     end
 
-    #redirect_to request.referer rescue redirect_to "/"
     redirect_to "/"
   end
 
   # logs out a user
   def destroy
+    if request.get?
+      if session[:user].nil?
+        redirect_to "/"
+      else
+        render "login/logout_confirm"
+      end
+      return
+    end
+
     if session[:admin_user]
       old_user = session[:user]
       session[:user] = session[:admin_user]
@@ -124,17 +138,43 @@ class LoginController < ApplicationController
   end
 
   def reset_password
+    if request.get?
+      username = params[:un].to_s.strip
+      email = params[:em].to_s.strip
+      token = params[:tk].to_s.strip
+
+      if username.empty? || email.empty? || token.empty? || !is_email(email)
+        flash[:notice] = t('login.reset_password_again')
+        redirect_to "/lost_pass"
+        return
+      end
+
+      @username = params[:un]
+      @email = params[:em]
+      @token = params[:tk]
+      render "login/reset_password"
+      return
+    end
+
     username = params[:un]
     email = params[:em]
     token = params[:tk]
+
+    if username.to_s.strip.empty? || email.to_s.strip.empty? || token.to_s.strip.empty?
+      flash[:notice] = t('login.reset_password_again')
+      redirect_to "/lost_pass"
+      return
+    end
+
     @user = LinkedData::Client::HTTP.post("/users/reset_password", {username: username, email: email, token: token})
-    if @user.is_a?(LinkedData::Client::Models::User)
+    if @user.is_a?(LinkedData::Client::Models::User) && (!@user.respond_to?(:errors) || !@user.errors&.any?)
       login(@user)
       @user = LinkedData::Client::Models::User.find(@user.id, include: 'all')
       @user.validate_password = true
       render "users/edit"
     else
-      flash[:notice] = @user.errors.first + t('login.reset_password_again')
+      error_msg = (@user.respond_to?(:errors) && @user.errors&.first) ? @user.errors.first : ""
+      flash[:notice] = "#{error_msg}#{t('login.reset_password_again')}".strip
       redirect_to "/lost_pass"
     end
   end

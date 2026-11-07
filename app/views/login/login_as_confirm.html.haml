@@ -1,0 +1,13 @@
+- @title = t('login.login_as_confirm_title')
+.d-flex.justify-content-center.m-4
+  .lost-password-form
+    .d-flex.justify-content-between
+      .lost-password-title-container
+        %h2.lost-password-title
+          = t('login.login_as_confirm_title')
+        %hr#lost-password-title-line/
+    %p.lost-password-description
+      = t('login.login_as_confirm_prompt', username: @target_username)
+    .d-flex.justify-content-between.align-items-center.mt-4
+      = button_to t('login.login_as_button'), login_as_path(@target_username), method: :post, class: "lost-password-button", form: { data: { turbo_frame: '_top' } }
+      = link_to t('login.cancel'), "/admin/users", class: "btn btn-outline-secondary"

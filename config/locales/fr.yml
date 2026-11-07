@@ -812,8 +812,11 @@ fr:
       visit_the_site: visitez le site complet
   login:
     admin_logged_out: Déconnecté <b>%{old_user}</b>, retourné à <b>%{user}</b>
+    admin_return_confirm: Retourner au compte administrateur (%{user}) et terminer l'usurpation de %{old_user} ?
     authentication_failed: L'authentification %{provider} a échoué
     back_home_button: Retour à l'accueil
+    cancel: Annuler
+    confirm_reset_password: Confirmer la réinitialisation
     custom_ontology_set: L'affichage est maintenant basé sur votre <a href='/account#custom_ontology_set'>Ensemble
       personnalisé d'ontologies</a>.
     email: Email
@@ -828,7 +831,13 @@ fr:
     forgot_password: Mot de passe oublié ?
     invalid_account_combination: Combinaison nom de compte/mot de passe invalide
     invalid_login: Erreurs dans le formulaire
+    login_as_button: Se connecter en tant qu'utilisateur
+    login_as_confirm_prompt: Êtes-vous sûr de vouloir vous connecter en tant que %{username} ?
+    login_as_confirm_title: Confirmer l'usurpation d'identité
     login_with_provider: Se connecter avec %{provider}
+    logout_button: Se déconnecter
+    logout_confirm_prompt: Êtes-vous sûr de vouloir vous déconnecter de %{user} ?
+    logout_confirm_title: Confirmer la déconnexion
     no_account: Vous n'avez pas de compte ?
     password: Mot de passe
     private_ontology: Cette ontologie est privée. Veuillez vous connecter.
@@ -838,6 +847,8 @@ fr:
     reset_password_message: Un email de réinitialisation de mot de passe a été envoyé
       à votre adresse email, veuillez suivre les instructions pour réinitialiser votre
       mot de passe.
+    reset_password_prompt: Confirmez la réinitialisation du mot de passe pour %{username}.
+    reset_password_title: Réinitialiser le mot de passe
     send_instructions: Envoyer les instructions
     title: Connexion
     try_again_notice: ". Veuillez réessayer."
