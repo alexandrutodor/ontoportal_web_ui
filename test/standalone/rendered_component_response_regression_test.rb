@@ -260,10 +260,11 @@ class RenderedComponentResponseRegressionTest < Minitest::Test
   end
 
   def test_framework_mode_asserted
-    if NATIVE_IMAGE_ENV
+    if defined?(ActionController::Base)
       assert_match(/real Rails ActionController\/ActionView 7\.0\.8/, FRAMEWORK_MODE,
-                   'Native container execution must use real Rails 7.0.8 libraries')
+                   'Real Rails execution must use real Rails 7.0.8 libraries')
     else
+      flunk 'Native container execution must not silently fall back' if NATIVE_IMAGE_ENV
       assert_match(/host fallback/, FRAMEWORK_MODE,
                    'Host execution without gems must report host fallback')
     end
