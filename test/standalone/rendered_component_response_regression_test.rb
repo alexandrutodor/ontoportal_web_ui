@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'minitest/autorun'
+require 'minitest/mock'
 require 'ostruct'
 
 # =============================================================================
@@ -11,24 +12,45 @@ require 'ostruct'
 #    via normal Rails html rendering (render html:) ONCE without ERB re-evaluation.
 # 2. SearchHelper#render_search_paginated_list returns paginated_list_component
 #    directly on non-show-count branch without invoking render inline.
-# 3. Harmless literal ERB arithmetic (<%= 7 * 6 %> / <%= 9 * 9 %>) stays literal.
-# 4. Existing SafeBuffer, Turbo Frame / Stream structures, and stream branch behavior
-#    are preserved.
+# 3. SearchHelper#render_search_paginated_list preserves Turbo Stream array on show_count branch.
+# 4. SchemesController#index renders paginated list via render html: without ERB evaluation.
+# 5. CollectionsController#index renders paginated list via render html: without ERB evaluation.
+# 6. PropertiesController#index renders paginated list via render html: without ERB evaluation.
+# 7. InstancesController#index renders paginated list via render html: on standard / page > 1 requests.
+# 8. InstancesController#index preserves turbo_stream: branch for concept instances on page 1.
+# 9. Harmless literal ERB arithmetic (<%= 7 * 6 %> / <%= 9 * 9 %>) stays literal in all responses.
+# 10. Container IDs, single producer calls, content types, and HTTP statuses are preserved.
 # =============================================================================
 
-# Load actual Rails ActionController & ActionView libraries when available (e.g. in container),
-# or provide minimal standalone doubles for host execution without booting Rails or downloading gems.
+# In native container (onto-q02-proof:af254f34), gems are located in /usr/local/bundle/ruby/3.1.0
+if Dir.exist?('/usr/local/bundle/ruby/3.1.0/gems') && (ENV['GEM_PATH'].nil? || !ENV['GEM_PATH'].include?('/usr/local/bundle/ruby/3.1.0'))
+  Gem.use_paths(nil, Gem.path + ['/usr/local/bundle/ruby/3.1.0'])
+end
+
+NATIVE_IMAGE_ENV = Dir.exist?('/usr/local/bundle/ruby/3.1.0/gems')
+
 begin
   require 'action_controller'
   require 'action_view'
+
+  ActionController::Renderers.add :turbo_stream do |html, _options|
+    self.content_type ||= 'text/vnd.turbo-stream.html; charset=utf-8'
+    self.response_body = html.is_a?(Array) ? html.join : html.to_s
+  end
 
   class ApplicationController < ActionController::Base
     def determine_layout; false; end
     def authorize_and_redirect; end
     def authorize_read_only; end
     def submission_metadata; end
+    def ontology_not_found(_id); end
+    def request_lang; 'en'; end
   end
-rescue LoadError
+
+  FRAMEWORK_MODE = "real Rails ActionController/ActionView #{ActionPack::VERSION::STRING}"
+rescue LoadError => e
+  raise "Native container environment detected but failed to load Rails libraries: #{e}" if NATIVE_IMAGE_ENV
+
   class Object
     def presence
       present? ? self : nil
@@ -102,10 +124,19 @@ rescue LoadError
 
     def render(options = {})
       @response ||= ActionDispatch::Response.new
-      if options[:html]
+      if options[:inline]
+        @response.status = 200
+        @response.content_type = 'text/html; charset=utf-8'
+        @response.body = ERB.new(options[:inline].to_s).result
+      elsif options[:html]
         @response.status = 200
         @response.content_type = 'text/html; charset=utf-8'
         @response.body = options[:html].to_s
+      elsif options[:turbo_stream]
+        @response.status = 200
+        @response.content_type = 'text/vnd.turbo-stream.html; charset=utf-8'
+        stream = options[:turbo_stream]
+        @response.body = stream.is_a?(Array) ? stream.join : stream.to_s
       end
     end
 
@@ -114,6 +145,9 @@ rescue LoadError
       @response = res
       send(action)
     end
+
+    def ontology_not_found(_id); end
+    def request_lang; 'en'; end
   end
 
   module ActionView
@@ -126,17 +160,115 @@ rescue LoadError
       end
     end
   end
+
+  FRAMEWORK_MODE = 'host fallback (lightweight doubles)'
 end
+
+puts "[Framework Mode] #{FRAMEWORK_MODE}"
 
 module SubmissionUpdater; end
 module OntologyUpdater; end
 module SubmissionsHelper; end
+module SchemesHelper; end
+module SearchContent; end
+module CollectionsHelper; end
+module TurboHelper; end
+module TermsReuses; end
+module PropertiesHelper; end
+module InstancesHelper; end
+
+module LinkedData
+  module Client
+    module Models
+      class Ontology
+        def self.find_by_acronym(_acr); end
+      end
+    end
+  end
+end
 
 # Load actual modified files
-require_relative '../../app/controllers/submissions_controller'
 require_relative '../../app/helpers/search_helper'
+require_relative '../../app/controllers/submissions_controller'
+require_relative '../../app/controllers/schemes_controller'
+require_relative '../../app/controllers/collections_controller'
+require_relative '../../app/controllers/properties_controller'
+require_relative '../../app/controllers/instances_controller'
+
+class TestPaginatedHelperContext
+  include ActionView::Helpers::TagHelper
+  include SearchHelper
+
+  attr_accessor :controller, :producer_calls
+
+  def initialize(controller)
+    @controller = controller
+    @producer_calls = 0
+  end
+
+  def params
+    @controller.params
+  end
+
+  def request_lang
+    'en'
+  end
+
+  def escape(val)
+    val.to_s
+  end
+
+  def replace(target, content)
+    %(<turbo-stream action="replace" target="#{target}"><template>#{content}</template></turbo-stream>).html_safe
+  end
+
+  def prepend(target, content)
+    %(<turbo-stream action="prepend" target="#{target}"><template>#{content}</template></turbo-stream>).html_safe
+  end
+
+  def paginated_list_component(id:, results:, next_page_url:, child_url:, child_turbo_frame:, child_param:, **_kwargs)
+    @producer_calls += 1
+    %(<div id="#{id}">component item <%= 7 * 6 %></div>).html_safe
+  end
+end
 
 class RenderedComponentResponseRegressionTest < Minitest::Test
+  def setup_controller_invocation(klass, action, env_uri)
+    ctrl = klass.new
+    env = Rack::MockRequest.env_for(env_uri)
+    req = ActionDispatch::Request.new(env)
+    res = ActionDispatch::Response.new
+    helper = TestPaginatedHelperContext.new(ctrl)
+
+    ctrl.define_singleton_method(:helpers) { helper }
+    ctrl.define_singleton_method(:search_ontologies_content) do |**_args|
+      results = [{ name: 'TEST' }, { name: 'item1' }]
+      [results, 1, 2, 10]
+    end
+
+    explore_double = Object.new
+    explore_double.define_singleton_method(:latest_submission) do |*_args|
+      OpenStruct.new(uriRegexPattern: nil, preferredNamespaceUri: nil)
+    end
+    onto = OpenStruct.new(acronym: 'TEST', explore: explore_double)
+
+    LinkedData::Client::Models::Ontology.stub(:find_by_acronym, [onto]) do
+      ctrl.dispatch(action, req, res)
+    end
+
+    [res, helper]
+  end
+
+  def test_framework_mode_asserted
+    if NATIVE_IMAGE_ENV
+      assert_match(/real Rails ActionController\/ActionView 7\.0\.8/, FRAMEWORK_MODE,
+                   'Native container execution must use real Rails 7.0.8 libraries')
+    else
+      assert_match(/host fallback/, FRAMEWORK_MODE,
+                   'Host execution without gems must report host fallback')
+    end
+  end
+
   def test_submissions_controller_edit_properties_renders_html_once_without_erb_evaluation
     controller = SubmissionsController.new
     env = Rack::MockRequest.env_for('/ontologies/TEST/submissions/1/edit_properties?container_id=ontology-content-0')
@@ -255,5 +387,74 @@ class RenderedComponentResponseRegressionTest < Minitest::Test
     assert_equal :prepend, result[1][:action]
     assert_equal 'instances_sorted_list_view-page-1', result[1][:target]
     assert_equal 1, host.producer_calls, 'Producer component must be invoked once in stream branch'
+  end
+
+  def test_schemes_controller_index_renders_html_without_erb_evaluation
+    res, helper = setup_controller_invocation(SchemesController, :index, '/ontologies/TEST/schemes?ontology=TEST&search=demo')
+
+    assert_equal 200, res.status, 'SchemesController#index expected HTTP 200'
+    assert_includes res.content_type, 'text/html', 'SchemesController#index expected text/html content-type'
+    assert_equal 1, helper.producer_calls, 'Producer component must be invoked exactly once'
+    assert_includes res.body, '<%= 7 * 6 %>', 'Literal harmless ERB arithmetic must remain literal bytes'
+    refute_includes res.body, '42', 'Literal ERB must never be evaluated in SchemesController HTML response'
+    assert_includes res.body, '<div id="schemes_sorted_list">', 'Container ID schemes_sorted_list preserved'
+  end
+
+  def test_collections_controller_index_renders_html_without_erb_evaluation
+    res, helper = setup_controller_invocation(CollectionsController, :index, '/ontologies/TEST/collections?ontology=TEST&search=demo')
+
+    assert_equal 200, res.status, 'CollectionsController#index expected HTTP 200'
+    assert_includes res.content_type, 'text/html', 'CollectionsController#index expected text/html content-type'
+    assert_equal 1, helper.producer_calls, 'Producer component must be invoked exactly once'
+    assert_includes res.body, '<%= 7 * 6 %>', 'Literal harmless ERB arithmetic must remain literal bytes'
+    refute_includes res.body, '42', 'Literal ERB must never be evaluated in CollectionsController HTML response'
+    assert_includes res.body, '<div id="collections_sorted_list">', 'Container ID collections_sorted_list preserved'
+  end
+
+  def test_properties_controller_index_renders_html_without_erb_evaluation
+    res, helper = setup_controller_invocation(PropertiesController, :index, '/ontologies/TEST/properties?ontology=TEST&search=demo')
+
+    assert_equal 200, res.status, 'PropertiesController#index expected HTTP 200'
+    assert_includes res.content_type, 'text/html', 'PropertiesController#index expected text/html content-type'
+    assert_equal 1, helper.producer_calls, 'Producer component must be invoked exactly once'
+    assert_includes res.body, '<%= 7 * 6 %>', 'Literal harmless ERB arithmetic must remain literal bytes'
+    refute_includes res.body, '42', 'Literal ERB must never be evaluated in PropertiesController HTML response'
+    assert_includes res.body, '<div id="properties_sorted_list">', 'Container ID properties_sorted_list preserved'
+  end
+
+  def test_instances_controller_index_renders_html_without_erb_evaluation
+    res, helper = setup_controller_invocation(InstancesController, :index, '/ontologies/TEST/instances?ontology=TEST&search=demo')
+
+    assert_equal 200, res.status, 'InstancesController#index expected HTTP 200'
+    assert_includes res.content_type, 'text/html', 'InstancesController#index expected text/html content-type'
+    assert_equal 1, helper.producer_calls, 'Producer component must be invoked exactly once'
+    assert_includes res.body, '<%= 7 * 6 %>', 'Literal harmless ERB arithmetic must remain literal bytes'
+    refute_includes res.body, '42', 'Literal ERB must never be evaluated in InstancesController HTML response'
+    assert_includes res.body, '<div id="instances_sorted_list">', 'Container ID instances_sorted_list preserved'
+  end
+
+  def test_instances_controller_index_concept_page_gt_1_renders_html_without_erb_evaluation
+    res, helper = setup_controller_invocation(InstancesController, :index, '/ontologies/TEST/instances?ontology=TEST&type=ConceptType&page=2&search=demo')
+
+    assert_equal 200, res.status, 'InstancesController#index page 2 expected HTTP 200'
+    assert_includes res.content_type, 'text/html', 'InstancesController#index page 2 expected text/html content-type'
+    assert_equal 1, helper.producer_calls, 'Producer component must be invoked exactly once'
+    assert_includes res.body, '<%= 7 * 6 %>', 'Literal harmless ERB arithmetic must remain literal bytes'
+    refute_includes res.body, '42', 'Literal ERB must never be evaluated on page > 1'
+    assert_includes res.body, '<div id="concept_instances_sorted_list">', 'Container ID concept_instances_sorted_list preserved'
+  end
+
+  def test_instances_controller_index_preserves_concept_instance_turbo_stream_branch
+    res, helper = setup_controller_invocation(InstancesController, :index, '/ontologies/TEST/instances?ontology=TEST&type=ConceptType&search=demo')
+
+    assert_equal 200, res.status, 'InstancesController#index concept stream expected HTTP 200'
+    assert_includes res.content_type, 'turbo-stream', 'Expected turbo-stream content-type on concept page 1'
+    assert_equal 1, helper.producer_calls, 'Producer component must be invoked exactly once in stream branch'
+    assert_includes res.body, '<%= 7 * 6 %>', 'Literal harmless ERB arithmetic must remain literal bytes in turbo stream'
+    refute_includes res.body, '42', 'Literal ERB must never be evaluated in turbo stream response'
+    assert_includes res.body, 'concept_instances_sorted_list_count', 'Turbo replace target preserved'
+    assert_includes res.body, 'concept_instances_sorted_list_view-page-1', 'Turbo prepend target preserved'
+    assert_includes res.body, '<turbo-stream action="replace"', 'Turbo stream replace tag preserved'
+    assert_includes res.body, '<turbo-stream action="prepend"', 'Turbo stream prepend tag preserved'
   end
 end

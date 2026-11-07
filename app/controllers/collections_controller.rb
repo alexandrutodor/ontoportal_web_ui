@@ -25,7 +25,7 @@ class CollectionsController < ApplicationController
                                                                      filter_by_types: ['Collection'])
 
 
-      render inline: helpers.render_search_paginated_list(container_id: 'collections_sorted_list',
+      render html: helpers.render_search_paginated_list(container_id: 'collections_sorted_list',
                                                           next_page_url: "/ontologies/#{@ontology.acronym}/collections",
                                                           child_url: "/ontologies/#{@ontology.acronym}/collections/show", child_turbo_frame: 'collection',
                                                           child_param: :collectionid,

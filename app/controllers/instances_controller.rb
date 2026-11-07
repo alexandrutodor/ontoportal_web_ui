@@ -31,7 +31,7 @@ class InstancesController < ApplicationController
     if is_concept_instance && page.eql?(1)
       render turbo_stream: view
     else
-      render inline:  view
+      render html:  view
     end
   end
 

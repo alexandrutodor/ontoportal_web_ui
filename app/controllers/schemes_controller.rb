@@ -22,7 +22,7 @@ class SchemesController < ApplicationController
                                                                      filter_by_types: ['ConceptScheme'])
 
 
-      render inline: helpers.render_search_paginated_list(container_id: 'schemes_sorted_list',
+      render html: helpers.render_search_paginated_list(container_id: 'schemes_sorted_list',
                                                           next_page_url: "/ontologies/#{@ontology.acronym}/schemes",
                                                           child_url: "/ontologies/#{@ontology.acronym}/schemes/show", child_turbo_frame: 'scheme',
                                                           child_param: :schemeid,

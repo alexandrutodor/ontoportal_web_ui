@@ -20,7 +20,7 @@ class PropertiesController < ApplicationController
                                                                      filter_by_types: %w[AnnotationProperty ObjectProperty DatatypeProperty])
 
 
-      render inline: helpers.render_search_paginated_list(container_id: 'properties_sorted_list',
+      render html: helpers.render_search_paginated_list(container_id: 'properties_sorted_list',
                                                           next_page_url: "/ontologies/#{@ontology.acronym}/properties",
                                                           child_url: "/ontologies/#{@ontology.acronym}/properties/show",
                                                           child_turbo_frame: 'property_show',
