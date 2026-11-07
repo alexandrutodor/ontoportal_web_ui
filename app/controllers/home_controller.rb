@@ -54,7 +54,7 @@ class HomeController < ApplicationController
   end
 
   def set_cookies
-    cookies.permanent[:cookies_accepted] = params[:cookies] if params[:cookies]
+    cookies.permanent[:cookies_accepted] = params[:cookies] if request.post? && params[:cookies]
     render 'cookies', layout: nil
   end
 
