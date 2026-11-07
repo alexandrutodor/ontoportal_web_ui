@@ -1692,6 +1692,7 @@ en:
   users:
     account_successfully_created: Account was successfully created
     account_successfully_updated: Account was successfully updated
+    cancel: Cancel
     custom_ontologies_cleared: Custom Ontologies were cleared
     custom_ontologies_saved: Custom Ontologies were saved
     edit:
@@ -1765,8 +1766,14 @@ en:
       unsubscribe: Unsubscribe
       upload_semantic_resources: Upload Ontologies
       username: 'Username:'
+    subscribe_confirm_button: Confirm Subscription
+    subscribe_confirm_prompt: Are you sure you want to subscribe %{user} to the %{list} mailing list?
+    subscribe_confirm_title: Confirm Mailing List Subscription
     subscribe_flash_message: 'You have successfully  %{action} %{to_or_from} our user
       mailing list: %{list}'
+    unsubscribe_confirm_button: Confirm Unsubscription
+    unsubscribe_confirm_prompt: Are you sure you want to unsubscribe %{email} from the %{list} mailing list?
+    unsubscribe_confirm_title: Confirm Mailing List Unsubscription
     user_deleted_successfully: User deleted successfully
     valid_email_adresse: Please enter a valid email adresse
     validate_email_address: Please enter an email address

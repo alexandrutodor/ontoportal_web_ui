@@ -1741,6 +1741,7 @@ fr:
   users:
     account_successfully_created: Compte créé
     account_successfully_updated: Compte mis à jour
+    cancel: Annuler
     custom_ontologies_cleared: Ontologies personnalisées effacées
     custom_ontologies_saved: Ontologies personnalisées enregistrées
     edit:
@@ -1821,8 +1822,14 @@ fr:
       unsubscribe: Se désabonner
       upload_semantic_resources: Télécharger des ontologies
       username: 'Nom d''utilisateur :'
+    subscribe_confirm_button: Confirmer l'inscription
+    subscribe_confirm_prompt: Êtes-vous sûr de vouloir inscrire %{user} à la liste de diffusion %{list} ?
+    subscribe_confirm_title: Confirmer l'inscription à la liste de diffusion
     subscribe_flash_message: 'Vous vous êtes %{action} %{to_or_from} à notre liste
       de diffusion : %{list}'
+    unsubscribe_confirm_button: Confirmer le désabonnement
+    unsubscribe_confirm_prompt: Êtes-vous sûr de vouloir désinscrire %{email} de la liste de diffusion %{list} ?
+    unsubscribe_confirm_title: Confirmer le désabonnement de la liste de diffusion
     user_deleted_successfully: Utilisateur supprimé
     valid_email_adresse: Veuillez entrer une adresse email valide
     validate_email_address: Veuillez entrer une adresse email

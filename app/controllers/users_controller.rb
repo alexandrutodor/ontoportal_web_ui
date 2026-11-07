@@ -172,26 +172,89 @@ class UsersController < ApplicationController
 
 
   def subscribe
-    @user = find_user
-    deliver "subscribe", SubscribeMailer.register_for_announce_list(@user.email,@user.firstName,@user.lastName)
+    target = subscription_target_username
+    if target.blank?
+      not_found("User not found")
+      return
+    end
+
+    @user = find_user(target)
+    return if @user.nil?
+
+    if request.post?
+      deliver "subscribe", SubscribeMailer.register_for_announce_list(@user.email, @user.firstName, @user.lastName)
+    else
+      @action_type = "subscribe"
+      @target_username = @user.username
+      @target_email = @user.email
+      render "users/subscription_confirm"
+    end
   end
 
 
   def un_subscribe
-    @email = params[:email]
-    deliver "unsubscribe", SubscribeMailer.unregister_for_announce_list(@email)
+    target_email = subscription_target_email
+    if target_email.blank? || !valid_subscription_email?(target_email)
+      not_found("Email not found")
+      return
+    end
+
+    @email = target_email
+
+    if request.post?
+      deliver "unsubscribe", SubscribeMailer.unregister_for_announce_list(@email)
+    else
+      @action_type = "unsubscribe"
+      @target_username = nil
+      @target_email = @email
+      render "users/subscription_confirm"
+    end
   end
 
 
   private
 
-  def find_user(id = params[:id])
-    id = helpers.unescape(id)
-    @user = LinkedData::Client::Models::User.find(id.split('/').last, {include: 'all'})
+  def find_user(id = (params[:id] || params[:username]))
+    raw_id = id || params[:username] || params[:id]
+    not_found("User id not provided") if raw_id.nil? || raw_id.to_s.strip.empty?
 
-    not_found("User with id #{id} not found") if @user.nil?
+    clean_id = raw_id.to_s
+    # Preserve exact already-parsed dots/plus; only decode if percent-encoded
+    clean_id = helpers.unescape(clean_id) if clean_id.include?('%')
+    user_key = clean_id.split('/').last
+
+    @user = LinkedData::Client::Models::User.find(user_key, {include: 'all'})
+
+    not_found("User with id #{raw_id} not found") if @user.nil?
 
     @user
+  end
+
+  def subscription_target_username
+    target = params[:username] || params[:id]
+    return nil if target.nil? || target.to_s.strip.empty?
+
+    target = target.to_s
+    if params[:format].present? && !['html', 'json', 'xml'].include?(params[:format].to_s.downcase)
+      target = "#{target}.#{params[:format]}"
+    end
+    target
+  end
+
+  def subscription_target_email
+    email = params[:email]
+    return nil if email.nil? || email.to_s.strip.empty?
+
+    email = email.to_s
+    if params[:format].present? && !['html', 'json', 'xml'].include?(params[:format].to_s.downcase)
+      email = "#{email}.#{params[:format]}"
+    end
+    email
+  end
+
+  def valid_subscription_email?(email)
+    return false if email.blank?
+    email.match?(/\A[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\z/)
   end
 
   def deliver(action,job)

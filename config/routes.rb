@@ -29,8 +29,8 @@ Rails.application.routes.draw do
 
   resources :users, path: :accounts, constraints: { id: /[\d\w\.\@\-\%\+ ]+/ }
 
-  get '/users/subscribe/:username', to: 'users#subscribe'
-  get '/users/un-subscribe/:email', to: 'users#un_subscribe'
+  match '/users/subscribe/:username', to: 'users#subscribe', via: [:get, :post], as: :subscribe_user, constraints: { username: /[^\/]+/ }
+  match '/users/un-subscribe/:email', to: 'users#un_subscribe', via: [:get, :post], as: :unsubscribe_user, constraints: { email: /[^\/]+/ }
 
   post '/mappings/loader', to: 'mappings#loader_process'
   get 'mappings/count/:id', to: 'mappings#count', constraints: { id: /.+/ }
