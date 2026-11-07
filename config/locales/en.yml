@@ -356,6 +356,7 @@ en:
     label: Label
     submit: Submit
     type: Type
+    unavailable: Change requests are currently unavailable.
   check_resolvability:
     check_resolvability_message_1: 'The URL is resolvable and support the following
       formats: %{supported_format}'

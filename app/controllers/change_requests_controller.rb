@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 class ChangeRequestsController < ApplicationController
+  include OntologiesHelper
+
+  before_action :check_change_requests_enabled
+
   def create_synonym
     @concept_label = params[:concept_label]
     @concept_id = params[:concept_id]
@@ -20,6 +24,12 @@ class ChangeRequestsController < ApplicationController
   end
 
   private
+
+  def check_change_requests_enabled
+    return if change_requests_enabled?(params[:ont_acronym])
+
+    render plain: t('change_requests.unavailable'), status: :service_unavailable
+  end
 
   def generate_curie(ont_acronym, concept_id)
     ontology = LinkedData::Client::Models::Ontology.find_by_acronym(ont_acronym).first

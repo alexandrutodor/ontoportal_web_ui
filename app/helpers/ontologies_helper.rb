@@ -394,9 +394,17 @@ module OntologiesHelper
   end
 
   def change_requests_enabled?(ontology_acronym)
-    return false unless Rails.configuration.change_request[:ontologies].present?
+    return false unless defined?(GitHub::Client) && GitHub::Client.present?
+    return false if ontology_acronym.nil? || ontology_acronym.to_s.strip.empty?
+    return false unless defined?(Rails) && Rails.respond_to?(:configuration) && Rails.configuration.respond_to?(:change_request)
 
-    Rails.configuration.change_request[:ontologies].include? ontology_acronym.to_sym
+    config = Rails.configuration.change_request
+    return false unless config.is_a?(Hash) && config[:ontologies].present?
+
+    ontologies = config[:ontologies]
+    ontologies.include?(ontology_acronym.to_sym) || ontologies.include?(ontology_acronym.to_s)
+  rescue StandardError
+    false
   end
 
   def current_section

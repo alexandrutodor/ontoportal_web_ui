@@ -364,6 +364,7 @@ fr:
     label: Libellé
     submit: Soumettre
     type: Type
+    unavailable: Les demandes de modification sont actuellement indisponibles.
   check_resolvability:
     check_resolvability_message_1: 'L''URL est résolvable et supporte les formats
       suivants : %{supported_format}'
