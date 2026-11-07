@@ -125,6 +125,7 @@ class OwnershipCallSpy
   attr_accessor :user_find_calls, :user_get_calls, :user_update_calls
   attr_accessor :ontology_find_calls, :ontology_find_by_acronym_calls
   attr_accessor :init_trial_license_calls
+  attr_accessor :user_get_args
 
   def initialize
     reset!
@@ -137,6 +138,7 @@ class OwnershipCallSpy
     @ontology_find_calls = 0
     @ontology_find_by_acronym_calls = 0
     @init_trial_license_calls = 0
+    @user_get_args = []
   end
 
   def total_lookup_calls
@@ -160,6 +162,11 @@ module LinkedData
         attr_accessor :validate_password, :password, :password_confirmation
         attr_accessor :forced_update_response
 
+        def forced_update_response=(val)
+          @has_forced_update_response = true
+          @forced_update_response = val
+        end
+
         class << self
           attr_accessor :registry
         end
@@ -182,7 +189,8 @@ module LinkedData
           copy.customOntology = @customOntology ? @customOntology.dup : []
           copy.subscription = @subscription ? @subscription.map(&:dup) : []
           copy.role = @role ? @role.dup : ['USER']
-          copy.forced_update_response = @forced_update_response
+          copy.instance_variable_set(:@has_forced_update_response, @has_forced_update_response)
+          copy.instance_variable_set(:@forced_update_response, @forced_update_response)
           copy
         end
 
@@ -195,6 +203,7 @@ module LinkedData
 
         def self.get(escaped_id, options = {})
           $ownership_spy.user_get_calls += 1
+          $ownership_spy.user_get_args << { id: escaped_id, options: options }
           unescaped = CGI.unescape(escaped_id.to_s)
           lookup_key = unescaped.split('/').last
           user = self.registry[lookup_key] || self.registry[unescaped] || self.registry[escaped_id.to_s]
@@ -227,7 +236,7 @@ module LinkedData
             send("#{k}=", v) if respond_to?("#{k}=")
           end
 
-          return @forced_update_response if @forced_update_response
+          return @forced_update_response if @has_forced_update_response
 
           # Persist successful update back into registry
           reg_user = self.class.registry[@username.to_s] || self.class.registry[@id.to_s]
@@ -511,7 +520,7 @@ class AccountOwnershipCheck < Minitest::Test
     assert_equal 'AliceFromURI', req.session[:user].firstName
   end
 
-  def test_users_update_self_admitted_with_short_id_alias
+  def test_users_update_short_id_alias_rejected
     params = {
       id: '1001',
       user: { firstName: 'AliceShortId', lastName: 'Owner', email: 'alice@example.org', username: 'alice' }
@@ -519,8 +528,61 @@ class AccountOwnershipCheck < Minitest::Test
     _ctrl, req, res = dispatch(UsersController, :update, method: :put, params: params, session: { user: @alice })
 
     assert_equal 302, res.status
-    assert_equal 'AliceShortId', @alice.firstName
-    assert_equal 'AliceShortId', req.session[:user].firstName
+    assert_includes res.location, '/login'
+    assert_equal 0, $ownership_spy.total_lookup_calls, 'Short-ID alias must make 0 lookups'
+    assert_equal 0, $ownership_spy.total_write_calls, 'Short-ID alias must make 0 writes'
+    assert_equal 'Alice', @alice.firstName, 'Target user must not be modified'
+    assert_equal 'Alice', req.session[:user].firstName, 'Session user must not be modified'
+  end
+
+  def test_users_update_foreign_origin_suffix_rejected
+    params = {
+      id: 'http://different.invalid/users/alice',
+      user: { firstName: 'AliceEvil', lastName: 'Owner', email: 'alice@example.org', username: 'alice' }
+    }
+    _ctrl, req, res = dispatch(UsersController, :update, method: :put, params: params, session: { user: @alice })
+
+    assert_equal 302, res.status
+    assert_includes res.location, '/login'
+    assert_equal 0, $ownership_spy.total_lookup_calls, 'Foreign origin suffix must make 0 lookups'
+    assert_equal 0, $ownership_spy.total_write_calls, 'Foreign origin suffix must make 0 writes'
+    assert_equal 'Alice', @alice.firstName
+    assert_equal 'Alice', req.session[:user].firstName
+  end
+
+  def test_users_update_whitespace_alias_rejected
+    params = {
+      id: ' alice ',
+      user: { firstName: 'AliceEvil', lastName: 'Owner', email: 'alice@example.org', username: 'alice' }
+    }
+    _ctrl, req, res = dispatch(UsersController, :update, method: :put, params: params, session: { user: @alice })
+
+    assert_equal 302, res.status
+    assert_includes res.location, '/login'
+    assert_equal 0, $ownership_spy.total_lookup_calls, 'Whitespace alias must make 0 lookups'
+    assert_equal 0, $ownership_spy.total_write_calls, 'Whitespace alias must make 0 writes'
+  end
+
+  def test_users_update_password_branch_success_preserves_credentials
+    orig_apikey = @alice.apikey
+    params = {
+      id: 'alice',
+      user: {
+        firstName: 'Alice',
+        lastName: 'Owner',
+        email: 'alice@example.org',
+        username: 'alice',
+        password: 'newsecretpassword123',
+        password_confirmation: 'newsecretpassword123'
+      }
+    }
+    _ctrl, req, res = dispatch(UsersController, :update, method: :put, params: params, session: { user: @alice })
+
+    assert_equal 302, res.status
+    assert_equal 'newsecretpassword123', @alice.password, 'User password must be updated'
+    assert_equal orig_apikey, req.session[:user].apikey, 'Credential-bearing session API key must remain intact'
+    flash_notice = req.get_header('action_dispatch.request.flash_hash')[:notice]
+    assert_equal I18n.t('users.account_successfully_updated'), flash_notice
   end
 
   def test_users_custom_ontologies_self_success_updates_session_custom_ontologies
@@ -584,8 +646,39 @@ class AccountOwnershipCheck < Minitest::Test
     assert_equal 200, res.status, 'Edit form must be re-rendered on failure'
     assert_equal 'edit', ctrl.instance_variable_get(:@rendered_action)
     refute_nil ctrl.instance_variable_get(:@errors)
-    assert_nil req.session[:flash_hash]&.[](notice: 'notice')
+    flash_notice = req.get_header('action_dispatch.request.flash_hash')[:notice]
+    assert_nil flash_notice, 'Success notice must not be set on SDK denial'
     assert_equal orig_name, req.session[:user].firstName, 'Session must not be updated on SDK denial'
+  end
+
+  def test_users_custom_ontologies_nil_update_response_shows_error_flash_and_does_not_update_session
+    @alice.forced_update_response = nil
+    orig_custom = @alice.customOntology.dup
+
+    params = { id: 'alice', ontologies: ['FAIL-ONT'] }
+    _ctrl, req, res = dispatch(UsersController, :custom_ontologies, method: :post, params: params, session: { user: @alice })
+
+    assert_equal 302, res.status
+    flash_notice = req.get_header('action_dispatch.request.flash_hash')[:notice]
+    assert_equal I18n.t('users.error_saving_custom_ontologies'), flash_notice,
+                 'Must display error saving custom ontologies on nil update response'
+    assert_equal orig_custom, req.session[:user].customOntology,
+                 'Custom ontologies must not be copied to session on nil update response'
+  end
+
+  def test_users_custom_ontologies_false_update_response_shows_error_flash_and_does_not_update_session
+    @alice.forced_update_response = false
+    orig_custom = @alice.customOntology.dup
+
+    params = { id: 'alice', ontologies: ['FAIL-ONT'] }
+    _ctrl, req, res = dispatch(UsersController, :custom_ontologies, method: :post, params: params, session: { user: @alice })
+
+    assert_equal 302, res.status
+    flash_notice = req.get_header('action_dispatch.request.flash_hash')[:notice]
+    assert_equal I18n.t('users.error_saving_custom_ontologies'), flash_notice,
+                 'Must display error saving custom ontologies on false update response'
+    assert_equal orig_custom, req.session[:user].customOntology,
+                 'Custom ontologies must not be copied to session on false update response'
   end
 
   def test_users_custom_ontologies_sdk_403_denial_shows_error_flash_and_does_not_update_session
@@ -655,6 +748,8 @@ class AccountOwnershipCheck < Minitest::Test
     body = JSON.parse(res.body)
     assert_equal true, body['updated_sub']
     assert_equal 1, $ownership_spy.user_get_calls, 'Must lookup canonical session user'
+    assert_equal CGI.escape(@alice.id), $ownership_spy.user_get_args.first[:id],
+                 'Canonical User.get must be invoked with escaped session user ID'
     assert_equal 1, $ownership_spy.user_update_calls, 'Must execute 1 remote write'
 
     sub_acronyms = req.session[:user].subscription.map { |s| s[:ontology] }
@@ -726,5 +821,103 @@ class AccountOwnershipCheck < Minitest::Test
     body = JSON.parse(res.body)
     assert_equal false, body['updated_sub'], 'updated_sub must be false on SDK denial'
     assert_equal orig_subs, req.session[:user].subscription, 'Session subscriptions must not be modified on denial'
+  end
+
+  def test_subscriptions_create_foreign_origin_suffix_rejected_with_403
+    _ctrl, _req, res = dispatch(SubscriptionsController, :create, method: :post,
+                                params: { ontology_id: 'ONT-A', user_id: 'http://different.invalid/users/alice' },
+                                session: { user: @alice })
+
+    assert_equal 403, res.status
+    body = JSON.parse(res.body)
+    assert_equal false, body['updated_sub']
+    assert_equal 0, $ownership_spy.total_lookup_calls, 'Foreign origin suffix must make 0 lookups'
+    assert_equal 0, $ownership_spy.total_write_calls, 'Foreign origin suffix must make 0 writes'
+  end
+
+  def test_subscriptions_create_short_only_alias_rejected_with_403
+    _ctrl, _req, res = dispatch(SubscriptionsController, :create, method: :post,
+                                params: { ontology_id: 'ONT-A', user_id: '1001' },
+                                session: { user: @alice })
+
+    assert_equal 403, res.status
+    body = JSON.parse(res.body)
+    assert_equal false, body['updated_sub']
+    assert_equal 0, $ownership_spy.total_lookup_calls, 'Short-only alias must make 0 lookups'
+    assert_equal 0, $ownership_spy.total_write_calls, 'Short-only alias must make 0 writes'
+  end
+
+  def test_subscriptions_create_whitespace_alias_rejected_with_403
+    _ctrl, _req, res = dispatch(SubscriptionsController, :create, method: :post,
+                                params: { ontology_id: 'ONT-A', user_id: ' alice ' },
+                                session: { user: @alice })
+
+    assert_equal 403, res.status
+    body = JSON.parse(res.body)
+    assert_equal false, body['updated_sub']
+    assert_equal 0, $ownership_spy.total_lookup_calls, 'Whitespace alias must make 0 lookups'
+    assert_equal 0, $ownership_spy.total_write_calls, 'Whitespace alias must make 0 writes'
+  end
+
+  def test_subscriptions_create_array_target_rejected_with_403
+    _ctrl, _req, res = dispatch(SubscriptionsController, :create, method: :post,
+                                params: { ontology_id: 'ONT-A', user_id: ['alice'] },
+                                session: { user: @alice })
+
+    assert_equal 403, res.status
+    body = JSON.parse(res.body)
+    assert_equal false, body['updated_sub']
+    assert_equal 0, $ownership_spy.total_lookup_calls, 'Array target must make 0 lookups'
+    assert_equal 0, $ownership_spy.total_write_calls, 'Array target must make 0 writes'
+  end
+
+  def test_subscriptions_create_extra_encoded_alias_rejected_with_403
+    _ctrl, _req, res = dispatch(SubscriptionsController, :create, method: :post,
+                                params: { ontology_id: 'ONT-A', user_id: 'http%3A%2F%2Fdata.bioontology.org%2Fusers%2F1001' },
+                                session: { user: @alice })
+
+    assert_equal 403, res.status
+    body = JSON.parse(res.body)
+    assert_equal false, body['updated_sub']
+    assert_equal 0, $ownership_spy.total_lookup_calls, 'Extra-encoded alias must make 0 lookups'
+    assert_equal 0, $ownership_spy.total_write_calls, 'Extra-encoded alias must make 0 writes'
+  end
+
+  def test_subscriptions_create_explicit_nil_target_admitted_bound_to_session
+    _ctrl, req, res = dispatch(SubscriptionsController, :create, method: :post,
+                                params: { ontology_id: 'ONT-A', user_id: nil, subbed: 'false' },
+                                session: { user: @alice })
+
+    assert_equal 200, res.status
+    body = JSON.parse(res.body)
+    assert_equal true, body['updated_sub']
+    assert_equal 1, $ownership_spy.user_get_calls
+    assert_equal CGI.escape(@alice.id), $ownership_spy.user_get_args.first[:id]
+  end
+
+  def test_subscriptions_create_exact_full_id_target_admitted_bound_to_session
+    _ctrl, req, res = dispatch(SubscriptionsController, :create, method: :post,
+                                params: { ontology_id: 'ONT-A', user_id: 'http://data.bioontology.org/users/1001', subbed: 'false' },
+                                session: { user: @alice })
+
+    assert_equal 200, res.status
+    body = JSON.parse(res.body)
+    assert_equal true, body['updated_sub']
+    assert_equal 1, $ownership_spy.user_get_calls
+    assert_equal CGI.escape(@alice.id), $ownership_spy.user_get_args.first[:id]
+  end
+
+  def test_subscriptions_create_nil_or_false_update_response_does_not_update_session
+    @alice.forced_update_response = nil
+    orig_subs = @alice.subscription.dup
+
+    _ctrl, req, res = dispatch(SubscriptionsController, :create, method: :post,
+                                params: { ontology_id: 'ONT-A', subbed: 'false', user_id: 'alice' },
+                                session: { user: @alice })
+
+    assert_equal 200, res.status
+    body = JSON.parse(res.body)
+    assert_equal false, body['updated_sub'], 'updated_sub must be false on nil update response'
+    assert_equal orig_subs, req.session[:user].subscription, 'Session subscriptions must not be modified on nil response'
   end
 end

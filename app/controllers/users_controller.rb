@@ -114,7 +114,7 @@ class UsersController < ApplicationController
       else
         flash[:notice] = t('users.account_successfully_updated')
 
-        if session[:user] && (user_matches_target?(session[:user], @user.username) || user_matches_target?(session[:user], @user.id))
+        if session[:user] && ((@user.username.present? && session[:user].username == @user.username) || (@user.id.present? && session[:user].id == @user.id))
           session[:user].update_from_params(user_params)
         end
         redirect_to user_path(@user.username)
@@ -157,10 +157,10 @@ class UsersController < ApplicationController
 
     @user.update_from_params(customOntology: custom_ontologies)
     update_response = @user.update
-    if update_response == false || response_error?(update_response)
+    if !update_response || response_error?(update_response)
       flash[:notice] = t('users.error_saving_custom_ontologies')
     else
-      if session[:user] && (user_matches_target?(session[:user], @user.username) || user_matches_target?(session[:user], @user.id))
+      if session[:user] && ((@user.username.present? && session[:user].username == @user.username) || (@user.id.present? && session[:user].id == @user.id))
         session[:user].update_from_params(customOntology: @user.customOntology)
       end
       flash[:notice] = if @user.customOntology.empty?
@@ -290,32 +290,9 @@ class UsersController < ApplicationController
   def verify_owner
     return if current_user_admin?
 
-    if session[:user].nil? || !user_matches_target?(session[:user], params[:id])
+    if session[:user].nil? || (!session[:user].id.eql?(params[:id]) && !session[:user].username.eql?(params[:id]))
       redirect_to controller: 'login', action: 'index', redirect: "/accounts/#{params[:id]}"
     end
-  end
-
-  def user_matches_target?(user, target)
-    return false if user.nil? || target.nil?
-
-    target_str = target.to_s.strip
-    return false if target_str.empty?
-
-    unescaped_target = CGI.unescape(target_str) rescue target_str
-    user_id_str = user.id.to_s.strip
-    user_uname_str = user.username.to_s.strip
-
-    return true if user_id_str == target_str || user_uname_str == target_str
-    return true if user_id_str == unescaped_target || user_uname_str == unescaped_target
-
-    user_id_last = user_id_str.split('/').last
-    target_last = unescaped_target.split('/').last
-
-    return true if user_id_last.present? && user_id_last == target_last
-    return true if user_uname_str.present? && user_uname_str == target_last
-    return true if user_id_last.present? && user_id_last == target_str
-
-    false
   end
 
   def get_ontology_list(ont_hash)

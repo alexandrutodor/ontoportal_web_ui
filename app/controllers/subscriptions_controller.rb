@@ -63,7 +63,7 @@ class SubscriptionsController < ApplicationController
       error_response = OpenStruct.new(status: 500, errors: [e.message])
     end
 
-    if error_response != false && !response_error?(error_response) && response_success?(error_response)
+    if error_response && !response_error?(error_response) && response_success?(error_response)
       updated_sub = true
       session[:user].subscription = u.subscription
     else
@@ -81,33 +81,15 @@ class SubscriptionsController < ApplicationController
       return
     end
 
-    incoming_id = params[:user_id]
-    if incoming_id.present? && !user_matches_target?(session[:user], incoming_id)
-      render status: :forbidden, json: { updated_sub: false, error: 'Unauthorized target user' }
-      return
+    if params.key?(:user_id) && !params[:user_id].nil?
+      incoming_id = params[:user_id]
+      matched = incoming_id.is_a?(String) &&
+                ((session[:user].id.present? && incoming_id == session[:user].id.to_s) ||
+                 (session[:user].username.present? && incoming_id == session[:user].username.to_s))
+      unless matched
+        render status: :forbidden, json: { updated_sub: false, error: 'Unauthorized target user' }
+        return
+      end
     end
-  end
-
-  def user_matches_target?(user, target)
-    return false if user.nil? || target.nil?
-
-    target_str = target.to_s.strip
-    return false if target_str.empty?
-
-    unescaped_target = CGI.unescape(target_str) rescue target_str
-    user_id_str = user.id.to_s.strip
-    user_uname_str = user.username.to_s.strip
-
-    return true if user_id_str == target_str || user_uname_str == target_str
-    return true if user_id_str == unescaped_target || user_uname_str == unescaped_target
-
-    user_id_last = user_id_str.split('/').last
-    target_last = unescaped_target.split('/').last
-
-    return true if user_id_last.present? && user_id_last == target_last
-    return true if user_uname_str.present? && user_uname_str == target_last
-    return true if user_id_last.present? && user_id_last == target_str
-
-    false
   end
 end
