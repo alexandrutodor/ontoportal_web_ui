@@ -1,17 +1,19 @@
 class SubscriptionsController < ApplicationController
+  prepend_before_action :authorize_session_user, only: :create
 
   def create
-    # Try to get the user linked data instance
-    user_id = params[:user_id]
-    u = LinkedData::Client::Models::User.get(helpers.escape(user_id), include: 'all')
+    # Canonical actual lookup bound to authenticated identity, not incoming id
+    canonical_user_id = session[:user].id.to_s
+    canonical_user_id = session[:user].username.to_s if canonical_user_id.blank?
+    u = LinkedData::Client::Models::User.get(helpers.escape(canonical_user_id), include: 'all')
     raise Exception if u.nil?
 
     # Try to get the ontology linked data instance
     ontology_id = params[:ontology_id]
-    if ontology_id.start_with? 'http'
+    if ontology_id.to_s.start_with? 'http'
       ont = LinkedData::Client::Models::Ontology.find(ontology_id)
     else
-      ont = LinkedData::Client::Models::Ontology.find_by_acronym(ontology_id).first
+      ont = LinkedData::Client::Models::Ontology.find_by_acronym(ontology_id)&.first
     end
     raise Exception if ont.nil?
 
@@ -20,34 +22,30 @@ class SubscriptionsController < ApplicationController
     if subscribed.eql?("true")
       # Already subscribed, so this request must be a delete
       # Note that this routine removes ALL subscriptions for the ontology, regardless of type.
-      # Previous way to delete subscription: error when u.update if more than 1 subscription in the subscription array:
-      #u.subscription.delete_if {|sub| sub[:ontology].split('/').last.eql?(ont.acronym) }
-      # So here we re-generate a new subscription Array (instead of directly updating it, which causes error)
       all_subs = []
-      u.subscription.each do |subs|
-        next if subs.ontology.nil?
+      (u.subscription || []).each do |subs|
+        ont_val = subs.respond_to?(:ontology) ? subs.ontology : subs[:ontology]
+        type_val = subs.respond_to?(:notification_type) ? subs.notification_type : subs[:notification_type]
+        next if ont_val.nil?
 
         # Add all subscription to the array, but not the one to be deleted
-        if !subs.ontology.split('/').last.eql?(ont.acronym)
-          all_subs.push({ontology: subs.ontology, notification_type: subs.notification_type})
+        if !ont_val.to_s.split('/').last.eql?(ont.acronym)
+          all_subs.push({ontology: ont_val, notification_type: type_val})
         end
       end
       u.subscription = all_subs
     else
       # Not subscribed yet, so this request must be for adding subscription
-      # Old way:
-      #subscription = {ontology: ont.acronym, notification_type: "NOTES"} #NOTIFICATION_TYPES[:notes]}
-      #u.subscription.push(subscription)
-      # This way was not working, updating subscription is failing when more than 1 subscription in the array
-      # And we were updating with different types of object in the subscription array : OpenStruct and hash
-      # So we are generating an array with only hash
       already_subscribed = false
       all_subs = []
-      u.subscription.each do |subs|
-        next if subs.ontology.nil?
+      (u.subscription || []).each do |subs|
+        ont_val = subs.respond_to?(:ontology) ? subs.ontology : subs[:ontology]
+        type_val = subs.respond_to?(:notification_type) ? subs.notification_type : subs[:notification_type]
+        next if ont_val.nil?
+
         # add all existing subscriptions
-        all_subs.push({ontology: subs.ontology, notification_type: subs.notification_type})
-        if subs.ontology.split("/").last == ont.acronym && subs.notification_type == "NOTES"
+        all_subs.push({ontology: ont_val, notification_type: type_val})
+        if ont_val.to_s.split("/").last == ont.acronym && type_val == "NOTES"
           # avoid to subscribe many times to the same ontology
           already_subscribed = true
         end
@@ -61,30 +59,55 @@ class SubscriptionsController < ApplicationController
     # Try to update the user instance and the session user.
     begin
       error_response = u.update
-      if response_success?(error_response)
-        updated_sub = true
-        session[:user].subscription = u.subscription
-        #session[:user] = u
-        # NOTES:
-        # - Cannot update session[:user] as above.  The session user object is special because it only
-        #   gets set when someone logs in and the user object returned when authenticating is the
-        #   only one that will contain the api key for security reasons. So we actually need to use
-        #   the update_from_params method, can’t just set the object to the user linked data instance.
-        #
-        #session[:user].update_from_params(params[:user])
-        # update_from_params first gets all attributes from the REST service for the object being updated,
-        # then sets the values provided in the params hash where the param keys match setter names on the
-        # object (in this case, for example, :subscription would set the @subscription value on the instance).
-        # That’s all it does, no saving or anything.
-      else
-        updated_sub = false
-        #errors = response_errors(error_response)
-      end
-    rescue
+    rescue StandardError => e
+      error_response = OpenStruct.new(status: 500, errors: [e.message])
+    end
+
+    if error_response != false && !response_error?(error_response) && response_success?(error_response)
+      updated_sub = true
+      session[:user].subscription = u.subscription
+    else
       updated_sub = false
     end
 
     render :json => { :updated_sub => updated_sub, :user_subscriptions => u.subscription }
   end
 
+  private
+
+  def authorize_session_user
+    unless session[:user]
+      render status: :unauthorized, json: { updated_sub: false, error: 'Authentication required' }
+      return
+    end
+
+    incoming_id = params[:user_id]
+    if incoming_id.present? && !user_matches_target?(session[:user], incoming_id)
+      render status: :forbidden, json: { updated_sub: false, error: 'Unauthorized target user' }
+      return
+    end
+  end
+
+  def user_matches_target?(user, target)
+    return false if user.nil? || target.nil?
+
+    target_str = target.to_s.strip
+    return false if target_str.empty?
+
+    unescaped_target = CGI.unescape(target_str) rescue target_str
+    user_id_str = user.id.to_s.strip
+    user_uname_str = user.username.to_s.strip
+
+    return true if user_id_str == target_str || user_uname_str == target_str
+    return true if user_id_str == unescaped_target || user_uname_str == unescaped_target
+
+    user_id_last = user_id_str.split('/').last
+    target_last = unescaped_target.split('/').last
+
+    return true if user_id_last.present? && user_id_last == target_last
+    return true if user_uname_str.present? && user_uname_str == target_last
+    return true if user_id_last.present? && user_id_last == target_str
+
+    false
+  end
 end
