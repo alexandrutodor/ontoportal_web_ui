@@ -42,14 +42,11 @@ class SearchController < ApplicationController
       return
     end
 
-    if params[:callback].present?
+    if params.key?(:callback) || params[:response].eql?("json")
       unless valid_callback_name?(params[:callback])
         render plain: "Invalid callback", status: :bad_request
         return
       end
-    elsif params[:response].eql?("json")
-      render plain: "Invalid callback", status: :bad_request
-      return
     end
 
     query = params[:q].to_s.strip
@@ -168,9 +165,19 @@ class SearchController < ApplicationController
 
   private
 
+  JS_RESERVED_ROOTS = %w[
+    await break case catch class const continue debugger default delete do
+    else export extends false finally for function if implements import in
+    instanceof interface let new null package private protected public return
+    static super switch this throw true try typeof var void while with yield
+  ].to_set.freeze
+
   def valid_callback_name?(callback)
-    return false if callback.blank?
-    /\A[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*\z/.match?(callback)
+    return false unless callback.is_a?(String) && !callback.empty?
+    return false unless /\A[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*\z/.match?(callback)
+
+    root = callback.split(".", 2).first
+    !JS_RESERVED_ROOTS.include?(root)
   end
 
   def build_json_search_row(result, query, single_ontology)

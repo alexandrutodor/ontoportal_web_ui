@@ -106,12 +106,16 @@ class AutocompleteLabelCheck < Minitest::Test
     )
   end
 
-  def dispatch_json_search(query_string, class_results = [])
+  def dispatch_json_search(query_string_or_path, class_results = [])
     ctrl = SearchController.new
     env = ActionDispatch::TestRequest.create.env
-    uri = URI.parse("/search/json_search?#{query_string}")
+    uri = URI.parse(query_string_or_path.start_with?('/') ? query_string_or_path : "/search/json_search?#{query_string_or_path}")
     env['PATH_INFO'] = uri.path
     env['QUERY_STRING'] = uri.query || ''
+    if uri.path =~ %r{\A/search/json_search/(.+)\z}
+      id_param = Regexp.last_match(1)
+      env['action_dispatch.request.path_parameters'] = { controller: 'search', action: 'json_search', id: id_param }
+    end
     req = ActionDispatch::Request.new(env)
     res = ActionDispatch::Response.new
 
@@ -417,13 +421,20 @@ class AutocompleteLabelCheck < Minitest::Test
     assert_equal 'OldCat [obsolete]', row_obs[0]
     assert_equal CGI.escape('OldDef'), row_obs[9]
 
-    # 2. Single ontology: 8 columns
+    # 2. Single ontology: 8 columns via query id or path parameter
     _ctrl_single, res_single, _cap_single = dispatch_json_search('q=cat&response=rows&id=TEST', [cls_active])
     assert_equal 200, res_single.status
     rows_single = JSON.parse(res_single.body)
     assert_equal 1, rows_single.size
     assert_equal 8, rows_single[0].size, 'Single ontology must return exactly 8 columns'
     assert_equal CGI.escape('Def | 1. Def ~!~ 2'), rows_single[0][7], '8th column must be CGI-encoded definition'
+
+    _ctrl_path, res_path, _cap_path = dispatch_json_search('/search/json_search/TEST?q=cat&response=rows', [cls_active])
+    assert_equal 200, res_path.status
+    rows_path = JSON.parse(res_path.body)
+    assert_equal 1, rows_path.size
+    assert_equal 8, rows_path[0].size, 'Path parameter :id must return exactly 8 columns'
+    assert_equal CGI.escape('Def | 1. Def ~!~ 2'), rows_path[0][7]
   end
 
   # ===========================================================================
@@ -437,8 +448,16 @@ class AutocompleteLabelCheck < Minitest::Test
       definition: ['Def']
     )
 
-    # Valid simple and dotted identifiers
-    ['portalSuggest', 'jQuery3600123_456', 'myApp.callbacks.suggest', '$custom_cb'].each do |valid_cb|
+    # Valid simple, dotted, jQuery, and property-on-valid-root identifiers
+    [
+      'portalSuggest',
+      'jQuery3600123_456',
+      'myApp.callbacks.suggest',
+      '$custom_cb',
+      'window.portalSuggest',
+      'myApp.var',
+      'myApp.class'
+    ].each do |valid_cb|
       _ctrl, res, cap = dispatch_json_search("q=cat&response=json&callback=#{valid_cb}", [cls])
       assert_equal 200, res.status
       assert_match(%r{\Aapplication/javascript\b}, res.content_type)
@@ -449,7 +468,7 @@ class AutocompleteLabelCheck < Minitest::Test
       assert_includes res.body, "Quote\\\" \\\\ \\n 🌍"
     end
 
-    # Invalid callbacks rejected with 400 BEFORE upstream search (no API calls)
+    # Invalid callbacks and reserved-root targets rejected with 400 BEFORE upstream search (no API calls)
     [
       'alert(1)',
       '<script>alert(1)</script>',
@@ -457,12 +476,39 @@ class AutocompleteLabelCheck < Minitest::Test
       'bad"callback"',
       '123foo',
       'foo..bar',
-      'foo/bar'
+      'foo/bar',
+      'var',
+      'class',
+      'function',
+      'return',
+      'default',
+      'break',
+      'if',
+      'new',
+      'throw',
+      'this',
+      'null',
+      'true',
+      'false',
+      'var.suggest',
+      'class.foo'
     ].each do |invalid_cb|
       _ctrl, res, cap = dispatch_json_search("q=cat&response=json&callback=#{CGI.escape(invalid_cb)}", [cls])
       assert_equal 400, res.status, "Invalid callback #{invalid_cb} must be rejected with 400"
       assert_equal 'Invalid callback', res.body
       assert_empty cap, "Invalid callback #{invalid_cb} must not invoke upstream search"
+    end
+
+    # Non-scalar callback parameters (Array / Hash) rejected with 400 BEFORE upstream search (no TypeError)
+    [
+      'q=cat&response=json&callback[]=portalSuggest',
+      'q=cat&response=json&callback[x]=portalSuggest',
+      'q=cat&response=json&callback[]='
+    ].each do |non_scalar_query|
+      _ctrl, res, cap = dispatch_json_search(non_scalar_query, [cls])
+      assert_equal 400, res.status, "Non-scalar callback parameter must return 400"
+      assert_equal 'Invalid callback', res.body
+      assert_empty cap, 'Non-scalar callback parameter must not invoke upstream search'
     end
 
     # response=json without callback rejected with 400 BEFORE upstream search

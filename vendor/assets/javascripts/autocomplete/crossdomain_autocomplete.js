@@ -259,15 +259,12 @@
       };
 
       function receiveData(q, data) {
-        if (data) {
+        if (data && data.length > 0) {
           $input.removeClass(options.loadingClass);
           results.innerHTML = "";
 
           // if the field no longer has focus or if there are no matches, do not display the drop down
           if( !hasFocus ) return hideResultsNow();
-
-          if( data.length == 0 )
-            results.appendChild("<div style='padding: 5px; font-size: normal; font-style: oblique;'>No results found</div>")
 
           if ($.browser.msie && $.browser.version < 9) {
             // we put a styled iframe behind the calendar so HTML SELECT elements don't show through
@@ -280,6 +277,7 @@
         } else {
           $input.removeClass(options.loadingClass);
           results.innerHTML = "<div style='padding: 5px; font-size: normal; font-style: oblique;'>No results found</div>";
+          if( !hasFocus ) return hideResultsNow();
           showResults();
         }
       };

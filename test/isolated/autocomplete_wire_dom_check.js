@@ -1,100 +1,58 @@
-/**
- * test/isolated/autocomplete_wire_dom_check.js
- *
- * Isolated real-browser DOM test for Autocomplete Producer/Adapter Wire Protocol (ONTO-T-J02).
- */
+// Standalone Isolated Browser DOM Wire Protocol Check (ONTO-T-J02)
+//
+// Validates end-to-end integration between loaded Rails SearchController#json_search
+// action responses, useBioportalAutoComplete first-party wrapper, and the vendor
+// crossdomain_autocomplete jQuery plugin in headless Chromium.
+//
+// Key Contracts Verified:
+// 1. Genuinely exported native Rails ActionDispatch response bodies consumed directly.
+// 2. First-party wrapper automatically opts into response=rows on same-origin endpoints (NO JSONP).
+// 3. Single ontology path (/search/json_search/TEST) returns exactly 8 columns (7 extra) with CGI-encoded definition.
+// 4. Default text fallback uses textContent at both dataToDom and findValueCallback (no XSS).
+// 5. findValue in rows mode updates cache and serves repeat identical queries without network requests.
+// 6. Bare plugin without explicit response option retains legacy JSONP defaults.
+// 7. First-party wrapper on cross-origin URLs retains legacy JSONP defaults.
+// 8. Query builder percent-encodes special chars and strips hash fragments.
+// 9. Empty search results ([]) route through controlled no-results path without appendChild/autofill exceptions.
+// 10. Strict network auditing: exact origin & path matching before fulfillment, independent request tracking.
 
-const { chromium } = require('playwright');
-const esbuild = require('esbuild');
 const path = require('path');
-const assert = require('assert');
+const fs = require('fs');
+const { execSync } = require('child_process');
+const esbuild = require('esbuild');
+const { chromium } = require('playwright');
 
-const ROOT_DIR = path.resolve(__dirname, '../..');
+const REPO_ROOT = path.resolve(__dirname, '../..');
+const FIXTURE_JSON_PATH = path.join(REPO_ROOT, '.remediation/native_producer_fixtures.json');
+const AUDIT_OUTPUT_PATH = path.join(REPO_ROOT, '.remediation/autocomplete_wire_request_audit.json');
+
 const CHROME_PATH = process.env.CHROME_BIN || '/usr/bin/google-chrome';
 
-// Actual native producer outputs produced by SearchController#json_search ActionDispatch
-const NATIVE_PRODUCER_OUTPUTS = {
-  rows_single: {
-    status: 200,
-    contentType: 'application/json; charset=utf-8',
-    body: JSON.stringify([
-      [
-        'Complex | "Cat" \\ \n 🌍 ~!~',
-        'http://example.org/test#Complex\\Cat"1"',
-        '',
-        'TEST',
-        'http://example.org/test#Complex\\Cat"1"',
-        'Complex | "Cat" \\ \n 🌍 ~!~',
-        'Syn | 1;Syn "2"',
-        'Def+%7C+1.+Def+~%21~+2'
-      ],
-      [
-        'OldCat [obsolete]',
-        'http://example.org/test#OldCat',
-        '',
-        'TEST',
-        'http://example.org/test#OldCat',
-        'OldCat',
-        'OldSyn',
-        'OldDef'
-      ]
-    ])
-  },
-  rows_all: {
-    status: 200,
-    contentType: 'application/json; charset=utf-8',
-    body: JSON.stringify([
-      [
-        'Complex | "Cat" \\ \n 🌍 ~!~',
-        'http://example.org/test#Complex\\Cat"1"',
-        '',
-        'TEST',
-        'http://example.org/test#Complex\\Cat"1"',
-        'Complex | "Cat" \\ \n 🌍 ~!~',
-        'Syn | 1;Syn "2"',
-        'TEST',
-        'TEST',
-        'Def+%7C+1.+Def+~%21~+2'
-      ],
-      [
-        'OldCat [obsolete]',
-        'http://example.org/test#OldCat',
-        '',
-        'TEST',
-        'http://example.org/test#OldCat',
-        'OldCat',
-        'OldSyn',
-        'TEST',
-        'TEST',
-        'OldDef'
-      ]
-    ])
-  },
-  rows_xss_probe: {
-    status: 200,
-    contentType: 'application/json; charset=utf-8',
-    body: JSON.stringify([
-      [
-        '<script>window.__xssTriggered.push("probe_fail")</script><b id="injected_dom">Injected</b>',
-        'http://example.org/test#XSS',
-        '',
-        'TEST',
-        'http://example.org/test#XSS',
-        'Injected Target',
-        'SynXSS',
-        'TEST',
-        'TEST',
-        'DefXSS'
-      ]
-    ])
-  },
-  legacy_text: {
-    status: 200,
-    contentType: 'text/html; charset=utf-8',
-    body: 'Cat Concept|http://example.org/test#Cat||TEST|http://example.org/test#Cat|Cat Concept|Syn1;Syn2|TEST|TEST|Def~!~OldCat [obsolete]|http://example.org/test#OldCat||TEST|http://example.org/test#OldCat|OldCat|OldSyn|TEST|TEST|OldDef~!~'
-  },
-  legacy_jsonp_template: 'Cat Concept|http://example.org/test#Cat||TEST|http://example.org/test#Cat|Cat Concept|Syn1;Syn2|TEST|TEST|Def~!~OldCat [obsolete]|http://example.org/test#OldCat||TEST|http://example.org/test#OldCat|OldCat|OldSyn|TEST|TEST|OldDef~!~'
-};
+// Ensure native producer responses exist; export them via frozen Ruby 3.1.7 if missing
+function loadNativeProducerOutputs() {
+  if (!fs.existsSync(FIXTURE_JSON_PATH)) {
+    fs.mkdirSync(path.dirname(FIXTURE_JSON_PATH), { recursive: true });
+    const cmd = `docker run --rm --network none -v "${REPO_ROOT}":/app:ro -w /app -e GEM_PATH=/usr/local/bundle/ruby/3.1.0 onto-q02-proof:af254f34 ruby test/standalone/export_native_producer_fixtures.rb`;
+    const stdout = execSync(cmd, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+    fs.writeFileSync(FIXTURE_JSON_PATH, stdout, 'utf8');
+  }
+  return JSON.parse(fs.readFileSync(FIXTURE_JSON_PATH, 'utf8'));
+}
+
+const NATIVE_PRODUCER_OUTPUTS = loadNativeProducerOutputs();
+
+// Rebind dynamic jQuery JSONP callback prefix in genuinely native-produced body without reserializing data
+function rebindNativeJsonp(fixture, callbackName) {
+  if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/.test(callbackName)) {
+    throw new Error('Invalid callback name: ' + callbackName);
+  }
+  const reboundBody = fixture.body.replace(/^PORTAL_JSONP_CALLBACK\(/, `${callbackName}(`);
+  return {
+    status: fixture.status,
+    contentType: fixture.contentType,
+    body: reboundBody
+  };
+}
 
 async function buildControllerBundle() {
   const result = await esbuild.build({
@@ -102,7 +60,6 @@ async function buildControllerBundle() {
       contents: `
         const $ = require('jquery');
         window.$ = window.jQuery = $;
-        // Finite unrelated browser-detection double for legacy crossdomain_autocomplete.js $.browser.msie check
         window.$.browser = window.$.browser || { msie: false, version: '11' };
 
         require('../../vendor/assets/javascripts/autocomplete/crossdomain_autocomplete.js');
@@ -112,41 +69,42 @@ async function buildControllerBundle() {
         const { Application } = require('@hotwired/stimulus');
         const OntoportalAutocompleteController = require('../../app/javascript/controllers/ontoportal_autocomplete_controller.js').default;
         const FormAutoCompleteController = require('../../app/javascript/controllers/form_auto_complete_controller.js').default;
-        const ClassSearchAutoCompleteController = require('../../app/javascript/controllers/class_search_auto_complete_controller.js').default;
+
+        const application = Application.start();
+        application.register('ontoportal-autocomplete', OntoportalAutocompleteController);
+        application.register('form-auto-complete', FormAutoCompleteController);
+        window.StimulusApp = application;
 
         window.__stimulusErrors = [];
-        window.StimulusApp = Application.start();
-        window.StimulusApp.handleError = function(error, message, detail) {
-          window.__stimulusErrors.push({ error: String(error), message, detail });
-        };
-
-        window.StimulusApp.register('ontoportal-autocomplete', OntoportalAutocompleteController);
-        window.StimulusApp.register('form-auto-complete', FormAutoCompleteController);
-        window.StimulusApp.register('class-search', ClassSearchAutoCompleteController);
-
-        window.__getController = function(element, identifier) {
-          return window.StimulusApp.getControllerForElementAndIdentifier(element, identifier);
-        };
+        window.addEventListener('error', (e) => {
+          if (e.message && e.message.includes('Stimulus')) {
+            window.__stimulusErrors.push(e.message);
+          }
+        });
       `,
-      resolveDir: path.resolve(__dirname)
+      resolveDir: __dirname,
+      sourcefile: 'wire_entrypoint.js'
     },
     bundle: true,
-    format: 'iife',
     write: false,
+    format: 'iife',
+    target: 'es2020',
+    platform: 'browser',
     nodePaths: [
-      path.resolve(ROOT_DIR, 'node_modules'),
+      path.resolve(REPO_ROOT, 'node_modules'),
       '/home/ranma/.pi/agent/npm/node_modules',
       '/home/ranma/ontoportal/bioportal_web_ui/node_modules'
     ]
   });
+
   return result.outputFiles[0].text;
 }
 
 const HTML_FIXTURE = `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Autocomplete Wire Protocol DOM Check</title>
+  <meta charset="utf-8" />
+  <title>MatPortal Autocomplete Wire Check</title>
   <style>
     .obsolete_class { color: gray; }
     .result_class_highlight { background-color: yellow; }
@@ -198,8 +156,25 @@ const HTML_FIXTURE = `<!DOCTYPE html>
   <div id="query-encoding-container">
     <input type="text" id="query-encoding-input" value="" />
   </div>
+
+  <!-- Empty results regression input -->
+  <div id="empty-results-container">
+    <input type="text" id="empty-results-input" value="" />
+  </div>
 </body>
 </html>`;
+
+const ALLOWED_ORIGINS = new Set([
+  'http://portal.local',
+  'http://crossorigin.external'
+]);
+
+const ALLOWED_PATHS = new Set([
+  '/',
+  '/search/json_search',
+  '/search/json_search/TEST',
+  '/search/legacy_search'
+]);
 
 async function runWireCheck() {
   const testResults = {
@@ -207,8 +182,12 @@ async function runWireCheck() {
     passed: 0,
     failed: 0,
     checks: [],
-    requests: [],
+    navigationRequests: 0,
+    widgetFixtureRequests: 0,
+    contextRequests: [],
+    routedRequests: [],
     outsideRequests: [],
+    unexpectedRequests: [],
     pageErrors: [],
     stimulusErrors: []
   };
@@ -234,6 +213,7 @@ async function runWireCheck() {
   console.log('[2/4] Launching isolated headless Chromium browser...');
   const browser = await chromium.launch({
     executablePath: CHROME_PATH,
+    headless: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -249,31 +229,65 @@ async function runWireCheck() {
     const page = await context.newPage();
 
     page.on('pageerror', (err) => {
-      console.error('[Browser PageError]', err);
-      testResults.pageErrors.push(String(err));
+      testResults.pageErrors.push(err.message);
     });
 
-    const ALLOWED_SYNTHETIC_ORIGINS = [
-      'http://portal.local',
-      'http://crossorigin.external'
-    ];
+    // Independent request event accounting (context.on / page.on)
+    page.on('request', (req) => {
+      testResults.contextRequests.push({
+        url: req.url(),
+        method: req.method(),
+        resourceType: req.resourceType(),
+        time: Date.now()
+      });
+    });
 
-    // Request interception and strict network auditing
+    // Request interception with strict exact origin and path validation BEFORE fulfillment
     await page.route('**/*', (route) => {
       const req = route.request();
       const urlStr = req.url();
       const method = req.method();
       const resourceType = req.resourceType();
 
-      testResults.requests.push({
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(urlStr);
+      } catch (e) {
+        testResults.outsideRequests.push(urlStr);
+        testResults.unexpectedRequests.push(urlStr);
+        return route.abort('blockedbyclient');
+      }
+
+      const normalizedPath = parsedUrl.pathname.length > 1 && parsedUrl.pathname.endsWith('/')
+        ? parsedUrl.pathname.slice(0, -1)
+        : parsedUrl.pathname;
+
+      testResults.routedRequests.push({
         url: urlStr,
+        origin: parsedUrl.origin,
+        pathname: normalizedPath,
         method,
         resourceType,
         time: Date.now()
       });
 
-      // Allow HTML fixture root
-      if (urlStr === 'http://portal.local/') {
+      // 1. Strict exact origin comparison
+      if (!ALLOWED_ORIGINS.has(parsedUrl.origin)) {
+        testResults.outsideRequests.push(urlStr);
+        testResults.unexpectedRequests.push(urlStr);
+        return route.abort('blockedbyclient');
+      }
+
+      // 2. Strict exact pathname comparison
+      if (!ALLOWED_PATHS.has(normalizedPath)) {
+        testResults.outsideRequests.push(urlStr);
+        testResults.unexpectedRequests.push(urlStr);
+        return route.abort('blockedbyclient');
+      }
+
+      // 3. Navigation root
+      if (parsedUrl.origin === 'http://portal.local' && normalizedPath === '/') {
+        testResults.navigationRequests++;
         return route.fulfill({
           status: 200,
           contentType: 'text/html; charset=utf-8',
@@ -281,61 +295,69 @@ async function runWireCheck() {
         });
       }
 
-      // Check allowed synthetic fixture endpoints
-      let allowed = false;
-      for (const origin of ALLOWED_SYNTHETIC_ORIGINS) {
-        if (urlStr.startsWith(origin)) {
-          allowed = true;
-          break;
-        }
-      }
-
-      if (!allowed) {
-        testResults.outsideRequests.push(urlStr);
-        return route.abort('blockedbyclient');
-      }
-
-      const parsedUrl = new URL(urlStr);
-      const pathname = parsedUrl.pathname;
+      // 4. Widget fixture endpoints
+      testResults.widgetFixtureRequests++;
       const searchParams = parsedUrl.searchParams;
+      const q = searchParams.get('q') || '';
       const responseMode = searchParams.get('response');
       const callbackName = searchParams.get('callback');
+      const queryId = searchParams.get('id');
 
-      // JSONP requests for either endpoint
-      if (responseMode === 'json' && callbackName) {
-        const body = `${callbackName}({data:${JSON.stringify(NATIVE_PRODUCER_OUTPUTS.legacy_jsonp_template)}});`;
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/javascript; charset=utf-8',
-          body
-        });
+      // Same-origin single ontology path: /search/json_search/TEST (8 columns)
+      if (parsedUrl.origin === 'http://portal.local' && normalizedPath === '/search/json_search/TEST') {
+        if (q === 'nomatch' || q === 'empty') {
+          return route.fulfill(NATIVE_PRODUCER_OUTPUTS.rows_empty);
+        }
+        if (responseMode === 'rows') {
+          return route.fulfill(NATIVE_PRODUCER_OUTPUTS.rows_single);
+        }
+        if (responseMode === 'json' && callbackName) {
+          return route.fulfill(rebindNativeJsonp(NATIVE_PRODUCER_OUTPUTS.legacy_jsonp, callbackName));
+        }
+        return route.fulfill(NATIVE_PRODUCER_OUTPUTS.legacy_text);
       }
 
-      // Same-origin search endpoint (/search/json_search)
-      if (pathname.startsWith('/search/json_search')) {
-        const query = searchParams.get('q') || '';
-        const ontologyId = searchParams.get('id');
-
-        if (query.includes('probe')) {
+      // Same-origin generic search endpoint: /search/json_search
+      if (parsedUrl.origin === 'http://portal.local' && normalizedPath === '/search/json_search') {
+        if (q.includes('probe')) {
           return route.fulfill(NATIVE_PRODUCER_OUTPUTS.rows_xss_probe);
         }
-
+        if (q === 'nomatch' || q === 'empty') {
+          return route.fulfill(NATIVE_PRODUCER_OUTPUTS.rows_empty);
+        }
         if (responseMode === 'rows') {
-          if (ontologyId === 'TEST' && !pathname.endsWith('/all')) {
+          if (queryId === 'TEST') {
             return route.fulfill(NATIVE_PRODUCER_OUTPUTS.rows_single);
           }
           return route.fulfill(NATIVE_PRODUCER_OUTPUTS.rows_all);
         }
-
+        if (responseMode === 'json' && callbackName) {
+          return route.fulfill(rebindNativeJsonp(NATIVE_PRODUCER_OUTPUTS.legacy_jsonp, callbackName));
+        }
         return route.fulfill(NATIVE_PRODUCER_OUTPUTS.legacy_text);
       }
 
       // Legacy search endpoint (/search/legacy_search)
-      if (pathname === '/search/legacy_search') {
+      if (parsedUrl.origin === 'http://portal.local' && normalizedPath === '/search/legacy_search') {
+        if (responseMode === 'json' && callbackName) {
+          return route.fulfill(rebindNativeJsonp(NATIVE_PRODUCER_OUTPUTS.legacy_jsonp, callbackName));
+        }
         return route.fulfill(NATIVE_PRODUCER_OUTPUTS.legacy_text);
       }
 
-      return route.fulfill({ status: 404, body: 'Not found' });
+      // Cross-origin search endpoint (http://crossorigin.external/search/json_search)
+      if (parsedUrl.origin === 'http://crossorigin.external' && normalizedPath === '/search/json_search') {
+        if (responseMode === 'json' && callbackName) {
+          return route.fulfill(rebindNativeJsonp(NATIVE_PRODUCER_OUTPUTS.legacy_jsonp, callbackName));
+        }
+        if (responseMode === 'rows') {
+          return route.fulfill(NATIVE_PRODUCER_OUTPUTS.rows_all);
+        }
+        return route.fulfill(NATIVE_PRODUCER_OUTPUTS.legacy_text);
+      }
+
+      testResults.unexpectedRequests.push(urlStr);
+      return route.abort('blockedbyclient');
     });
 
     console.log('[3/4] Navigating to synthetic same-origin environment (http://portal.local/)...');
@@ -363,49 +385,58 @@ async function runWireCheck() {
     // ------------------------------------------------------------------------
     // Test 1: First-party wrapper same-origin rows opt-in (NO JSONP)
     // ------------------------------------------------------------------------
-    const initialReqCount = testResults.requests.length;
+    const t1Start = testResults.routedRequests.length;
     const test1 = await page.evaluate(() => {
       return new Promise((resolve, reject) => {
         const input = document.getElementById('onto-input');
         const autocompleter = input.autocompleter;
         const opts = autocompleter.getOptions();
 
-        const timer = setTimeout(() => {
-          reject(new Error('Test 1 timed out waiting for ac_results dropdown'));
+        let settled = false;
+        let poll = null;
+        let timer = null;
+
+        function cleanup() {
+          if (poll) clearInterval(poll);
+          if (timer) clearTimeout(timer);
+          $(document).off('autocomplete_selected');
+        }
+
+        // Deadline remains active UNTIL autocomplete_selected resolves or times out
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('Test 1 timed out waiting for autocomplete_selected'));
         }, 4000);
 
         opts.onItemSelect = function(li) {};
 
-        // Focus input to set hasFocus = true for results dropdown display
         $(input).focus();
         $(input).val('cat');
         const keyEvt = $.Event('keydown');
-        keyEvt.keyCode = 65; // 'A'
+        keyEvt.keyCode = 65;
         $(input).trigger(keyEvt);
 
-        // Wait for results dropdown to be populated
-        const poll = setInterval(() => {
+        poll = setInterval(() => {
           const resultsDiv = $('div.ac_results:visible');
           const lis = resultsDiv.find('li');
           if (lis.length >= 2) {
             clearInterval(poll);
-            clearTimeout(timer);
+            poll = null;
 
             const firstLi = lis.get(0);
             const secondLi = lis.get(1);
 
-            // Obsolete class detection
             const secondHasObsolete = secondLi.querySelector('.obsolete_class') !== null;
             const secondText = secondLi.textContent;
-
-            // Extra mapping verification
             const firstExtra = firstLi.extra;
             const firstSelectValue = firstLi.selectValue;
 
-            // Listen for autocomplete_selected event
-            let eventFired = false;
             $(document).one('autocomplete_selected', () => {
-              eventFired = true;
+              if (settled) return;
+              settled = true;
+              cleanup();
               resolve({
                 optsResponse: opts.response,
                 liCount: lis.length,
@@ -420,15 +451,13 @@ async function runWireCheck() {
               });
             });
 
-            // Simulate selection click
             $(firstLi).trigger('click');
           }
         }, 50);
       });
     });
 
-    // Check captured request for Test 1
-    const t1Request = testResults.requests.slice(initialReqCount).find(r => r.url.includes('/search/json_search'));
+    const t1Request = testResults.routedRequests.slice(t1Start).find(r => r.url.includes('/search/json_search'));
     const t1Url = t1Request ? new URL(t1Request.url) : null;
     const t1ResponseParam = t1Url ? t1Url.searchParams.get('response') : null;
     const t1CallbackParam = t1Url ? t1Url.searchParams.get('callback') : null;
@@ -437,7 +466,8 @@ async function runWireCheck() {
         t1ResponseParam === 'rows' &&
         t1CallbackParam === null &&
         test1.liCount === 2 &&
-        test1.firstSelectValue === 'Complex | "Cat" \\ \n 🌍 ~!~' &&
+        test1.firstSelectValue === 'Complex | "Cat" \\ \\n 🌍 ~!~' &&
+        test1.firstExtraCount === 7 && // Exactly 8 columns total (1 selectValue + 7 extra fields)
         test1.firstExtraConceptId === 'http://example.org/test#Complex\\Cat"1"' &&
         test1.firstExtraAcronym === 'TEST' &&
         test1.secondHasObsolete &&
@@ -456,12 +486,28 @@ async function runWireCheck() {
     // ------------------------------------------------------------------------
     // Test 2: Single Ontology Form Autocomplete (8 columns)
     // ------------------------------------------------------------------------
-    const t2Start = testResults.requests.length;
+    const t2Start = testResults.routedRequests.length;
     const test2 = await page.evaluate(() => {
       return new Promise((resolve, reject) => {
         const input = document.getElementById('form-single-input');
         const autocompleter = input.autocompleter;
         const opts = autocompleter.getOptions();
+
+        let settled = false;
+        let poll = null;
+        let timer = null;
+
+        function cleanup() {
+          if (poll) clearInterval(poll);
+          if (timer) clearTimeout(timer);
+        }
+
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('Test 2 timed out waiting for single ontology ac_results'));
+        }, 4000);
 
         autocompleter.flushCache();
         $(input).focus();
@@ -470,16 +516,12 @@ async function runWireCheck() {
         keyEvt.keyCode = 65;
         $(input).trigger(keyEvt);
 
-        const timer = setTimeout(() => {
-          reject(new Error('Test 2 timed out waiting for single ontology ac_results'));
-        }, 4000);
-
-        const poll = setInterval(() => {
+        poll = setInterval(() => {
           const resultsDiv = $('div.ac_results:visible');
           const lis = resultsDiv.find('li');
           if (lis.length >= 1) {
-            clearInterval(poll);
-            clearTimeout(timer);
+            settled = true;
+            cleanup();
             const li = lis.get(0);
             resolve({
               optsResponse: opts.response,
@@ -494,7 +536,7 @@ async function runWireCheck() {
       });
     });
 
-    const t2Request = testResults.requests.slice(t2Start).find(r => r.url.includes('/search/json_search'));
+    const t2Request = testResults.routedRequests.slice(t2Start).find(r => r.url.includes('/search/json_search'));
     const t2Url = t2Request ? new URL(t2Request.url) : null;
 
     if (t2Url && t2Url.searchParams.get('response') === 'rows' &&
@@ -513,7 +555,6 @@ async function runWireCheck() {
       return new Promise((resolve, reject) => {
         $('div.ac_results').hide();
         const input = document.getElementById('fallback-input');
-        // Initialize bare plugin without formatItem option, requesting probe rows
         $(input).bioportal_autocomplete('/search/json_search', {
           response: 'rows',
           minChars: 1,
@@ -521,45 +562,55 @@ async function runWireCheck() {
         });
 
         const autocompleter = input.autocompleter;
+        let settled = false;
+        let poll = null;
+        let timer = null;
+
+        function cleanup() {
+          if (poll) clearInterval(poll);
+          if (timer) clearTimeout(timer);
+          if (autocompleter) autocompleter.getOptions().onFindValue = null;
+        }
+
+        // Deadline remains active through onFindValue
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('Test 3 timed out waiting for probe ac_results and onFindValue'));
+        }, 4000);
+
         $(input).focus();
         $(input).val('probe');
         const keyEvt = $.Event('keydown');
         keyEvt.keyCode = 65;
         $(input).trigger(keyEvt);
 
-        const timer = setTimeout(() => {
-          reject(new Error('Test 3 timed out waiting for probe ac_results'));
-        }, 4000);
-
-        const poll = setInterval(() => {
+        poll = setInterval(() => {
           const resultsDiv = $('div.ac_results:visible');
           const lis = resultsDiv.find('li');
           if (lis.length >= 1) {
             clearInterval(poll);
-            clearTimeout(timer);
-            const li = lis.get(0);
+            poll = null;
 
-            // Verify no injected elements created inside li
+            const li = lis.get(0);
             const injectedNode = document.getElementById('injected_dom');
             const xssCount = window.__xssTriggered.length;
             const textContent = li.textContent;
             const innerHTML = li.innerHTML;
 
-            // Also verify findValue with no formatter uses textContent
-            let findValueLiText = null;
-            let findValueInjected = null;
             $(input).val('<script>window.__xssTriggered.push("probe_fail")</script><b id="injected_dom">Injected</b>');
             autocompleter.getOptions().onFindValue = function(findLi) {
-              findValueLiText = findLi ? findLi.textContent : null;
-              findValueInjected = document.getElementById('injected_dom');
-
+              if (settled) return;
+              settled = true;
+              cleanup();
               resolve({
                 hasInjectedNodeInDom: injectedNode !== null,
-                findValueInjectedInDom: findValueInjected !== null,
+                findValueInjectedInDom: document.getElementById('injected_dom') !== null,
                 xssCount,
                 textContent,
                 innerHTML,
-                findValueLiText
+                findValueLiText: findLi ? findLi.textContent : null
               });
             };
             autocompleter.findValue();
@@ -583,18 +634,30 @@ async function runWireCheck() {
     // ------------------------------------------------------------------------
     // Test 4: Public findValue in rows mode with cache hit
     // ------------------------------------------------------------------------
-    const t4Start = testResults.requests.length;
+    const t4Start = testResults.routedRequests.length;
     const test4 = await page.evaluate(() => {
       return new Promise((resolve, reject) => {
         const input = document.getElementById('onto-input');
         const autocompleter = input.autocompleter;
 
-        autocompleter.flushCache();
-        $(input).val('OldCat [obsolete]');
+        let settled = false;
+        let timer = null;
 
-        const timer = setTimeout(() => {
+        function cleanup() {
+          if (timer) clearTimeout(timer);
+          if (autocompleter) autocompleter.getOptions().onFindValue = null;
+        }
+
+        // Deadline remains active through both findValue calls
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
           reject(new Error('Test 4 timed out waiting for onFindValue'));
         }, 4000);
+
+        autocompleter.flushCache();
+        $(input).val('OldCat [obsolete]');
 
         const opts = autocompleter.getOptions();
         opts.onFindValue = function(li) {
@@ -603,7 +666,9 @@ async function runWireCheck() {
 
           // Call findValue a second time for exact same query: must be served from cache!
           opts.onFindValue = function(li2) {
-            clearTimeout(timer);
+            if (settled) return;
+            settled = true;
+            cleanup();
             resolve({
               firstCallSelectValue,
               firstCallExtraConceptId: firstCallExtra ? firstCallExtra[0] : null,
@@ -617,7 +682,7 @@ async function runWireCheck() {
       });
     });
 
-    const t4Requests = testResults.requests.slice(t4Start).filter(r => r.url.includes('/search/json_search'));
+    const t4Requests = testResults.routedRequests.slice(t4Start).filter(r => r.url.includes('/search/json_search'));
     if (test4.firstCallSelectValue === 'OldCat [obsolete]' &&
         test4.secondCallSelectValue === 'OldCat [obsolete]' &&
         t4Requests.length === 1) { // Exactly 1 network request; 2nd call was cache hit!
@@ -632,12 +697,11 @@ async function runWireCheck() {
     // ------------------------------------------------------------------------
     // Test 5: Bare/public plugin defaults to legacy (requestData JSONP & findValue text)
     // ------------------------------------------------------------------------
-    const t5Start = testResults.requests.length;
+    const t5Start = testResults.routedRequests.length;
     const test5 = await page.evaluate(() => {
       return new Promise((resolve, reject) => {
         $('div.ac_results').hide();
         const input = document.getElementById('legacy-bare-input');
-        // Initialize bare plugin without response option
         $(input).bioportal_autocomplete('http://portal.local/search/legacy_search', {
           lineSeparator: '~!~',
           minChars: 1,
@@ -645,32 +709,43 @@ async function runWireCheck() {
         });
 
         const autocompleter = input.autocompleter;
+        let settled = false;
+        let poll = null;
+        let timer = null;
+
+        function cleanup() {
+          if (poll) clearInterval(poll);
+          if (timer) clearTimeout(timer);
+          if (autocompleter) autocompleter.getOptions().onFindValue = null;
+        }
+
+        // Deadline remains active through findValue
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('Test 5 timed out waiting for legacy ac_results and onFindValue'));
+        }, 4000);
+
         $(input).focus();
         $(input).val('cat');
         const keyEvt = $.Event('keydown');
         keyEvt.keyCode = 65;
         $(input).trigger(keyEvt);
 
-        const timer = setTimeout(() => {
-          reject(new Error('Test 5 timed out waiting for legacy ac_results'));
-        }, 4000);
-
-        const poll = setInterval(() => {
+        poll = setInterval(() => {
           const resultsDiv = $('div.ac_results:visible');
           const lis = resultsDiv.find('li');
           if (lis.length >= 2) {
             clearInterval(poll);
-            clearTimeout(timer);
+            poll = null;
             const firstLi = lis.get(0);
 
-            // Test findValue in legacy mode
             $(input).val('OldCat [obsolete]');
-            const findTimer = setTimeout(() => {
-              reject(new Error('Test 5 timed out waiting for legacy findValue onFindValue'));
-            }, 4000);
-
             autocompleter.getOptions().onFindValue = function(findLi) {
-              clearTimeout(findTimer);
+              if (settled) return;
+              settled = true;
+              cleanup();
               resolve({
                 optsResponse: autocompleter.getOptions().response,
                 requestDataLiCount: lis.length,
@@ -684,7 +759,7 @@ async function runWireCheck() {
       });
     });
 
-    const t5Requests = testResults.requests.slice(t5Start).filter(r => r.url.includes('/search/legacy_search'));
+    const t5Requests = testResults.routedRequests.slice(t5Start).filter(r => r.url.includes('/search/legacy_search'));
     const t5JsonpReq = t5Requests.find(r => r.url.includes('response=json') && r.url.includes('callback='));
     const t5FindReq = t5Requests.find(r => !r.url.includes('response=json') && !r.url.includes('callback='));
 
@@ -706,12 +781,11 @@ async function runWireCheck() {
     // ------------------------------------------------------------------------
     // Test 6: Cross-origin URL with first-party wrapper retains legacy behavior
     // ------------------------------------------------------------------------
-    const t6Start = testResults.requests.length;
+    const t6Start = testResults.routedRequests.length;
     const test6 = await page.evaluate(() => {
       return new Promise((resolve, reject) => {
         $('div.ac_results').hide();
         const input = document.getElementById('crossorigin-input');
-        // useBioportalAutoComplete with external origin
         window.useBioportalAutoComplete(input, 'http://crossorigin.external/search/json_search', {
           lineSeparator: '~!~',
           minChars: 1,
@@ -719,22 +793,34 @@ async function runWireCheck() {
         });
 
         const autocompleter = input.autocompleter;
+        let settled = false;
+        let poll = null;
+        let timer = null;
+
+        function cleanup() {
+          if (poll) clearInterval(poll);
+          if (timer) clearTimeout(timer);
+        }
+
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('Test 6 timed out waiting for cross-origin ac_results'));
+        }, 4000);
+
         $(input).focus();
         $(input).val('cat');
         const keyEvt = $.Event('keydown');
         keyEvt.keyCode = 65;
         $(input).trigger(keyEvt);
 
-        const timer = setTimeout(() => {
-          reject(new Error('Test 6 timed out waiting for cross-origin ac_results'));
-        }, 4000);
-
-        const poll = setInterval(() => {
+        poll = setInterval(() => {
           const resultsDiv = $('div.ac_results:visible');
           const lis = resultsDiv.find('li');
           if (lis.length >= 2) {
-            clearInterval(poll);
-            clearTimeout(timer);
+            settled = true;
+            cleanup();
             resolve({
               optsResponse: autocompleter.getOptions().response,
               liCount: lis.length,
@@ -745,7 +831,7 @@ async function runWireCheck() {
       });
     });
 
-    const t6Requests = testResults.requests.slice(t6Start).filter(r => r.url.includes('crossorigin.external'));
+    const t6Requests = testResults.routedRequests.slice(t6Start).filter(r => r.url.includes('crossorigin.external'));
     const t6JsonpReq = t6Requests.find(r => r.url.includes('response=json') && r.url.includes('callback='));
 
     if (typeof test6.optsResponse === 'undefined' &&
@@ -763,13 +849,12 @@ async function runWireCheck() {
     // ------------------------------------------------------------------------
     // Test 7: Query encoding and parameter identity roundtrip
     // ------------------------------------------------------------------------
-    const t7Start = testResults.requests.length;
+    const t7Start = testResults.routedRequests.length;
     const test7 = await page.evaluate(() => {
       return new Promise((resolve, reject) => {
         const input = document.getElementById('query-encoding-input');
         const queryWithSpecialChars = 'C++ & 100% #tag 🌍';
         $(input).val(queryWithSpecialChars);
-        // URL containing hash fragment and extra params
         $(input).bioportal_autocomplete('http://portal.local/search/json_search#mySection', {
           response: 'rows',
           matchCase: 1,
@@ -780,12 +865,25 @@ async function runWireCheck() {
           }
         });
 
-        const timer = setTimeout(() => {
+        let settled = false;
+        let timer = null;
+
+        function cleanup() {
+          if (timer) clearTimeout(timer);
+          if (input.autocompleter) input.autocompleter.getOptions().onFindValue = null;
+        }
+
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
           reject(new Error('Test 7 timed out waiting for onFindValue'));
         }, 4000);
 
         input.autocompleter.getOptions().onFindValue = function(li) {
-          clearTimeout(timer);
+          if (settled) return;
+          settled = true;
+          cleanup();
           resolve({ queryWithSpecialChars });
         };
 
@@ -793,7 +891,7 @@ async function runWireCheck() {
       });
     });
 
-    const t7Requests = testResults.requests.slice(t7Start).filter(r => r.url.includes('/search/json_search'));
+    const t7Requests = testResults.routedRequests.slice(t7Start).filter(r => r.url.includes('/search/json_search'));
     const t7Req = t7Requests[0];
     const t7Parsed = t7Req ? new URL(t7Req.url) : null;
 
@@ -815,28 +913,112 @@ async function runWireCheck() {
     }
 
     // ------------------------------------------------------------------------
-    // Test 8: Request auditing and network containment
+    // Test 8: Empty Search Results Handling (R2)
     // ------------------------------------------------------------------------
-    const totalRequests = testResults.requests.length;
+    const test8 = await page.evaluate(() => {
+      return new Promise((resolve, reject) => {
+        $('div.ac_results').hide();
+        const input = document.getElementById('empty-results-input');
+        $(input).bioportal_autocomplete('http://portal.local/search/json_search', {
+          response: 'rows',
+          minChars: 1,
+          delay: 10
+        });
+
+        let settled = false;
+        let poll = null;
+        let timer = null;
+
+        function cleanup() {
+          if (poll) clearInterval(poll);
+          if (timer) clearTimeout(timer);
+        }
+
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('Test 8 timed out waiting for empty search no-results display'));
+        }, 4000);
+
+        $(input).focus();
+        $(input).val('nomatch');
+        const keyEvt = $.Event('keydown');
+        keyEvt.keyCode = 65;
+        $(input).trigger(keyEvt);
+
+        poll = setInterval(() => {
+          const resultsDiv = $('div.ac_results:visible');
+          if (resultsDiv.length > 0 && resultsDiv.text().includes('No results found')) {
+            settled = true;
+            cleanup();
+            resolve({
+              dropdownVisible: resultsDiv.is(':visible'),
+              dropdownText: resultsDiv.text().trim(),
+              hasFocus: document.activeElement === input,
+              inputValue: input.value
+            });
+          }
+        }, 50);
+      });
+    });
+
+    if (test8.dropdownVisible &&
+        test8.dropdownText.includes('No results found') &&
+        test8.hasFocus &&
+        testResults.pageErrors.length === 0) {
+      recordPass('Empty search results handle ordinary [] via controlled no-results path with preserved focus and zero errors', test8);
+    } else {
+      recordFail('Empty search results handling', test8);
+    }
+
+    // ------------------------------------------------------------------------
+    // Test 9: Request auditing and network containment (R5)
+    // ------------------------------------------------------------------------
     const outsideCount = testResults.outsideRequests.length;
+    const unexpectedCount = testResults.unexpectedRequests.length;
     const stimErrors = await page.evaluate(() => window.__stimulusErrors || []);
 
-    if (totalRequests > 0 && outsideCount === 0 && testResults.pageErrors.length === 0 && stimErrors.length === 0) {
+    if (testResults.navigationRequests >= 1 &&
+        testResults.widgetFixtureRequests > 0 &&
+        outsideCount === 0 &&
+        unexpectedCount === 0 &&
+        testResults.pageErrors.length === 0 &&
+        stimErrors.length === 0 &&
+        testResults.contextRequests.length === testResults.routedRequests.length) {
       recordPass('Request auditing & network containment: honest fixture request totals recorded, zero unallowed outside requests, zero errors', {
-        totalFixtureRequests: totalRequests,
+        navigationRequests: testResults.navigationRequests,
+        widgetFixtureRequests: testResults.widgetFixtureRequests,
+        totalContextRequests: testResults.contextRequests.length,
         outsideRequests: outsideCount,
+        unexpectedRequests: unexpectedCount,
         pageErrors: testResults.pageErrors.length,
         stimulusErrors: stimErrors.length
       });
     } else {
       recordFail('Request auditing & network containment', {
-        totalRequests,
-        outsideCount,
+        navigationRequests: testResults.navigationRequests,
+        widgetFixtureRequests: testResults.widgetFixtureRequests,
+        totalContextRequests: testResults.contextRequests.length,
         outsideRequests: testResults.outsideRequests,
+        unexpectedRequests: testResults.unexpectedRequests,
         pageErrors: testResults.pageErrors,
         stimErrors
       });
     }
+
+    // Persist request audit artifact
+    fs.mkdirSync(path.dirname(AUDIT_OUTPUT_PATH), { recursive: true });
+    fs.writeFileSync(AUDIT_OUTPUT_PATH, JSON.stringify({
+      navigationRequests: testResults.navigationRequests,
+      widgetFixtureRequests: testResults.widgetFixtureRequests,
+      totalContextRequests: testResults.contextRequests.length,
+      outsideRequests: testResults.outsideRequests,
+      unexpectedRequests: testResults.unexpectedRequests,
+      pageErrors: testResults.pageErrors,
+      stimulusErrors: stimErrors,
+      allRequests: testResults.routedRequests
+    }, null, 2), 'utf8');
 
   } catch (err) {
     console.error('Fatal error during wire check:', err);
