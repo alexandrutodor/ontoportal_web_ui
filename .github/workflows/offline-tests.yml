@@ -1,4 +1,4 @@
-name: "Offline shell tests CI"
+name: "Offline tests CI"
 
 on:
   push:
@@ -19,3 +19,20 @@ jobs:
 
       - name: Run offline shell tests
         run: bash test/bin/run_api_test.sh
+
+  offline-rspec-helper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Install Ruby and gems
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.1.0
+          bundler-cache: true
+
+      - name: Run offline SPARQL helper RSpec
+        run: bundle exec rspec spec/helpers/sparql_spec.rb spec/offline_network_boundary_spec.rb
