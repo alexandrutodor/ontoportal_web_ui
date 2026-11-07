@@ -9,6 +9,7 @@ en:
               appliance_id_mismatch: is an appliance id mismatch.
               invalid_license_key: is an invalid license key.
               no_appliance_id_for_comparison: Could not be validated. Unable to retrieve virtual appliance ID.
+              trial_not_allowed: cannot be a trial license.
   admin:
     analytics:
       active_users: Active users
