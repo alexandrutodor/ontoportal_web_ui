@@ -13,6 +13,7 @@ require 'haml'
 require 'haml/template'
 require 'view_component'
 require 'i18n'
+require 'nokogiri'
 
 # Load locale files for en and fr
 I18n.load_path << File.expand_path('../../config/locales/en.yml', __dir__)
@@ -45,6 +46,14 @@ class ClipboardComponentCheck < Minitest::Test
 
   def render_component(component, &block)
     component.render_in(@view_context, &block)
+  end
+
+  def parsed_content_target(html)
+    Nokogiri::HTML::DocumentFragment.parse(html).at_css("[data-clipboard-target='content']")
+  end
+
+  def rendered_content_text(html)
+    parsed_content_target(html)&.text
   end
 
   # --- 1. Component Ruby API & Localization ---
@@ -151,6 +160,7 @@ class ClipboardComponentCheck < Minitest::Test
     # Must be escaped by Haml
     assert_includes html, '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;&amp;&lt;xml tag=&quot;val&quot;&gt;'
     refute_includes html, '<script>alert'
+    assert_equal dangerous, rendered_content_text(html)
   end
 
   # --- 3. Known Callers Fixtures ---
@@ -164,6 +174,7 @@ class ClipboardComponentCheck < Minitest::Test
     assert_includes html, dummy_token
     assert_match(/data-clipboard-target=['"]content['"]/, html)
     assert_includes html, 'clipboard-btn'
+    assert_equal dummy_token, rendered_content_text(html)
   end
 
   def test_htaccess_fixture_with_hidden_content_and_multiline_config
@@ -182,6 +193,7 @@ class ClipboardComponentCheck < Minitest::Test
     assert_match(/data-clipboard-target=['"]content['"]/, html)
     # Button remains visible
     assert_includes html, 'clipboard-btn'
+    assert_equal htaccess_content, rendered_content_text(html)
   end
 
   def test_components_helper_uri_copy_fixture
@@ -192,6 +204,7 @@ class ClipboardComponentCheck < Minitest::Test
     assert_match(/aria-label=['"]Copy original URI['"]/, html)
     assert_match(/title=['"]Copy original URI['"]/, html)
     assert_includes html, url.gsub('&', '&amp;')
+    assert_equal url, rendered_content_text(html)
   end
 
   def test_rdf_highlighter_hidden_content_fixture
@@ -201,6 +214,7 @@ class ClipboardComponentCheck < Minitest::Test
 
     assert_match(/class=['"][^'"]*\bd-none\b[^'"]*['"]/, html)
     assert_includes html, '&lt;owl:Class rdf:about=&quot;http://example.org#Test&quot;/&gt;'
+    assert_equal rdf_content, rendered_content_text(html)
   end
 
   def test_french_locale_renders_french_messages_in_html
@@ -213,5 +227,46 @@ class ClipboardComponentCheck < Minitest::Test
     assert_match(/data-clipboard-failed-message-value=['"]Échec de la copie['"]/, html)
     assert_match(/title=['"]Copié !['"]/, html)
     assert_match(/title=['"]Échec de la copie['"]/, html)
+  end
+
+  # --- 4. Rendered DOM Text Fidelity (Nokogiri) ---
+
+  def test_rendered_content_preserves_meaningful_leading_and_trailing_whitespace
+    message = "  fixture<&>\n"
+    comp = ClipboardComponent.new(message: message)
+    html = render_component(comp)
+
+    assert_equal message, rendered_content_text(html)
+  end
+
+  def test_rendered_content_preserves_empty_string
+    comp = ClipboardComponent.new(message: '')
+    html = render_component(comp)
+
+    assert_equal '', rendered_content_text(html)
+  end
+
+  def test_rendered_content_hidden_flag_retains_exact_text_with_d_none
+    message = 'hidden-exact-content-123'
+    comp = ClipboardComponent.new(message: message, show_content: false)
+    html = render_component(comp)
+
+    target = parsed_content_target(html)
+    refute_nil target
+    assert_includes target['class'].split, 'd-none'
+    assert_equal message, target.text
+  end
+
+  def test_captured_safe_markup_yields_text_with_escaping_boundary_unchanged
+    safe_markup = %(<em>highlighted &amp; text</em>).html_safe
+    comp = ClipboardComponent.new
+    html = render_component(comp) { safe_markup }
+
+    target = parsed_content_target(html)
+    refute_nil target
+    # Text content extracts decoded plain text
+    assert_equal 'highlighted & text', target.text
+    # Escaping boundary in rendered HTML preserves markup elements
+    assert_includes target.inner_html, '<em>highlighted &amp; text</em>'
   end
 end
