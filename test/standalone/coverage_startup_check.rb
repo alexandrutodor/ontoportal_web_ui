@@ -16,6 +16,8 @@ require 'json'
 # 4. Unexecuted application file included with zero lines via track_files 'app/**/*.rb'.
 # 5. Distinct per-suite command and output namespaces under coverage/ (no overwrite/stale merge).
 # 6. Flag-off behavior: no SimpleCov or Coverage overhead when COVERAGE is not true/1.
+# 7. Suite name sanitization for output directory.
+# 8. Minitest suite alias canonicalization (default, minitest, MINITEST) prevents stale merge.
 # =============================================================================
 
 class CoverageStartupCheckTest < Minitest::Test
@@ -258,6 +260,106 @@ class CoverageStartupCheckTest < Minitest::Test
       expected_dir = File.join(app_dir, 'coverage', 'integration_custom_suite-1')
       assert File.exist?(expected_dir), "Expected sanitized directory #{expected_dir} to exist"
       assert File.exist?(File.join(expected_dir, '.resultset.json'))
+    end
+  end
+
+  # --- 8. Minitest suite alias canonicalization (default, 'minitest', 'MINITEST') ---
+
+  def test_minitest_suite_alias_canonicalization_prevents_stale_command_merge
+    with_synthetic_app_fixture do |app_dir|
+      probe_path = File.join(app_dir, 'app', 'models', 'alias_probe.rb')
+      File.write(probe_path, <<~RUBY)
+        class AliasProbe
+          def self.first_method
+            :body_first
+          end
+
+          def self.second_method
+            :body_second
+          end
+
+          def self.third_method
+            :body_third
+          end
+        end
+      RUBY
+
+      probe_lines = File.readlines(probe_path)
+      idx_body1 = probe_lines.index { |l| l.include?(':body_first') }
+      idx_body2 = probe_lines.index { |l| l.include?(':body_second') }
+      idx_body3 = probe_lines.index { |l| l.include?(':body_third') }
+
+      refute_nil idx_body1, "Could not locate :body_first in #{probe_path}"
+      refute_nil idx_body2, "Could not locate :body_second in #{probe_path}"
+      refute_nil idx_body3, "Could not locate :body_third in #{probe_path}"
+
+      runner1 = File.join(app_dir, 'run_alias_1.rb')
+      File.write(runner1, <<~RUBY)
+        require_relative 'test/coverage_helper'
+        require_relative 'app/models/alias_probe'
+        AliasProbe.first_method
+      RUBY
+
+      runner2 = File.join(app_dir, 'run_alias_2.rb')
+      File.write(runner2, <<~RUBY)
+        require_relative 'test/coverage_helper'
+        require_relative 'app/models/alias_probe'
+        AliasProbe.second_method
+      RUBY
+
+      runner3 = File.join(app_dir, 'run_alias_3.rb')
+      File.write(runner3, <<~RUBY)
+        require_relative 'test/coverage_helper'
+        require_relative 'app/models/alias_probe'
+        AliasProbe.third_method
+      RUBY
+
+      resultset_path = File.join(app_dir, 'coverage', 'minitest', '.resultset.json')
+
+      # Run 1: Default suite (COVERAGE_SUITE unset)
+      out1, err1, status1 = run_in_fixture({ 'COVERAGE' => 'true' }, runner1, app_dir)
+      assert_equal 0, status1.exitstatus, "Run 1 failed with stderr: #{err1}\n#{out1}"
+      assert File.exist?(resultset_path), "Expected resultset at #{resultset_path} after Run 1"
+
+      data1 = JSON.parse(File.read(resultset_path))
+      assert_equal ['Minitest'], data1.keys, "Run 1: expected exactly 1 canonical resultset key 'Minitest'"
+      cov1_file = data1['Minitest']['coverage'].keys.find { |k| k.end_with?('app/models/alias_probe.rb') }
+      refute_nil cov1_file, "Run 1: expected alias_probe.rb in coverage data"
+      lines1 = data1['Minitest']['coverage'][cov1_file]['lines']
+
+      assert lines1[idx_body1] > 0, "Run 1: expected body1 > 0, got: #{lines1[idx_body1]}"
+      assert_equal 0, lines1[idx_body2], "Run 1: expected body2 == 0, got: #{lines1[idx_body2]}"
+      assert_equal 0, lines1[idx_body3], "Run 1: expected body3 == 0, got: #{lines1[idx_body3]}"
+
+      # Run 2: Explicit lowercase minitest suite
+      out2, err2, status2 = run_in_fixture({ 'COVERAGE' => 'true', 'COVERAGE_SUITE' => 'minitest' }, runner2, app_dir)
+      assert_equal 0, status2.exitstatus, "Run 2 failed with stderr: #{err2}\n#{out2}"
+      assert File.exist?(resultset_path), "Expected resultset at #{resultset_path} after Run 2"
+
+      data2 = JSON.parse(File.read(resultset_path))
+      assert_equal ['Minitest'], data2.keys, "Run 2: expected exactly 1 canonical resultset key 'Minitest' without stale merge"
+      cov2_file = data2['Minitest']['coverage'].keys.find { |k| k.end_with?('app/models/alias_probe.rb') }
+      refute_nil cov2_file, "Run 2: expected alias_probe.rb in coverage data"
+      lines2 = data2['Minitest']['coverage'][cov2_file]['lines']
+
+      assert_equal 0, lines2[idx_body1], "Run 2: expected old body1 == 0, got: #{lines2[idx_body1]}"
+      assert lines2[idx_body2] > 0, "Run 2: expected current body2 > 0, got: #{lines2[idx_body2]}"
+      assert_equal 0, lines2[idx_body3], "Run 2: expected body3 == 0, got: #{lines2[idx_body3]}"
+
+      # Run 3: Explicit uppercase MINITEST suite
+      out3, err3, status3 = run_in_fixture({ 'COVERAGE' => 'true', 'COVERAGE_SUITE' => 'MINITEST' }, runner3, app_dir)
+      assert_equal 0, status3.exitstatus, "Run 3 failed with stderr: #{err3}\n#{out3}"
+      assert File.exist?(resultset_path), "Expected resultset at #{resultset_path} after Run 3"
+
+      data3 = JSON.parse(File.read(resultset_path))
+      assert_equal ['Minitest'], data3.keys, "Run 3: expected exactly 1 canonical resultset key 'Minitest' without stale merge"
+      cov3_file = data3['Minitest']['coverage'].keys.find { |k| k.end_with?('app/models/alias_probe.rb') }
+      refute_nil cov3_file, "Run 3: expected alias_probe.rb in coverage data"
+      lines3 = data3['Minitest']['coverage'][cov3_file]['lines']
+
+      assert_equal 0, lines3[idx_body1], "Run 3: expected old body1 == 0, got: #{lines3[idx_body1]}"
+      assert_equal 0, lines3[idx_body2], "Run 3: expected old body2 == 0, got: #{lines3[idx_body2]}"
+      assert lines3[idx_body3] > 0, "Run 3: expected current body3 > 0, got: #{lines3[idx_body3]}"
     end
   end
 

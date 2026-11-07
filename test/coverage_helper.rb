@@ -19,7 +19,7 @@ if coverage_enabled
 
   suite_raw = ENV['COVERAGE_SUITE'].to_s.strip
   suite_key = suite_raw.empty? ? 'minitest' : suite_raw.downcase.gsub(/[^a-z0-9_-]/, '_')
-  cmd_name = suite_raw.empty? ? 'Minitest' : suite_key
+  cmd_name = suite_key == 'minitest' ? 'Minitest' : suite_key
 
   app_root = File.expand_path('..', __dir__)
 
