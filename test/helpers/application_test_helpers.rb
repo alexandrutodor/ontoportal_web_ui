@@ -212,7 +212,13 @@ module ApplicationTestHelpers
     return false if resp.nil?
 
     if resp.respond_to?(:status) && resp.status
-      return true unless (200..299).cover?(resp.status.to_i)
+      is_typed_sub = defined?(LinkedData::Client::Models::OntologySubmission) &&
+                     resp.is_a?(LinkedData::Client::Models::OntologySubmission)
+      if is_typed_sub && !resp.status.to_s.match?(/\A\d+\z/)
+        # Domain lifecycle status on typed submission (e.g. 'production'); not transport HTTP status
+      else
+        return true unless (200..299).cover?(resp.status.to_i)
+      end
     end
 
     if resp.respond_to?(:errors) && resp.errors

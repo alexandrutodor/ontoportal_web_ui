@@ -1206,6 +1206,106 @@ assert(TestResourceOwnership.owned?(:submission, sub_base), "Base submission reg
 harness.delete_ontologies(['BASE_ONT_OK'])
 assert(!TestResourceOwnership.owned?(:ontology, 'BASE_ONT_OK'), "Base ontology cleaned up")
 
+# Pinned Real SDK Typed OntologySubmission Lifecycle Domain Status Regression
+if REAL_SDK_MODE
+  # 1. Converted via actual SDK converter LinkedData::Client::HTTP.object_from_json
+  real_sub_payload = JSON.dump({
+    '@id' => 'http://localhost:9393/ontologies/REAL_ONT_SUB/submissions/1',
+    '@type' => 'http://data.bioontology.org/metadata/OntologySubmission',
+    'id' => 'http://localhost:9393/ontologies/REAL_ONT_SUB/submissions/1',
+    'ontology' => 'http://localhost:9393/ontologies/REAL_ONT_SUB',
+    'status' => 'production'
+  })
+  typed_sub_dto = LinkedData::Client::HTTP.object_from_json(real_sub_payload)
+  assert(typed_sub_dto.is_a?(LinkedData::Client::Models::OntologySubmission), "Real converter returns actual OntologySubmission model")
+  assert(typed_sub_dto.is_a?(LinkedData::Client::Base), "Typed submission is an instance of Base")
+  assert(typed_sub_dto.status == 'production', "Typed submission retains lifecycle status 'production'")
+  assert(typed_sub_dto.errors.nil?, "Typed submission has nil errors")
+
+  # 2. Domain lifecycle status 'production' is positive ACK, not HTTP error
+  assert(!ApplicationTestHelpers.acknowledged_has_errors?(typed_sub_dto), "Typed OntologySubmission lifecycle 'production' is domain data and NOT classified as error")
+  assert(ApplicationTestHelpers.acknowledged_success?(typed_sub_dto, :submission), "Typed OntologySubmission acknowledged_success? is true")
+  assert(ApplicationTestHelpers.extract_created_identity(typed_sub_dto, :submission) == 'http://localhost:9393/ontologies/REAL_ONT_SUB/submissions/1', "extract_created_identity extracts exact submission ID")
+
+  # 3. Registration BEFORE induced cache refresh failure
+  $http_post_log.clear
+  $cache_refresh_log.clear
+  $fail_cache_refresh[:ontologysubmission] = true
+  $http_custom_response = typed_sub_dto
+  sub_input = LinkedData::Client::Models::OntologySubmission.new(values: {
+    ontology: 'http://localhost:9393/ontologies/REAL_ONT_SUB'
+  })
+  refresh_raised = false
+  begin
+    ApplicationTestHelpers.acknowledged_save(sub_input, :submission)
+  rescue CacheRefreshException
+    refresh_raised = true
+  ensure
+    $fail_cache_refresh.delete(:ontologysubmission)
+    $http_custom_response = nil
+  end
+  assert(refresh_raised, "acknowledged_save with typed submission propagates CacheRefreshException")
+  assert(TestResourceOwnership.owned?(:submission, typed_sub_dto), "Positive production lifecycle DTO registered in ownership BEFORE cache refresh failure")
+  assert(TestResourceOwnership.owned_resources(:submission).include?(typed_sub_dto), "Ownership registry contains exact typed submission object")
+
+  # 4. Clean up submission via parent ontology deletion cascade (retire_linked_submissions)
+  TestResourceOwnership.register(:ontology, 'REAL_ONT_SUB')
+  $datastore.ontologies['REAL_ONT_SUB'] = { acronym: 'REAL_ONT_SUB', id: 'http://localhost:9393/ontologies/REAL_ONT_SUB' }
+  harness.delete_ontologies(['REAL_ONT_SUB'])
+  assert(!TestResourceOwnership.owned?(:submission, typed_sub_dto), "Typed submission retired upon parent ontology deletion")
+  assert(!TestResourceOwnership.owned?(:ontology, 'REAL_ONT_SUB'), "Parent ontology cleaned up")
+
+  # 5. Genuine error body on typed submission
+  sub_err_payload = JSON.dump({
+    '@id' => 'http://localhost:9393/ontologies/REAL_ONT_SUB/submissions/2',
+    '@type' => 'http://data.bioontology.org/metadata/OntologySubmission',
+    'id' => 'http://localhost:9393/ontologies/REAL_ONT_SUB/submissions/2',
+    'ontology' => 'http://localhost:9393/ontologies/REAL_ONT_SUB',
+    'status' => 'production',
+    'errors' => ['Validation failed: missing description']
+  })
+  typed_sub_err = LinkedData::Client::HTTP.object_from_json(sub_err_payload)
+  assert(ApplicationTestHelpers.acknowledged_has_errors?(typed_sub_err), "Typed submission with errors array is classified as having errors")
+  assert(!ApplicationTestHelpers.acknowledged_success?(typed_sub_err, :submission), "Typed submission with errors acknowledged_success? is false")
+
+  # 6. Missing identity on typed submission: stops and raises rather than registering
+  sub_noid_payload = JSON.dump({
+    '@type' => 'http://data.bioontology.org/metadata/OntologySubmission',
+    'status' => 'production'
+  })
+  typed_sub_noid = LinkedData::Client::HTTP.object_from_json(sub_noid_payload)
+  assert(!ApplicationTestHelpers.acknowledged_success?(typed_sub_noid, :submission), "Typed submission without id acknowledged_success? is false")
+  $http_custom_response = typed_sub_noid
+  stopped_noid = false
+  begin
+    ApplicationTestHelpers.acknowledged_save(sub_input, :submission)
+  rescue StandardError => e
+    stopped_noid = true if e.message.include?("missing created identity")
+  ensure
+    $http_custom_response = nil
+  end
+  assert(stopped_noid, "Typed submission without id stops and raises missing created identity rather than registering")
+  assert(!TestResourceOwnership.owned?(:submission, typed_sub_noid), "Typed submission without id is never registered")
+end
+
+# Negative envelope checks: HTTP transport errors and unknown payloads preserve prior classification
+http_err_400 = LinkedData::Client::CreatedResponse.new(status: 400, errors: ['Bad Request'])
+assert(ApplicationTestHelpers.acknowledged_has_errors?(http_err_400), "HTTP 400 response is classified as having errors")
+assert(!ApplicationTestHelpers.acknowledged_success?(http_err_400, :submission), "HTTP 400 acknowledged_success? is false")
+
+http_err_403 = OpenStruct.new(status: 403)
+assert(ApplicationTestHelpers.acknowledged_has_errors?(http_err_403), "HTTP 403 envelope is classified as having errors")
+
+http_err_500 = OpenStruct.new(status: 500)
+assert(ApplicationTestHelpers.acknowledged_has_errors?(http_err_500), "HTTP 500 envelope is classified as having errors")
+
+http_err_500_str = OpenStruct.new(status: '500')
+assert(ApplicationTestHelpers.acknowledged_has_errors?(http_err_500_str), "HTTP '500' string envelope is classified as having errors")
+
+unknown_envelope = OpenStruct.new(id: 'http://localhost:9393/submissions/unknown_1', status: 'production')
+assert(ApplicationTestHelpers.acknowledged_has_errors?(unknown_envelope), "Non-submission payload with non-numeric status is classified as error")
+assert(!ApplicationTestHelpers.acknowledged_success?(unknown_envelope, :submission), "Non-submission payload with non-numeric status acknowledged_success? is false")
+
 # -----------------------------------------------------------------------------
 puts "\n=== Step 11: Actual create_user -> delete_users for Id-Only 201 Response & Canonical URI Bounds (C2) ==="
 # -----------------------------------------------------------------------------
