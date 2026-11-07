@@ -1,7 +1,7 @@
 class VirtualApplianceController < ApplicationController
   layout 'ontology'
-  prepend_before_action :require_login
   prepend_before_action :authorize_admin, only: :create
+  prepend_before_action :require_login
 
   def index
     @user = session[:user] || session[:admin_user]

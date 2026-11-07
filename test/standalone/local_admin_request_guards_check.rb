@@ -317,8 +317,8 @@ class LocalAdminRequestGuardsCheck < Minitest::Test
     refute_nil login_idx, 'VirtualApplianceController must declare :require_login callback'
     refute_nil trial_idx, 'VirtualApplianceController must inherit :init_trial_license callback'
 
-    assert_operator admin_idx, :<, login_idx, ':authorize_admin must precede :require_login'
-    assert_operator login_idx, :<, trial_idx, ':require_login must precede :init_trial_license'
+    assert_operator login_idx, :<, admin_idx, ':require_login must precede :authorize_admin'
+    assert_operator admin_idx, :<, trial_idx, ':authorize_admin must precede :init_trial_license'
   end
 
   # ===========================================================================
@@ -537,7 +537,7 @@ class LocalAdminRequestGuardsCheck < Minitest::Test
     ctrl, _req, res = dispatch(VirtualApplianceController, :create, method: :post,
                                params: { appliance_user: { user_id: 'target_account' } }, session: {})
     assert_equal 302, res.status
-    assert_equal 'http://test.host/', res.location
+    assert_equal 'http://test.host/login', res.location
     assert_equal 0, $call_spy.total_grant_io_calls, 'Anonymous create must make 0 user/grant calls'
     assert_equal 0, $call_spy.total_license_io_calls, 'Anonymous create must NOT run init_trial_license'
     refute $trial_license_initialized
