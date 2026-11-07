@@ -305,10 +305,12 @@ module SearchAggregator
   end
 
 
+  # Root entries use :portal_{name,color,light_color}; alternative entries use :name, :color, :light_color.
   def swap_portal_attributes(root_portal, new_portal)
-    [:link, :portal_name, :portal_color, :portal_light_color].each do |attribute|
-      root_portal[attribute], new_portal[attribute] = new_portal[attribute], root_portal[attribute]
-    end
+    root_portal[:link], new_portal[:link] = new_portal[:link], root_portal[:link]
+    root_portal[:portal_name], new_portal[:name] = new_portal[:name], root_portal[:portal_name]
+    root_portal[:portal_color], new_portal[:color] = new_portal[:color], root_portal[:portal_color]
+    root_portal[:portal_light_color], new_portal[:light_color] = new_portal[:light_color], root_portal[:portal_light_color]
   end
 
   def sort_results_by_string_similarity(query, search_results)
