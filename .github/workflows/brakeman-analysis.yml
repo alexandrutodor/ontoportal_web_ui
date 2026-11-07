@@ -3,7 +3,7 @@
 
 name: Brakeman Scan
 
-# This section configures the trigger for the workflow. Feel free to customize depending on your convention
+# Retain existing triggers: push and pull_request to master
 on:
   push:
     branches: [ master ]
@@ -14,32 +14,59 @@ jobs:
   brakeman-scan:
     name: Brakeman Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
     steps:
     # Checkout the repository to the GitHub Actions runner
     - name: Checkout
       uses: actions/checkout@v3
 
-    # Customize the ruby version depending on your needs
+    # Ruby 3.1 environment matching Gemfile.lock requirements
     - name: Setup Ruby
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.1'
 
+    # Install Brakeman locked version from Gemfile.lock (7.0.2)
     - name: Setup Brakeman
-      env:
-        BRAKEMAN_VERSION: '5.4.0' # SARIF support is provided in Brakeman version 4.10+
       run: |
-        gem install brakeman --version $BRAKEMAN_VERSION
+        BRAKEMAN_VERSION=$(ruby -ne 'if /^\s*brakeman \(([0-9.]+)\)/; puts $1; exit; end' Gemfile.lock)
+        BRAKEMAN_VERSION="${BRAKEMAN_VERSION:-7.0.2}"
+        echo "Installing Brakeman version: ${BRAKEMAN_VERSION}"
+        gem install brakeman --version "${BRAKEMAN_VERSION}"
 
-    # Execute Brakeman CLI and generate a SARIF output with the security issues identified during the analysis
+    # Execute Brakeman CLI and validate SARIF report
+    # Findings remain non-blocking baseline; scanner/report errors fail distinctly
     - name: Scan
-      continue-on-error: true
       run: |
-        brakeman -f sarif -o output.sarif.json .
+        scanner_status=0
+        brakeman -f sarif -o output.sarif.json . || scanner_status=$?
+        ruby bin/brakeman_ci_summary.rb --sarif output.sarif.json --scanner-status "$scanner_status"
 
-    # Upload the SARIF file generated in the previous step
-    - name: Upload SARIF
-      uses: github/codeql-action/upload-sarif@v2
+    # Always retain available SARIF and diagnostics artifacts across all events (push, PR, fork)
+    - name: Retain SARIF artifact
+      if: always()
+      uses: actions/upload-artifact@v7.0.2
+      with:
+        name: brakeman-sarif
+        path: |
+          output.sarif.json
+          brakeman-diagnostics.json
+        if-no-files-found: warn
+
+    # Distinguish untrusted PR/fork paths: skip Code Scanning upload without privilege elevation
+    - name: Report Code Scanning upload skip
+      if: github.event_name != 'push' || github.ref != 'refs/heads/master'
+      run: |
+        echo "::notice ::Code Scanning upload skipped: event is '${{ github.event_name }}' on ref '${{ github.ref }}'."
+        echo "SARIF report and diagnostics are retained as build artifacts."
+
+    # Upload SARIF report to GitHub Code Scanning only on trusted master branch push
+    # Upload failure fails explicitly and is distinguished from scanner execution or report errors
+    - name: Upload SARIF to Code Scanning
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: output.sarif.json
-
