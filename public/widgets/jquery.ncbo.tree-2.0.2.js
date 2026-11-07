@@ -83,6 +83,10 @@
         crossDomain: true,
         success: function(roots) {
           roots = findRootNode(roots);
+          if (roots == null) {
+            ROOT.html($("<span>").addClass("ncboTreeRootMissing").text("The configured starting root is not available in this tree.").css("font-size", "smaller"));
+            return;
+          }
           ROOT.html(formatNodes(roots));
           setTreeNodes(ROOT, false);
 
@@ -166,19 +170,19 @@
       var startingRoot = (OPTIONS.startingRoot == OPTIONS.defaultRoot) ? null : OPTIONS.startingRoot;
       if (startingRoot == null) {return nodes;}
 
-      var foundNode = false;
-      var searchQueue = nodes;
+      // Breadth-first; returns the first match, or null when the root is absent.
+      var searchQueue = $.makeArray(nodes);
 
-      while (searchQueue.length > 0 || foundNode == false) {
+      while (searchQueue.length > 0) {
         var node = searchQueue.shift();
         if (node["@id"] == startingRoot) {
-          foundNode = [node];
+          return [node];
         } else if (typeof node.children !== 'undefined' && node.children.length > 0) {
           searchQueue = searchQueue.concat(node.children);
         }
       }
 
-      return foundNode;
+      return null;
     }
 
     var closeNearby = function(obj) {
