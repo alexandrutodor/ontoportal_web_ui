@@ -89,7 +89,7 @@ class PropertiesController < ApplicationController
 
       @property ||= @root.children.first
     end
-    render inline: helpers.property_tree_component(@root, @property,
+    render html: helpers.property_tree_component(@root, @property,
                                                    @ontology.acronym, request_lang,
                                                    id: container_id, auto_click: true)
   end

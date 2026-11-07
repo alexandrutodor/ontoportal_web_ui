@@ -414,7 +414,7 @@ class OntologiesController < ApplicationController
       user_id = user.id
     end
     count = helpers.count_subscriptions(params[:ontology_id])
-    render inline: helpers.turbo_frame_tag('subscribe_button') {
+    render html: helpers.turbo_frame_tag('subscribe_button') {
       render_to_string(OntologySubscribeButtonComponent.new(id: '', ontology_id: ontology_id, subscribed: subscribed, user_id: user_id, count: count, link: link), layout: nil)
     }
   end

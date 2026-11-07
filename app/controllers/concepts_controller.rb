@@ -72,7 +72,7 @@ class ConceptsController < ApplicationController
     label = helpers.main_language_label(pref_label)
     link = concept_path(cls_id, ont_id, request_lang)
 
-    render(inline: helpers.ajax_link_chip(cls_id, label, link, external: cls.nil? || cls.errors), layout: nil)
+    render(html: helpers.ajax_link_chip(cls_id, label, link, external: cls.nil? || cls.errors), layout: nil)
   end
 
   def show_definition
@@ -92,7 +92,7 @@ class ConceptsController < ApplicationController
 
       not_found(t('concepts.missing_roots')) if @root.nil?
 
-      render inline: helpers.concepts_tree_component(@root, @concept,
+      render html: helpers.concepts_tree_component(@root, @concept,
                                                      @ontology.acronym, Array(params[:concept_schemes]&.split(',')), request_lang,
                                                      id: 'concepts_tree_view', auto_click: params[:auto_click] || true)
     end
