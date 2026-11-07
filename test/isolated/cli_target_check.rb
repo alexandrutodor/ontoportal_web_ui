@@ -217,6 +217,7 @@ begin
     'http://localhost:0',
     'http://localhost:65536',
     'http://localhost:99999',
+    'http://localhost:18446744073709551617',
     'http://localhost:notaport',
     'ftp://localhost:9393',
     'javascript:alert(1)'
@@ -234,12 +235,18 @@ begin
   assert(!File.exist?(probe_marker_file), "Metacharacter probe marker file was NEVER created on disk", failures)
 
   puts "\n=== Step 3: Reject remote endpoint configured via API_URL environment variable ==="
-  clear_logs(docker_log_file, run_api_log_file)
-  env_override = harness_env.merge('API_URL' => 'http://127.fake.com:9393')
-  stdout_err, status = Open3.capture2e(env_override, ontoportal_path, 'test')
-  assert(!status.success?, "API_URL=http://127.fake.com exits with non-zero status", failures)
-  assert(read_log(docker_log_file).empty?, "API_URL=http://127.fake.com dispatched 0 docker calls", failures)
-  assert(read_log(run_api_log_file).empty?, "API_URL=http://127.fake.com dispatched 0 run_api calls", failures)
+  env_invalid_targets = [
+    'http://127.fake.com:9393',
+    'http://localhost:18446744073709551617'
+  ]
+  env_invalid_targets.each do |target|
+    clear_logs(docker_log_file, run_api_log_file)
+    env_override = harness_env.merge('API_URL' => target)
+    stdout_err, status = Open3.capture2e(env_override, ontoportal_path, 'test')
+    assert(!status.success?, "API_URL=#{target} exits with non-zero status", failures)
+    assert(read_log(docker_log_file).empty?, "API_URL=#{target} dispatched 0 docker calls", failures)
+    assert(read_log(run_api_log_file).empty?, "API_URL=#{target} dispatched 0 run_api calls", failures)
+  end
 
   puts "\n=== Step 4: Approved local targets pass preflight and invoke container ==="
   approved_targets = [

@@ -226,7 +226,7 @@ validate_test_target() {
 
   # Validate port number if specified
   if [ -n "$port" ]; then
-    if [[ "$port" =~ ^0[0-9]+$ ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
+    if [ "${#port}" -gt 5 ] || [[ "$port" =~ ^0[0-9]+$ ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
       echo "Error: Invalid port number '$port' in target API URL: '$target'" >&2
       return 1
     fi
