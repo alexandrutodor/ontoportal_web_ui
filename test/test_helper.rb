@@ -1,16 +1,9 @@
 ENV['RAILS_ENV'] ||= 'test'
+require_relative 'coverage_helper'
 require_relative '../config/environment'
 require 'rails/test_help'
-require 'simplecov'
 require 'webmock/minitest'
 require_relative 'helpers/test_target_guard'
-
-SimpleCov.start 'rails' do
-  add_filter '/bin/'
-  add_filter '/db/'
-  add_filter '/test/'
-  add_filter '/vendor/'
-end
 
 # Configure explicit Capybara test server host and port before policy
 if defined?(Capybara)
