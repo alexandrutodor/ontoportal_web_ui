@@ -84,9 +84,8 @@ fi
 docker compose ls -a --filter "name=ontoportal_docker" | grep -q "ontoportal_docker" && no_provision=true || no_provision=false
 (
   cd tmp/ontoportal_docker || exit 1
-  command="./run -k $api_key -r $image_repository -t $image_tag -s $starter_ontology -u $remote_api_url"
-  [ "$no_provision" = true ] && command="$command"
-  echo "Run: $command"
-  eval "$command"
+  command=(./run -k "$api_key" -r "$image_repository" -t "$image_tag" -s "$starter_ontology" -u "$remote_api_url")
+  echo "Run: ./run"
+  "${command[@]}"
 )
 
