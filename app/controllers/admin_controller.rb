@@ -15,20 +15,27 @@ class AdminController < ApplicationController
 
     unless user_name.blank?
       user = LinkedData::Client::Models::User.find(user_name, {include: 'all', apikey: apikey})
-      render(inline: 'Query not permitted') && return if user.nil?
+      render(plain: 'Query not permitted', status: :forbidden) && return if user.nil?
     end
 
-    render(inline: 'Query not permitted') && return if graph.blank? && !user&.admin?
+    render(plain: 'Query not permitted', status: :forbidden) && return if graph.blank? && !user&.admin?
 
     unless graph.blank?
       acronym = graph.split('/')[-3]
       @ontology = LinkedData::Client::Models::Ontology.find_by_acronym(acronym, {apikey: apikey}).first
-      render(inline: t('admin.query_not_permitted')) && return  if @ontology.nil? || @ontology.errors
+      render(plain: t('admin.query_not_permitted'), status: :forbidden) && return if @ontology.nil? || @ontology.errors
     end
 
     response = helpers.ontology_sparql_query(params[:query], graph)
 
-    render inline:  response
+    if response.respond_to?(:body)
+      raw_content_type = response.headers['content-type'] || response.headers['Content-Type'] if response.respond_to?(:headers) && response.headers
+      content_type = respond_to?(:validate_sparql_content_type) ? validate_sparql_content_type(raw_content_type) : helpers.validate_sparql_content_type(raw_content_type)
+      status = response.respond_to?(:status) ? response.status : :ok
+      render plain: response.body, status: status, content_type: content_type
+    else
+      render plain: response.to_s, status: :ok, content_type: 'text/plain; charset=utf-8'
+    end
   end
 
   def index
