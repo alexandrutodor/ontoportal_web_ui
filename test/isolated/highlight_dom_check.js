@@ -61,9 +61,9 @@ results = [
       { text: "backslash\\\\test", link: "/ontologies/BACKSLASH" },
       { text: "ünicöde_térm", link: "/ontologies/UNICODE" },
       { text: "executable", link: "javascript:window.__xssTriggered.push('recommender_js')" },
-      { text: "data_exploit", link: "data:text/html,<script>window.__xssTriggered.push('recommender_data')</script>" },
-      { text: "vbscript_exploit", link: "vbscript:msgbox(1)" },
-      { text: "proto_relative", link: "//attacker.example.com/evil" }
+      { text: "dataexploit", link: "data:text/html,<script>window.__xssTriggered.push('recommender_data')</script>" },
+      { text: "vbscriptexploit", link: "vbscript:msgbox(1)" },
+      { text: "protorelative", link: "//attacker.example.com/evil" }
     ],
     highlighted: true
   },
@@ -103,7 +103,17 @@ async function buildControllerBundle() {
         import RecommenderController from "./app/javascript/controllers/recommender_controller.js";
         import AnnotatorController from "./app/javascript/controllers/annotator_controller.js";
 
+        window.__stimulusErrors = [];
         window.StimulusApp = Application.start();
+        const defaultHandleError = window.StimulusApp.handleError.bind(window.StimulusApp);
+        window.StimulusApp.handleError = (error, message, detail) => {
+          window.__stimulusErrors.push({
+            message: message || (error && error.message) || String(error),
+            error: (error && error.stack) ? error.stack : String(error),
+            detail
+          });
+          defaultHandleError(error, message, detail);
+        };
         window.StimulusApp.register("recommender", RecommenderController);
         window.StimulusApp.register("annotator", AnnotatorController);
         window.__controllersReady = true;
@@ -138,7 +148,11 @@ function generateHtmlFixture(renderedRadios) {
   <!-- Recommender container -->
   <div id="recommender-fixture" data-controller="recommender">
     <div data-recommender-target="ontologieschoice">
-      <label><input type="radio" checked></label>
+      <label class="radio output_type">
+        <input type="radio" name="output_type" value="1" checked>
+        <span class="text">Ontologies</span>
+        <span></span>
+      </label>
     </div>
     <div data-recommender-target="button" class="d-none"></div>
     <div data-recommender-target="input" class="d-none"></div>
@@ -225,6 +239,10 @@ async function runTests() {
     });
 
     const page = await context.newPage();
+    const pageErrors = [];
+    page.on('pageerror', (err) => {
+      pageErrors.push(err.message || String(err));
+    });
 
     console.log('[4/5] Setting up page content and injecting bundle...');
     const htmlFixture = generateHtmlFixture(renderedRadios);
@@ -290,15 +308,64 @@ async function runTests() {
 
     // 3. Recommender Scheme Rejection & Disallowed URLs
     {
-      const disallowedCheck = await page.evaluate(() => {
+      // Safe-URL positive control: verify that all 3 canonical normalized matching terms highlight when links are safe
+      const positiveControl = await page.evaluate(() => {
+        const radio = document.querySelector('input[name="highlighted_recommendation"]');
+        const originalValue = radio.value;
+        const annotations = JSON.parse(originalValue);
+        const safeAnnotations = annotations.map(item => {
+          if (item && item.text === 'dataexploit') return { ...item, link: 'https://example.org/ontologies/DATA_EXPLOIT' };
+          if (item && item.text === 'vbscriptexploit') return { ...item, link: 'https://example.org/ontologies/VBSCRIPT_EXPLOIT' };
+          if (item && item.text === 'protorelative') return { ...item, link: 'https://example.org/ontologies/PROTO_RELATIVE' };
+          return item;
+        });
+        radio.value = JSON.stringify(safeAnnotations);
+        const ctrl = window.StimulusApp.getControllerForElementAndIdentifier(
+          document.getElementById('recommender-fixture'),
+          'recommender'
+        );
+        ctrl.handleHighlightedChange();
+
         const resultEl = document.getElementById('recommender-result');
-        const anchors = Array.from(resultEl.querySelectorAll('a'));
-        const hrefs = anchors.map(a => a.getAttribute('href'));
+        const anchors = Array.from(resultEl.querySelectorAll('a')).map(a => ({
+          text: a.textContent,
+          href: a.getAttribute('href')
+        }));
+
+        const dataAnchor = anchors.find(a => a.text === 'data_exploit');
+        const vbAnchor = anchors.find(a => a.text === 'vbscript_exploit');
+        const protoAnchor = anchors.find(a => a.text === 'proto_relative.');
+
+        const allThreeHighlighted = Boolean(
+          dataAnchor && dataAnchor.href === 'https://example.org/ontologies/DATA_EXPLOIT' &&
+          vbAnchor && vbAnchor.href === 'https://example.org/ontologies/VBSCRIPT_EXPLOIT' &&
+          protoAnchor && protoAnchor.href === 'https://example.org/ontologies/PROTO_RELATIVE'
+        );
+
+        // Restore disallowed links and verify rejection
+        radio.value = originalValue;
+        ctrl.handleHighlightedChange();
+
+        const restoredAnchors = Array.from(resultEl.querySelectorAll('a')).map(a => ({
+          text: a.textContent,
+          href: a.getAttribute('href')
+        }));
+        const hrefs = restoredAnchors.map(a => a.href);
+        const texts = restoredAnchors.map(a => a.text);
+
         return {
+          allThreeHighlighted,
+          dataExploitHighlighted: Boolean(dataAnchor),
+          vbscriptExploitHighlighted: Boolean(vbAnchor),
+          protoRelativeHighlighted: Boolean(protoAnchor),
           hasJavascript: hrefs.some(h => h.startsWith('javascript:')),
           hasData: hrefs.some(h => h.startsWith('data:')),
           hasVbscript: hrefs.some(h => h.startsWith('vbscript:')),
           hasProtoRelative: hrefs.some(h => h.startsWith('//')),
+          hasExecutableAnchor: texts.includes('executable'),
+          hasDataAnchor: texts.includes('data_exploit'),
+          hasVbAnchor: texts.includes('vbscript_exploit'),
+          hasProtoAnchor: texts.includes('proto_relative.'),
           executableText: resultEl.textContent.includes('executable'),
           dataText: resultEl.textContent.includes('data_exploit'),
           vbText: resultEl.textContent.includes('vbscript_exploit'),
@@ -306,24 +373,29 @@ async function runTests() {
         };
       });
 
+      record('Recommender highlights safe-URL positive control for all three canonical matching terms',
+        positiveControl.allThreeHighlighted,
+        `data_exploit: ${positiveControl.dataExploitHighlighted}, vbscript_exploit: ${positiveControl.vbscriptExploitHighlighted}, proto_relative: ${positiveControl.protoRelativeHighlighted}`
+      );
+
       record('Recommender rejects javascript: scheme and falls back to plain text',
-        !disallowedCheck.hasJavascript && disallowedCheck.executableText,
-        `hasJavascript: ${disallowedCheck.hasJavascript}`
+        !positiveControl.hasJavascript && !positiveControl.hasExecutableAnchor && positiveControl.executableText,
+        `hasJavascript: ${positiveControl.hasJavascript}, hasAnchor: ${positiveControl.hasExecutableAnchor}`
       );
 
       record('Recommender rejects data: scheme and falls back to plain text',
-        !disallowedCheck.hasData && disallowedCheck.dataText,
-        `hasData: ${disallowedCheck.hasData}`
+        !positiveControl.hasData && !positiveControl.hasDataAnchor && positiveControl.dataText,
+        `hasData: ${positiveControl.hasData}, hasAnchor: ${positiveControl.hasDataAnchor}`
       );
 
       record('Recommender rejects vbscript: scheme and falls back to plain text',
-        !disallowedCheck.hasVbscript && disallowedCheck.vbText,
-        `hasVbscript: ${disallowedCheck.hasVbscript}`
+        !positiveControl.hasVbscript && !positiveControl.hasVbAnchor && positiveControl.vbText,
+        `hasVbscript: ${positiveControl.hasVbscript}, hasAnchor: ${positiveControl.hasVbAnchor}`
       );
 
       record('Recommender rejects protocol-relative // URLs and falls back to plain text',
-        !disallowedCheck.hasProtoRelative && disallowedCheck.protoText,
-        `hasProtoRelative: ${disallowedCheck.hasProtoRelative}`
+        !positiveControl.hasProtoRelative && !positiveControl.hasProtoAnchor && positiveControl.protoText,
+        `hasProtoRelative: ${positiveControl.hasProtoRelative}, hasAnchor: ${positiveControl.hasProtoAnchor}`
       );
     }
 
@@ -559,6 +631,18 @@ async function runTests() {
       record('Zero external / non-fixture requests initiated during browser execution',
         recordedRequests.length === 0,
         `Recorded requests count: ${recordedRequests.length} (${recordedRequests.join(', ')})`
+      );
+    }
+
+    // 13. Zero Stimulus Application Errors and Zero Browser Page Errors
+    {
+      const stimulusErrors = await page.evaluate(() => window.__stimulusErrors);
+      assert.strictEqual(stimulusErrors.length, 0, `Stimulus errors occurred: ${JSON.stringify(stimulusErrors)}`);
+      assert.strictEqual(pageErrors.length, 0, `Browser page errors occurred: ${JSON.stringify(pageErrors)}`);
+
+      record('Zero Stimulus application errors and zero browser page errors across connect and actions',
+        stimulusErrors.length === 0 && pageErrors.length === 0,
+        `Stimulus errors: ${stimulusErrors.length}, Page errors: ${pageErrors.length}`
       );
     }
 
