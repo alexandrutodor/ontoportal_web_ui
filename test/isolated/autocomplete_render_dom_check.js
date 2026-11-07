@@ -51,13 +51,21 @@ async function buildControllerBundle() {
       contents: `
         const $ = require('jquery');
         window.$ = window.jQuery = $;
+        // Finite unrelated browser-detection double for legacy crossdomain_autocomplete.js $.browser.msie check
+        window.$.browser = window.$.browser || { msie: false, version: '11' };
+
         require('../../vendor/assets/javascripts/autocomplete/crossdomain_autocomplete.js');
         const { Application } = require('@hotwired/stimulus');
         const OntoportalAutocompleteController = require('../../app/javascript/controllers/ontoportal_autocomplete_controller.js').default;
         const FormAutoCompleteController = require('../../app/javascript/controllers/form_auto_complete_controller.js').default;
         const ClassSearchAutoCompleteController = require('../../app/javascript/controllers/class_search_auto_complete_controller.js').default;
 
+        window.__stimulusErrors = [];
         window.StimulusApp = Application.start();
+        window.StimulusApp.handleError = function(error, message, detail) {
+          window.__stimulusErrors.push({ error: String(error), message, detail });
+        };
+
         window.StimulusApp.register('ontoportal-autocomplete', OntoportalAutocompleteController);
         window.StimulusApp.register('form-auto-complete', FormAutoCompleteController);
         window.StimulusApp.register('class-search', ClassSearchAutoCompleteController);
@@ -65,8 +73,6 @@ async function buildControllerBundle() {
         window.__getController = function(element, identifier) {
           return window.StimulusApp.getControllerForElementAndIdentifier(element, identifier);
         };
-
-        window.__controllersReady = true;
       `,
       resolveDir: path.resolve(__dirname)
     },
@@ -178,12 +184,16 @@ async function runDomCheck() {
     headless: true
   });
 
+  const pageErrors = [];
   const testResults = {
     total: 0,
     passed: 0,
     failed: 0,
     checks: [],
-    routableRequests: []
+    routableRequests: [],
+    contextRequests: [],
+    pageErrors: [],
+    stimulusErrors: []
   };
 
   function recordPass(name, details = {}) {
@@ -202,7 +212,22 @@ async function runDomCheck() {
 
   try {
     const context = await browser.newContext();
+    const contextRequests = [];
+
+    // Independent context request event collection
+    context.on('request', (req) => {
+      contextRequests.push(req.url());
+      testResults.contextRequests.push(req.url());
+    });
+
     const page = await context.newPage();
+
+    // Capture uncaught browser page errors before connect
+    page.on('pageerror', (err) => {
+      const errStr = String(err);
+      pageErrors.push(errStr);
+      testResults.pageErrors.push(errStr);
+    });
 
     // Deny all routable network requests
     await page.route('**/*', (route) => {
@@ -214,8 +239,38 @@ async function runDomCheck() {
     await page.setContent(HTML_FIXTURE);
     await page.addScriptTag({ content: bundleJs });
 
-    // Wait for controllers to initialize
-    await page.waitForFunction(() => window.__controllersReady === true);
+    // Wait for actual controller and autocompleter widget readiness rather than self-set ready flag alone
+    await page.waitForFunction(() => {
+      const ontoInput = document.getElementById('onto-input');
+      const formSingle = document.getElementById('form-input-single');
+      const classInput = document.getElementById('class-search-input');
+
+      return Boolean(
+        window.StimulusApp &&
+        ontoInput && ontoInput.autocompleter &&
+        formSingle && formSingle.autocompleter &&
+        classInput && classInput.autocompleter &&
+        window.__getController(ontoInput, 'ontoportal-autocomplete') &&
+        window.__getController(formSingle, 'form-auto-complete') &&
+        window.__getController(classInput, 'class-search')
+      );
+    });
+
+    // Capture Stimulus errors recorded during connect/initialization
+    const stimulusErrors = await page.evaluate(() => window.__stimulusErrors || []);
+    testResults.stimulusErrors = stimulusErrors;
+
+    if (pageErrors.length === 0 && stimulusErrors.length === 0) {
+      recordPass('Runtime health: zero browser pageerrors and zero Stimulus errors during connect/initialization', {
+        pageErrors: 0,
+        stimulusErrors: 0
+      });
+    } else {
+      recordFail('Runtime health: zero browser pageerrors and zero Stimulus errors during connect/initialization', {
+        pageErrors,
+        stimulusErrors
+      });
+    }
 
     console.log('[4/4] Executing test assertions...');
 
@@ -648,65 +703,105 @@ async function runDomCheck() {
     // Group 3: Real vendor bioportal_autocomplete widget DOM integration
     // ------------------------------------------------------------------------
 
-    // Check 3.1: Full widget end-to-end DOM rendering and selection interface preservation
+    // Check 3.1: Loaded vendor widget findValue execution and DOM integration (without copied algorithm)
     const check31 = await page.evaluate(() => {
-      const input = document.getElementById('onto-input');
-      const opts = input.autocompleter.getOptions();
-
-      // Test dataToDom simulation with synthetic rows (labeled honestly as synthetic upstream data double)
-      const syntheticRows = [
-        ['Safe Concept 1', 'id_1', 'class', 'ont', 'uri1', 'pref1', 'syn1'],
-        ['Concept <script>window.__xssTriggered.push("widget_xss")</script> 2', 'id_2', 'class', 'ont', 'uri2', 'pref2', 'syn2']
-      ];
-
-      // Simulate the exact code executed by bioportal_autocomplete's dataToDom:
-      const ul = document.createElement('ul');
-      for (let i = 0; i < syntheticRows.length; i++) {
-        const row = syntheticRows[i];
-        const li = document.createElement('li');
-        if (opts.formatItem) {
-          li.innerHTML = opts.formatItem(row, i, syntheticRows.length);
-          li.selectValue = row[0];
-        } else {
-          li.innerHTML = row[0];
-          li.selectValue = row[0];
+      return new Promise((resolve, reject) => {
+        const input = document.getElementById('onto-input');
+        const autocompleter = input.autocompleter;
+        if (!autocompleter) {
+          return reject(new Error('Vendor autocompleter not attached to onto-input'));
         }
-        let extra = null;
-        if (row.length > 1) {
-          extra = [];
-          for (let j = 1; j < row.length; j++) {
-            extra[extra.length] = row[j];
+        const opts = autocompleter.getOptions();
+
+        // Finite upstream wire response double (raw text lines separated by lineSeparator "~!~", fields by cellSeparator "|")
+        const targetLabel = 'Concept <script>window.__xssTriggered.push("widget_xss")</script> 2';
+        const mockWireData = [
+          'Safe Concept 1|id_1|class|ont|uri1|pref1|syn1',
+          `${targetLabel}|id_2|class|ont|uri2|pref2|syn2`
+        ].join('~!~');
+
+        // Preserve originals to restore in finally
+        const originalGet = window.$.get;
+        const originalOnFindValue = opts.onFindValue;
+
+        let getUrlCalled = null;
+
+        // Mock ONLY finite upstream $.get response
+        window.$.get = function(url, callback) {
+          getUrlCalled = url;
+          callback(mockWireData);
+        };
+
+        const timer = setTimeout(() => {
+          window.$.get = originalGet;
+          opts.onFindValue = originalOnFindValue;
+          reject(new Error('Vendor findValue callback timed out'));
+        }, 3000);
+
+        // Vendor crossdomain_autocomplete findValueCallback invokes options.onFindValue(li)
+        // after vendor parseData, query match, controller formatItem, real li creation,
+        // and setting li.selectValue and li.extra. The test asserts the vendor-created DOM.
+        opts.onFindValue = function(li) {
+          clearTimeout(timer);
+          try {
+            // Assert real DOM created by vendor widget (no test-created li or copied assignments)
+            const isLiElement = (li instanceof HTMLElement) && (li.tagName === 'LI');
+            const selectValuePreserved = Boolean(li && li.selectValue === targetLabel);
+            const extraPreserved = Boolean(
+              li &&
+              Array.isArray(li.extra) &&
+              li.extra[0] === 'id_2' &&
+              li.extra[1] === 'class' &&
+              li.extra[2] === 'ont' &&
+              li.extra[3] === 'uri2' &&
+              li.extra[4] === 'pref2' &&
+              li.extra[5] === 'syn2'
+            );
+
+            // Mount the vendor-created li into real DOM sink to assert rendering
+            const sink = document.getElementById('results-sink');
+            sink.appendChild(li);
+
+            const scriptCount = li.querySelectorAll('script').length;
+            const textPreserved = li.textContent.includes('<script>');
+
+            // Hover class toggle on real vendor element
+            li.classList.add('ac_over');
+            const isAcOver = li.classList.contains('ac_over');
+
+            resolve({
+              isLiElement,
+              selectValuePreserved,
+              extraPreserved,
+              scriptCount,
+              textPreserved,
+              isAcOver,
+              getUrlCalled,
+              xssCount: window.__xssTriggered.length
+            });
+          } catch (err) {
+            reject(err);
+          } finally {
+            // Restore finite $.get stub and original onFindValue
+            window.$.get = originalGet;
+            opts.onFindValue = originalOnFindValue;
+            autocompleter.flushCache();
           }
-        }
-        li.extra = extra;
-        ul.appendChild(li);
-      }
-      document.body.appendChild(ul);
+        };
 
-      // Verify second row properties
-      const secondLi = ul.children[1];
-      const scriptCount = secondLi.querySelectorAll('script').length;
-      const selectValuePreserved = secondLi.selectValue === syntheticRows[1][0];
-      const extraPreserved = secondLi.extra && secondLi.extra[0] === 'id_2';
-
-      // Test hover class .ac_over toggle
-      secondLi.classList.add('ac_over');
-      const isAcOver = secondLi.classList.contains('ac_over');
-
-      return {
-        scriptCount,
-        selectValuePreserved,
-        extraPreserved,
-        isAcOver,
-        xssCount: window.__xssTriggered.length
-      };
+        input.value = targetLabel;
+        // Exercise ACTUAL loaded vendor widget implementation via public input.autocompleter.findValue()
+        autocompleter.findValue();
+      });
     });
 
-    if (check31.scriptCount === 0 && check31.selectValuePreserved &&
-        check31.extraPreserved && check31.isAcOver && check31.xssCount === 0) {
-      recordPass('bioportal_autocomplete widget integration: builds DOM safely with selectValue and extra preserved', check31);
+    if (check31.isLiElement && check31.selectValuePreserved &&
+        check31.extraPreserved && check31.scriptCount === 0 &&
+        check31.textPreserved && check31.isAcOver && check31.xssCount === 0 &&
+        check31.getUrlCalled && check31.getUrlCalled.includes('/search/json_search/TEST_ONTO')) {
+      recordPass('bioportal_autocomplete widget integration: vendor findValue builds DOM safely with selectValue and extra preserved', check31);
     } else {
-      recordFail('bioportal_autocomplete widget integration: builds DOM safely with selectValue and extra preserved', JSON.stringify(check31));
+      recordFail('bioportal_autocomplete widget integration: vendor findValue builds DOM safely with selectValue and extra preserved', JSON.stringify(check31));
     }
 
     // Check 3.2: Selection handler compatibility (class-search concept jump and form-auto-complete hidden fields)
@@ -718,7 +813,7 @@ async function runDomCheck() {
 
       // Test onItemSelect on class-search
       const mockLiClass = { extra: ['concept_123', 'extra1'], selectValue: 'Concept Name' };
-      // Override onFindValue to verify jump_to_concept_id was updated
+      // Override onFindValue honestly: this proves hidden concept ID assignment without Turbo navigation
       let capturedConceptId = null;
       classCtrl.onFindValue = function(li) {
         capturedConceptId = document.getElementById('jump_to_concept_id').value;
@@ -757,18 +852,24 @@ async function runDomCheck() {
         check32.fullIdVal === 'http://full_uri' &&
         check32.prefNameVal === 'Preferred Label' &&
         check32.eventDispatched) {
-      recordPass('Caller and selection interface: class-search concept jump and form-auto-complete hidden fields preserved', check32);
+      recordPass('Direct selection handler proof: class-search hidden concept ID assignment and form-auto-complete hidden fields updated (not Turbo navigation)', check32);
     } else {
-      recordFail('Caller and selection interface: class-search concept jump and form-auto-complete hidden fields preserved', JSON.stringify(check32));
+      recordFail('Direct selection handler proof: class-search hidden concept ID assignment and form-auto-complete hidden fields updated (not Turbo navigation)', JSON.stringify(check32));
     }
 
     // ------------------------------------------------------------------------
     // Group 4: Network request containment
     // ------------------------------------------------------------------------
-    if (testResults.routableRequests.length === 0) {
-      recordPass('Network containment: zero routable network requests initiated', { requests: 0 });
+    if (testResults.routableRequests.length === 0 && testResults.contextRequests.length === 0) {
+      recordPass('Network containment: zero routable network requests initiated (route aborts: 0, context requests: 0)', {
+        routeAborts: testResults.routableRequests.length,
+        contextRequests: testResults.contextRequests.length
+      });
     } else {
-      recordFail('Network containment: zero routable network requests initiated', `Found ${testResults.routableRequests.length} requests: ${testResults.routableRequests.join(', ')}`);
+      recordFail('Network containment: zero routable network requests initiated', {
+        routeAborts: testResults.routableRequests,
+        contextRequests: testResults.contextRequests
+      });
     }
 
   } catch (err) {
