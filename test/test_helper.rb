@@ -3,6 +3,7 @@ require_relative '../config/environment'
 require 'rails/test_help'
 require 'simplecov'
 require 'webmock/minitest'
+require_relative 'helpers/test_target_guard'
 
 SimpleCov.start 'rails' do
   add_filter '/bin/'
@@ -11,16 +12,20 @@ SimpleCov.start 'rails' do
   add_filter '/vendor/'
 end
 
+# Preflight test target before suite setup; enforces default-deny WebMock except validated local API
+TestTargetGuard.enforce_isolated_test_target!
+
 class ActiveSupport::TestCase
   # Run tests in parallel with specified workers
   parallelize(workers: 1)
 
-
-  WebMock.allow_net_connect!
+  # Default network access denied; narrowly permit the validated local API
+  TestTargetGuard.configure_webmock!
 
   Capybara.server_host = "0.0.0.0"
   Capybara.app_host = "http://#{Socket.gethostname}:#{Capybara.server_port}" 
   setup do
+    TestTargetGuard.enforce_isolated_test_target!
     FlipperSetup.test_configure!
   end
 end

@@ -1,5 +1,20 @@
-require 'rails/test_help'
+# frozen_string_literal: true
+
+begin
+  require 'rails/test_help'
+rescue LoadError
+  # Support isolated/offline regression runs without Rails bundle
+end
+require_relative 'test_target_guard'
+
 module ApplicationTestHelpers
+  def self.verify_test_target!
+    TestTargetGuard.enforce_isolated_test_target!
+  end
+
+  def self.included(base)
+    verify_test_target! if defined?(TestTargetGuard)
+  end
 
   def self.transform_models_to_ids(object)
     object.each_pair do |key, value|
@@ -14,6 +29,7 @@ module ApplicationTestHelpers
 
   module Users
     def sign_in_as(username)
+      ApplicationTestHelpers.verify_test_target!
       user = fixtures(:users)[username]
       logged_in_user = LinkedData::Client::Models::User.authenticate(user.username, user.password)
       logged_in_user = create_user(user) if logged_in_user && !logged_in_user.errors
@@ -21,6 +37,7 @@ module ApplicationTestHelpers
     end
 
     def create_user(user, admin: false)
+      ApplicationTestHelpers.verify_test_target!
       admin_user = LinkedData::Client::Models::User.authenticate('admin', 'password')
       existent_user = LinkedData::Client::Models::User.find_by_username(user.username).first
 
@@ -53,13 +70,16 @@ module ApplicationTestHelpers
       existent_user
     end
 
-    def delete_users(users = LinkedData::Client::Models::User.all)
+    def delete_users(users = nil)
+      ApplicationTestHelpers.verify_test_target!
+      users = LinkedData::Client::Models::User.all if users.nil?
       Array(users).each do |o|
         LinkedData::Client::Models::Ontology.find_by_acronym(o.acronym).first&.delete
       end
     end
 
     def delete_user(user)
+      ApplicationTestHelpers.verify_test_target!
       admin_user = LinkedData::Client::Models::User.authenticate('admin', 'password')
       existent_user = LinkedData::Client::Models::User.find_by_username(user.username).first
 
@@ -81,6 +101,7 @@ module ApplicationTestHelpers
 
   module Ontologies
     def create_ontology(ontology, submission)
+      ApplicationTestHelpers.verify_test_target!
       ontology = LinkedData::Client::Models::Ontology.new(values: ApplicationTestHelpers.transform_models_to_ids(ontology).to_h).save
       if ontology.errors
         puts "Ontology creation error: #{ontology.errors}"
@@ -94,7 +115,9 @@ module ApplicationTestHelpers
       [ontology, submission]
     end
 
-    def delete_ontologies(ontologies = @ontologies)
+    def delete_ontologies(ontologies = nil)
+      ApplicationTestHelpers.verify_test_target!
+      ontologies = @ontologies if ontologies.nil?
       Array(ontologies).each do |o|
         next unless o.acronym
         LinkedData::Client::Models::Ontology.find_by_acronym(o.acronym).first&.delete
@@ -104,12 +127,15 @@ module ApplicationTestHelpers
 
   module Categories
     def create_category(category)
+      ApplicationTestHelpers.verify_test_target!
       created = LinkedData::Client::Models::Category.new(values: category.to_h).save
       return LinkedData::Client::Models::Category.find_by_acronym(category.acronym).first if created.errors
       created
     end
 
-    def create_categories(categories_data = fixtures(:categories))
+    def create_categories(categories_data = nil)
+      ApplicationTestHelpers.verify_test_target!
+      categories_data ||= fixtures(:categories)
       @categories = []
       categories_data.to_a.each do |name, category|
         @categories << create_category(category)
@@ -117,19 +143,24 @@ module ApplicationTestHelpers
       @categories
     end
 
-    def delete_categories(categories = LinkedData::Client::Models::Category.all)
+    def delete_categories(categories = nil)
+      ApplicationTestHelpers.verify_test_target!
+      categories = LinkedData::Client::Models::Category.all if categories.nil?
       Array(categories).each { |g| g.delete }
     end
   end
 
   module Groups
     def create_group(group)
+      ApplicationTestHelpers.verify_test_target!
       created = LinkedData::Client::Models::Group.new(values: group.to_h).save
       return  LinkedData::Client::Models::Group.find_by_acronym(group.acronym).first if created.errors
       created
     end
 
-    def create_groups(groups_data = fixtures(:groups))
+    def create_groups(groups_data = nil)
+      ApplicationTestHelpers.verify_test_target!
+      groups_data ||= fixtures(:groups)
       @groups = []
       groups_data.to_a.each do |name, group|
         @groups << create_group(group)
@@ -137,13 +168,17 @@ module ApplicationTestHelpers
       @groups
     end
 
-    def delete_groups(groups = LinkedData::Client::Models::Group.all)
+    def delete_groups(groups = nil)
+      ApplicationTestHelpers.verify_test_target!
+      groups = LinkedData::Client::Models::Group.all if groups.nil?
       Array(groups).each { |g| g.delete }
     end
   end
 
   module Agents
-    def delete_agents(agents = LinkedData::Client::Models::Agent.all)
+    def delete_agents(agents = nil)
+      ApplicationTestHelpers.verify_test_target!
+      agents = LinkedData::Client::Models::Agent.all if agents.nil?
       Array(agents).each { |g| g.delete }
     end
   end
