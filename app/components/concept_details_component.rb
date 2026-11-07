@@ -70,9 +70,9 @@ class ConceptDetailsComponent < ViewComponent::Base
   def properties_set_by_keys(keys, concept_properties, exclude_keys = [])
     concept_properties&.select do |k, v|
       label = (v.is_a?(Hash) && v[:label]) || k
-      (keys.include?(k) || keys.include?(label) || !keys.select { |key| v[:key].to_s.include?(key) }.empty?) &&
-        !exclude_keys.include?(k) && !exclude_keys.include?(label) &&
-        exclude_keys.select { |key| v[:key].to_s.include?(key) }.empty?
+      (keys.include?(k) || keys.include?(k.to_s) || keys.include?(label) || !keys.select { |key| v[:key].to_s.include?(key.to_s) }.empty?) &&
+        !exclude_keys.include?(k) && !exclude_keys.include?(k.to_s) && !exclude_keys.include?(label) &&
+        exclude_keys.select { |key| v[:key].to_s.include?(key.to_s) }.empty?
     end
   end
 
@@ -99,9 +99,7 @@ class ConceptDetailsComponent < ViewComponent::Base
     keys.each do |key|
       next if properties[key].nil? # ignore :context and :links when nil.
 
-      k = key.to_s if key.kind_of?(Symbol)
-      k ||= key.to_s
-
+      k = key.to_s
       resolved_label = resolve_property_label(k)
       label = resolved_label.presence || local_name_from_iri(k)
 
@@ -117,8 +115,7 @@ class ConceptDetailsComponent < ViewComponent::Base
         values = properties[key]
       end
       data = { :key => key, :values => values, :label => label }
-      prop_key = properties_data.key?(label) ? "#{label}__#{key}" : label
-      properties_data[prop_key] = data
+      properties_data[k] = data
     end
     properties_data
   end
@@ -142,27 +139,28 @@ class ConceptDetailsComponent < ViewComponent::Base
       return nil
     end
 
+    increment_property_label_miss_count!
+
     path = "/ontologies/#{@acronym}/properties/#{CGI.escape(iri.to_s)}/label"
-    begin
-      response = LinkedData::Client::HTTP.get(path)
-      label = if response.respond_to?(:label)
-                response.label
-              elsif response.is_a?(Hash)
-                response['label'] || response[:label]
-              end
-      if label.present? && label.is_a?(String) && !label.strip.empty?
-        cache[cache_key] = label.strip
-      else
-        increment_property_label_miss_count!
-        cache[cache_key] = nil
-      end
+    response = begin
+      LinkedData::Client::HTTP.get(path)
     rescue Exception => e
-      raise if fatal_exception?(e)
-      increment_property_label_miss_count!
-      cache[cache_key] = nil
+      raise if fatal_or_programming_error?(e)
+      raise unless expected_label_error?(e)
+      nil
     end
 
-    cache[cache_key]
+    label = nil
+    if response.present?
+      raw_label = if response.respond_to?(:label)
+                    response.label
+                  elsif response.is_a?(Hash)
+                    response['label'] || response[:label]
+                  end
+      label = raw_label.strip if raw_label.is_a?(String) && !raw_label.strip.empty?
+    end
+
+    cache[cache_key] = label
   end
 
   def request_env
@@ -205,7 +203,29 @@ class ConceptDetailsComponent < ViewComponent::Base
       exception.is_a?(Interrupt) ||
       exception.is_a?(SignalException) ||
       exception.is_a?(NoMemoryError) ||
+      exception.is_a?(ScriptError) ||
+      exception.is_a?(SystemStackError) ||
       (defined?(fatal) && exception.is_a?(fatal))
+  end
+
+  def programming_error?(exception)
+    exception.is_a?(NoMethodError) ||
+      exception.is_a?(NameError) ||
+      exception.is_a?(ArgumentError) ||
+      exception.is_a?(TypeError)
+  end
+
+  def fatal_or_programming_error?(exception)
+    fatal_exception?(exception) || programming_error?(exception)
+  end
+
+  def expected_label_error?(exception)
+    return true if exception.instance_of?(Exception)
+    return true if exception.is_a?(IOError) || exception.is_a?(SystemCallError)
+    return true if defined?(SocketError) && exception.is_a?(SocketError)
+    return true if defined?(Timeout::Error) && exception.is_a?(Timeout::Error)
+    return true if defined?(OpenSSL::SSL::SSLError) && exception.is_a?(OpenSSL::SSL::SSLError)
+    false
   end
 
   def local_name_from_iri(iri)

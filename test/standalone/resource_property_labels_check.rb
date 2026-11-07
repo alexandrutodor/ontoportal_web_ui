@@ -16,6 +16,8 @@ require 'haml/template'
 require 'ostruct'
 require 'nokogiri'
 require 'cgi'
+require 'socket'
+require 'timeout'
 
 # =============================================================================
 # Standalone Resource Property Labels Check (ONTO-T-U06 label resolution/cache)
@@ -280,6 +282,139 @@ class ResourcePropertyLabelsCheck < Minitest::Test
         exclude_keys: []
       )
     end
+
+    MockSDKHTTP.handler = lambda do |_path|
+      raise SystemExit, 'Simulated SystemExit during property lookup'
+    end
+
+    assert_raises(SystemExit) do
+      ConceptDetailsComponent.new(
+        id: 'exit-test',
+        acronym: 'TEST-ACRO',
+        concept_id: 'http://example.org/concept/exit',
+        properties: props,
+        top_keys: [],
+        bottom_keys: [],
+        exclude_keys: []
+      )
+    end
+  end
+
+  # Case 3b: Representative transport failures fall back safely to local name
+  def test_representative_transport_failures_fall_back_to_local_name
+    sock_iri = 'http://example.org/transport#socketErr'
+    conn_iri = 'http://example.org/transport#connRefused'
+    time_iri = 'http://example.org/transport#timeoutErr'
+
+    MockSDKHTTP.handler = lambda do |path|
+      if path.include?('socketErr')
+        raise SocketError, 'getaddrinfo: Name or service not known'
+      elsif path.include?('connRefused')
+        raise Errno::ECONNREFUSED, 'Connection refused - connect(2)'
+      elsif path.include?('timeoutErr')
+        raise Timeout::Error, 'execution expired'
+      end
+    end
+
+    props_class = Struct.new(sock_iri.to_sym, conn_iri.to_sym, time_iri.to_sym)
+    props = props_class.new(['Val Socket'], ['Val Conn'], ['Val Timeout'])
+
+    comp = ConceptDetailsComponent.new(
+      id: 'transport-test',
+      acronym: 'TEST-ACRO',
+      concept_id: 'http://example.org/concept/transport',
+      properties: props,
+      top_keys: [],
+      bottom_keys: [],
+      exclude_keys: []
+    )
+
+    html = comp.render_in(@view_context)
+    doc = parse_doc(html)
+
+    rows = doc.css('tbody tr').reject { |tr| tr.at_css('#content_resource_formats') }
+    assert_equal 3, rows.size
+
+    row_headers = rows.map { |r| r.at_css('th span')&.text&.strip }
+    assert_includes row_headers, 'socketErr'
+    assert_includes row_headers, 'connRefused'
+    assert_includes row_headers, 'timeoutErr'
+
+    assert_includes html, 'Val Socket'
+    assert_includes html, 'Val Conn'
+    assert_includes html, 'Val Timeout'
+
+    assert_equal 3, @fake_env['ontoportal.property_labels_miss_count']
+  end
+
+  # Case 3c: Programming errors propagate and are never swallowed
+  def test_programming_errors_propagate_and_are_never_swallowed
+    target_iri = 'http://example.org/bug#brokenMethod'
+    MockSDKHTTP.handler = lambda do |_path|
+      raise NoMethodError, "undefined method `nonexistent_method` for nil:NilClass"
+    end
+
+    props_class = Struct.new(target_iri.to_sym)
+    props = props_class.new(['Will raise NoMethodError'])
+
+    assert_raises(NoMethodError) do
+      ConceptDetailsComponent.new(
+        id: 'nomethod-test',
+        acronym: 'TEST-ACRO',
+        concept_id: 'http://example.org/concept/nomethod',
+        properties: props,
+        top_keys: [],
+        bottom_keys: [],
+        exclude_keys: []
+      )
+    end
+  end
+
+  # Case 3d: Malformed DTO label handled safely without broad rescue
+  def test_malformed_dto_label_handled_safely_without_broad_rescue
+    int_iri = 'http://example.org/dto#integerLabel'
+    missing_attr_iri = 'http://example.org/dto#missingLabelAttr'
+    hash_nil_iri = 'http://example.org/dto#hashNilLabel'
+
+    MockSDKHTTP.handler = lambda do |path|
+      if path.include?('integerLabel')
+        OpenStruct.new(label: 12345) # non-string
+      elsif path.include?('missingLabelAttr')
+        OpenStruct.new(other_attr: 'foo') # no label method
+      elsif path.include?('hashNilLabel')
+        { 'label' => nil } # hash with nil label
+      end
+    end
+
+    props_class = Struct.new(int_iri.to_sym, missing_attr_iri.to_sym, hash_nil_iri.to_sym)
+    props = props_class.new(['Val Int'], ['Val Missing'], ['Val HashNil'])
+
+    comp = ConceptDetailsComponent.new(
+      id: 'malformed-dto-test',
+      acronym: 'TEST-ACRO',
+      concept_id: 'http://example.org/concept/dto',
+      properties: props,
+      top_keys: [],
+      bottom_keys: [],
+      exclude_keys: []
+    )
+
+    html = comp.render_in(@view_context)
+    doc = parse_doc(html)
+
+    rows = doc.css('tbody tr').reject { |tr| tr.at_css('#content_resource_formats') }
+    assert_equal 3, rows.size
+
+    row_headers = rows.map { |r| r.at_css('th span')&.text&.strip }
+    assert_includes row_headers, 'integerLabel'
+    assert_includes row_headers, 'missingLabelAttr'
+    assert_includes row_headers, 'hashNilLabel'
+
+    assert_includes html, 'Val Int'
+    assert_includes html, 'Val Missing'
+    assert_includes html, 'Val HashNil'
+
+    assert_equal 3, @fake_env['ontoportal.property_labels_miss_count']
   end
 
   # Case 4: Same request repeat reuses cached negative outcome without extra HTTP call
@@ -427,7 +562,138 @@ class ResourcePropertyLabelsCheck < Minitest::Test
     end
   end
 
-  # Case 7: Distinct predicates with equal display labels do NOT silently collapse fields
+  # Case 6b: All-success lookups bounded to 20 attempts per request; excess rendered via local fallback
+  def test_all_success_lookups_bounded_to_20_attempts_per_request_with_excess_rendered_via_local_fallback
+    iri_list = (1..25).map { |i| "http://example.org/pos#prop%02d" % i }
+    MockSDKHTTP.handler = lambda do |path|
+      idx = path[/prop(\d+)/, 1]
+      OpenStruct.new(label: "Resolved Prop #{idx}")
+    end
+
+    props_class = Struct.new(*iri_list.map(&:to_sym))
+    props_values = (1..25).map { |i| ["Value for pos %02d" % i] }
+    props = props_class.new(*props_values)
+
+    comp = ConceptDetailsComponent.new(
+      id: 'all-success-bounded-test',
+      acronym: 'TEST-ACRO',
+      concept_id: 'http://example.org/concept/all_success',
+      properties: props,
+      top_keys: [],
+      bottom_keys: [],
+      exclude_keys: []
+    )
+
+    html = comp.render_in(@view_context)
+    doc = parse_doc(html)
+
+    # Exactly 20 HTTP calls made, bounded by MAX_PROPERTY_LABEL_MISSES_PER_REQUEST
+    assert_equal 20, MockSDKHTTP.calls.size, 'All-success lookups must be bounded to 20 attempts per request'
+    assert_equal 20, @fake_env['ontoportal.property_labels_miss_count'], 'Miss count must reflect 20 uncached attempts'
+
+    # All 25 rows are rendered (excess properties not dropped)
+    rows = doc.css('tbody tr').reject { |tr| tr.at_css('#content_resource_formats') }
+    assert_equal 25, rows.size
+
+    # First 20 rows display resolved labels
+    (1..20).each do |i|
+      expected_label = "Resolved Prop %02d" % i
+      assert_includes html, expected_label, "Property #{i} must display resolved label"
+    end
+
+    # Last 5 rows display local fallback names (prop21 .. prop25)
+    (21..25).each do |i|
+      expected_fallback = "prop%02d" % i
+      refute_includes html, "Resolved Prop %02d" % i, "Property #{i} must not have resolved label"
+      th_span = doc.at_css("tbody tr th span[title='#{iri_list[i - 1]}']")
+      assert th_span, "Property #{i} row must exist"
+      assert_equal expected_fallback, th_span.text.strip, "Property #{i} must use local fallback"
+    end
+
+    # All 25 values rendered
+    (1..25).each do |i|
+      val = "Value for pos %02d" % i
+      assert_includes html, val
+    end
+  end
+
+  # Case 6c: Mixed outcomes across components preserve budget and render all fields
+  def test_mixed_outcomes_across_components_preserve_budget_and_render_all_fields
+    # Component 1: 12 uncached properties (mixed: 8 success, 2 missing, 2 errors)
+    comp1_iris = (1..12).map { |i| "http://example.org/mixed#prop%02d" % i }
+    MockSDKHTTP.handler = lambda do |path|
+      idx = path[/prop(\d+)/, 1].to_i
+      if [9, 10].include?(idx)
+        OpenStruct.new(label: '') # missing
+      elsif idx == 11
+        raise Exception, 'SDK 500 error'
+      elsif idx == 12
+        raise SocketError, 'transport down'
+      else
+        OpenStruct.new(label: "Resolved Mixed %02d" % idx)
+      end
+    end
+
+    comp1_props_class = Struct.new(*comp1_iris.map(&:to_sym))
+    comp1 = ConceptDetailsComponent.new(
+      id: 'mixed-comp1',
+      acronym: 'TEST-ACRO',
+      concept_id: 'http://example.org/concept/m1',
+      properties: comp1_props_class.new(*(1..12).map { |i| ["Comp1 val #{i}"] }),
+      top_keys: [],
+      bottom_keys: [],
+      exclude_keys: []
+    )
+    comp1.render_in(@view_context)
+
+    assert_equal 12, MockSDKHTTP.calls.size
+    assert_equal 12, @fake_env['ontoportal.property_labels_miss_count']
+
+    # Component 2 in SAME request:
+    # 5 hits (properties 1..5 from comp1)
+    # 8 new uncached properties (13..20) -> reaches budget 20
+    # 5 excess uncached properties (21..25) -> exceeds budget 20
+    comp2_iris = (1..5).map { |i| "http://example.org/mixed#prop%02d" % i } +
+                 (13..25).map { |i| "http://example.org/mixed#prop%02d" % i }
+
+    comp2_props_class = Struct.new(*comp2_iris.map(&:to_sym))
+    comp2 = ConceptDetailsComponent.new(
+      id: 'mixed-comp2',
+      acronym: 'TEST-ACRO',
+      concept_id: 'http://example.org/concept/m2',
+      properties: comp2_props_class.new(*(1..18).map { |i| ["Comp2 val #{i}"] }),
+      top_keys: [],
+      bottom_keys: [],
+      exclude_keys: []
+    )
+    html2 = comp2.render_in(@view_context)
+    doc2 = parse_doc(html2)
+
+    # Total HTTP calls across both components must be capped at exactly 20
+    assert_equal 20, MockSDKHTTP.calls.size, 'Total HTTP calls across components must be bounded at 20'
+    assert_equal 20, @fake_env['ontoportal.property_labels_miss_count'], 'Miss count must remain 20'
+
+    # All 18 properties in comp2 are rendered
+    rows2 = doc2.css('tbody tr').reject { |tr| tr.at_css('#content_resource_formats') }
+    assert_equal 18, rows2.size
+
+    # Cache hits (1..5) rendered with resolved labels without extra HTTP calls
+    (1..5).each do |i|
+      assert_includes html2, "Resolved Mixed %02d" % i
+    end
+
+    # Lookups within budget (13..20) rendered with resolved labels
+    (13..20).each do |i|
+      assert_includes html2, "Resolved Mixed %02d" % i
+    end
+
+    # Excess lookups (21..25) rendered with local fallback
+    (21..25).each do |i|
+      th_span = doc2.at_css("tbody tr th span[title='http://example.org/mixed#prop%02d']" % i)
+      assert th_span, "Excess property #{i} must be rendered"
+      assert_equal "prop%02d" % i, th_span.text.strip, "Excess property #{i} must use local fallback"
+    end
+  end
   def test_equal_display_labels_do_not_silently_collapse_fields_and_retain_values
     iri_a = 'http://example.org/predicates/alpha'
     iri_b = 'http://example.org/predicates/beta'
@@ -477,7 +743,68 @@ class ResourcePropertyLabelsCheck < Minitest::Test
     assert_includes html, 'Unique value from Beta predicate'
   end
 
-  # Case 8: Multilingual values and raw IRI tooltips are retained
+  # Case 7b: Display label derived disambiguation key collision retains all predicates (U06-L3)
+  def test_display_label_collision_with_synthesized_pattern_retains_all_predicates
+    iri_alpha = 'http://example.org/predicates/alpha'
+    iri_beta = 'http://example.org/predicates/beta'
+    iri_gamma = 'http://example.org/predicates/gamma'
+
+    MockSDKHTTP.handler = lambda do |path|
+      if path.include?('alpha')
+        OpenStruct.new(label: 'Shared__http://example.org/predicates/gamma')
+      elsif path.include?('beta')
+        OpenStruct.new(label: 'Shared')
+      elsif path.include?('gamma')
+        OpenStruct.new(label: 'Shared')
+      end
+    end
+
+    props_class = Struct.new(iri_alpha.to_sym, iri_beta.to_sym, iri_gamma.to_sym)
+    props = props_class.new(
+      ['Alpha unique value'],
+      ['Beta unique value'],
+      ['Gamma unique value']
+    )
+
+    comp = ConceptDetailsComponent.new(
+      id: 'disambig-collision-test',
+      acronym: 'TEST-ACRO',
+      concept_id: 'http://example.org/concept/disambig',
+      properties: props,
+      top_keys: [],
+      bottom_keys: [],
+      exclude_keys: []
+    )
+
+    # 1. Concept properties retain all 3 distinct predicate identities
+    assert_equal 3, comp.concept_properties.size, 'All 3 predicates must be retained in concept_properties'
+    assert_equal [iri_alpha, iri_beta, iri_gamma], comp.concept_properties.keys
+
+    # 2. prefix_properties preserves all 3 distinct predicate identities
+    prefixed = comp.prefix_properties(comp.concept_properties)
+    assert_equal 3, prefixed.size, 'All 3 predicates must be retained in prefix_properties'
+    assert_equal [iri_alpha, iri_beta, iri_gamma], prefixed.keys
+
+    # 3. Rendered HTML table preserves all 3 distinct rows
+    html = comp.render_in(@view_context)
+    doc = parse_doc(html)
+
+    rows = doc.css('tbody tr').reject { |tr| tr.at_css('#content_resource_formats') }
+    assert_equal 3, rows.size, 'Three distinct predicates must render as 3 rows'
+
+    # Headers match expected display labels
+    row_headers = rows.map { |r| r.at_css('th span')&.text&.strip }
+    assert_equal ['Shared__http://example.org/predicates/gamma', 'Shared', 'Shared'], row_headers
+
+    # Tooltips retain each predicate's raw IRI
+    titles = rows.map { |r| r.at_css('th span')['title'] }
+    assert_equal [iri_alpha, iri_beta, iri_gamma], titles
+
+    # Values for all 3 are rendered
+    assert_includes html, 'Alpha unique value'
+    assert_includes html, 'Beta unique value'
+    assert_includes html, 'Gamma unique value'
+  end
   def test_multilingual_values_and_raw_iri_tooltips_retained
     target_iri = 'http://example.org/ns#multilingualNote'
     MockSDKHTTP.handler = lambda do |_path|

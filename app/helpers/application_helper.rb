@@ -382,8 +382,9 @@ module ApplicationHelper
                         end
 
         value_with_label = value.merge(label: display_label)
-        target_key = modified_properties.key?(display_label) ? "#{display_label}__#{key_string}" : display_label
-        modified_properties[target_key] = value_with_label
+        modified_properties[key] = value_with_label
+      else
+        modified_properties[key] = value
       end
     end
 
