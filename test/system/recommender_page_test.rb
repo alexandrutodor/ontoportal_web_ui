@@ -3,7 +3,7 @@ require 'webmock/minitest'
 
 class RecommenderPageTest < ApplicationSystemTestCase
     def setup
-        WebMock.disable!
+        TestTargetGuard.configure_webmock!
         @apikey = LinkedData::Client.settings.apikey
         @host = LinkedData::Client.settings.rest_url
         @recommender_api = "#{@host}/recommender"

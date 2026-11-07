@@ -9,6 +9,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   include ApplicationTestHelpers::Groups
   include ApplicationTestHelpers::Agents
 
+  setup do
+    TestTargetGuard.configure_webmock!
+  end
+
   driven_by :selenium, using: ENV['CI'].present? ? :headless_chrome : :chrome, screen_size: [1400, 1400], options: {
     browser: :remote,
     url: "http://localhost:4444"

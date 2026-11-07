@@ -143,43 +143,151 @@ end
   end
 end
 
-puts "\n=== Step 5: WebMock default-deny networking configuration ==="
-# Create doubled WebMock to verify configuration without live WebMock gem
-module MockWebMock
-  class << self
-    attr_reader :net_connect_disabled, :disabled_options, :net_connect_allowed
-
-    def reset!
-      @net_connect_disabled = false
-      @disabled_options = nil
-      @net_connect_allowed = false
-    end
-
-    def disable_net_connect!(options = {})
-      @net_connect_disabled = true
-      @disabled_options = options
-    end
-
-    def allow_net_connect!
-      @net_connect_allowed = true
-    end
+puts "\n=== Step 5: Real WebMock exact endpoint bounds and permission predicates ==="
+# Load actual locked WebMock gem
+begin
+  require 'webmock'
+rescue LoadError
+  q06_gem_path = '/tmp/q06_gems'
+  if Dir.exist?(q06_gem_path)
+    $LOAD_PATH.unshift(*Dir.glob("#{q06_gem_path}/gems/*/lib"))
+    require 'webmock'
   end
 end
+require 'net/http'
 
-# Temporarily alias or define WebMock
-Object.const_set(:WebMock, MockWebMock) unless defined?(WebMock)
+assert(defined?(WebMock) == 'constant', "Actual WebMock gem is loaded", failures)
 
-MockWebMock.reset!
+# Configure Capybara mock object before WebMock policy
+module Capybara
+  class << self
+    attr_accessor :server_host, :server_port, :app_host
+  end
+end
+Capybara.server_host = '0.0.0.0'
+Capybara.server_port = 31_337
+Capybara.app_host = "http://#{Socket.gethostname}:#{Capybara.server_port}"
+
 ENV[TestTargetGuard::MARKER_ENV_VAR] = '1'
 TestTargetGuard.configure_webmock!('http://localhost:9393')
 
-assert(MockWebMock.net_connect_disabled, "WebMock.disable_net_connect! was invoked", failures)
-assert(!MockWebMock.net_connect_allowed, "WebMock.allow_net_connect! was NOT invoked", failures)
-assert(MockWebMock.disabled_options[:allow_localhost] == false, "WebMock disable_net_connect! sets allow_localhost: false", failures)
+assert(!WebMock::Config.instance.allow_net_connect, "WebMock default-deny is active (allow_net_connect: false)", failures)
+assert(WebMock::Config.instance.allow_localhost == false, "WebMock allow_localhost is false (no broad localhost access)", failures)
 
-allowed_list = MockWebMock.disabled_options[:allow]
+allowed_list = WebMock::Config.instance.allow
 assert(allowed_list.include?('localhost:9393'), "Narrow allowlist includes validated local API host:port 'localhost:9393'", failures)
+assert(!allowed_list.include?('localhost'), "Narrow allowlist excludes bare hostname 'localhost'", failures)
+assert(!allowed_list.include?('127.0.0.1'), "Narrow allowlist excludes bare hostname '127.0.0.1'", failures)
+assert(!allowed_list.include?('0.0.0.0'), "Narrow allowlist excludes bare hostname '0.0.0.0'", failures)
 assert(!allowed_list.include?('data.bioontology.org'), "Narrow allowlist excludes remote host 'data.bioontology.org'", failures)
+
+# Capybara readiness endpoint check
+assert(allowed_list.include?('0.0.0.0:31337'), "Allowlist includes Capybara bind/readiness host:port '0.0.0.0:31337'", failures)
+assert(allowed_list.include?('127.0.0.1:31337'), "Allowlist includes Capybara loopback host:port '127.0.0.1:31337'", failures)
+assert(allowed_list.include?('localhost:31337'), "Allowlist includes Capybara localhost host:port 'localhost:31337'", failures)
+assert(allowed_list.include?("#{Socket.gethostname}:31337"), "Allowlist includes Capybara app host:port '#{Socket.gethostname}:31337'", failures)
+
+# Verify actual WebMock permission predicate on API endpoints (Finding 2)
+assert(WebMock.net_connect_allowed?('http://localhost:9393/ontologies'),
+       "WebMock.net_connect_allowed? permits validated API port 9393", failures)
+assert(!WebMock.net_connect_allowed?('http://localhost:8080/evil'),
+       "WebMock.net_connect_allowed? denies unrelated port 8080 on localhost", failures)
+assert(!WebMock.net_connect_allowed?('http://localhost:1234/test'),
+       "WebMock.net_connect_allowed? denies unrelated port 1234 on localhost", failures)
+assert(!WebMock.net_connect_allowed?('https://data.bioontology.org/ontologies'),
+       "WebMock.net_connect_allowed? denies remote host data.bioontology.org", failures)
+
+# Verify actual WebMock permission predicate on Capybara readiness endpoints (Finding 4)
+assert(WebMock.net_connect_allowed?('http://0.0.0.0:31337/__identify__'),
+       "WebMock.net_connect_allowed? permits Capybara readiness probe at 0.0.0.0:31337", failures)
+assert(WebMock.net_connect_allowed?('http://127.0.0.1:31337/'),
+       "WebMock.net_connect_allowed? permits Capybara 127.0.0.1:31337", failures)
+assert(WebMock.net_connect_allowed?("http://#{Socket.gethostname}:31337/"),
+       "WebMock.net_connect_allowed? permits Capybara app host #{Socket.gethostname}:31337", failures)
+assert(!WebMock.net_connect_allowed?('http://0.0.0.0:31338/__identify__'),
+       "WebMock.net_connect_allowed? denies neighboring port 0.0.0.0:31338", failures)
+assert(!WebMock.net_connect_allowed?('http://127.0.0.1:31338/'),
+       "WebMock.net_connect_allowed? denies neighboring port 127.0.0.1:31338", failures)
+assert(!WebMock.net_connect_allowed?('http://localhost:31338/'),
+       "WebMock.net_connect_allowed? denies neighboring port localhost:31338", failures)
+
+puts "\n=== Step 5b: Transport double interception (zero sockets/services opened) ==="
+# Transport double interceptor
+class TransportAttemptedError < StandardError
+  attr_reader :host, :port
+  def initialize(host, port)
+    @host = host
+    @port = port
+    super("Transport double intercepted connection to #{host}:#{port}")
+  end
+end
+
+class TCPSocket
+  def initialize(host, port, *rest, **kw)
+    raise TransportAttemptedError.new(host, port)
+  end
+end
+
+# Test 5b-1: Allowed API port 9393 reaches transport double
+hit_transport_api = false
+begin
+  Net::HTTP.get(URI('http://localhost:9393/test'))
+rescue TransportAttemptedError => e
+  hit_transport_api = (e.host == 'localhost' && e.port == 9393)
+rescue WebMock::NetConnectNotAllowedError
+  hit_transport_api = false
+end
+assert(hit_transport_api, "Allowed API port 9393 passes WebMock and reaches transport double", failures)
+
+# Test 5b-2: Forbidden API neighbor port 8080 blocked before transport double
+blocked_before_transport = false
+begin
+  Net::HTTP.get(URI('http://localhost:8080/evil'))
+rescue TransportAttemptedError
+  blocked_before_transport = false
+rescue WebMock::NetConnectNotAllowedError
+  blocked_before_transport = true
+end
+assert(blocked_before_transport, "Forbidden API neighbor port 8080 blocked by WebMock before transport", failures)
+
+# Test 5b-3: Allowed Capybara readiness probe 0.0.0.0:31337 reaches transport double
+hit_transport_capybara = false
+begin
+  Net::HTTP.get(URI('http://0.0.0.0:31337/__identify__'))
+rescue TransportAttemptedError => e
+  hit_transport_capybara = (e.host == '0.0.0.0' && e.port == 31_337)
+rescue WebMock::NetConnectNotAllowedError
+  hit_transport_capybara = false
+end
+assert(hit_transport_capybara, "Allowed Capybara probe 0.0.0.0:31337 passes WebMock and reaches transport double", failures)
+
+# Test 5b-4: Forbidden Capybara neighbor 0.0.0.0:31338 blocked before transport double
+blocked_capybara_neighbor = false
+begin
+  Net::HTTP.get(URI('http://0.0.0.0:31338/__identify__'))
+rescue TransportAttemptedError
+  blocked_capybara_neighbor = false
+rescue WebMock::NetConnectNotAllowedError
+  blocked_capybara_neighbor = true
+end
+assert(blocked_capybara_neighbor, "Forbidden Capybara neighbor 0.0.0.0:31338 blocked by WebMock before transport", failures)
+
+puts "\n=== Step 5c: Setup recovery and adapter persistence (Finding 3) ==="
+# Simulate prior WebMock.disable! from rogue setup
+WebMock.disable!
+
+# Representative setup execution restores WebMock adapters and enforces default-deny policy
+TestTargetGuard.configure_webmock!('http://localhost:9393')
+
+blocked_after_setup = false
+begin
+  Net::HTTP.get(URI('https://data.bioontology.org/ontologies'))
+rescue TransportAttemptedError
+  blocked_after_setup = false
+rescue WebMock::NetConnectNotAllowedError
+  blocked_after_setup = true
+end
+assert(blocked_after_setup, "WebMock default-deny is restored and active after setup recovery", failures)
 
 puts "\n=== Step 6: ApplicationTestHelpers preflight runs BEFORE requests/cleanup ==="
 # Load ApplicationTestHelpers
@@ -308,7 +416,7 @@ bin_content = File.read(ontoportal_path)
 has_isolated_flag = bin_content.include?('ONTOPORTAL_ISOLATED_TEST=1')
 assert(has_isolated_flag, "bin/ontoportal sets ONTOPORTAL_ISOLATED_TEST=1 in docker compose run", failures)
 
-puts "\n=== Step 8: Verify test/test_helper.rb network policy ==="
+puts "\n=== Step 8: Verify test/test_helper.rb and system setups network policy ==="
 test_helper_path = File.expand_path('../test_helper.rb', __dir__)
 test_helper_content = File.read(test_helper_path)
 
@@ -318,6 +426,17 @@ assert(test_helper_content.include?('TestTargetGuard.enforce_isolated_test_targe
        "test/test_helper.rb enforces TestTargetGuard preflight at boot", failures)
 assert(test_helper_content.include?('TestTargetGuard.configure_webmock!'),
        "test/test_helper.rb configures default-deny WebMock", failures)
+assert(test_helper_content.include?('Capybara.server_port'),
+       "test/test_helper.rb configures explicit Capybara.server_port before policy", failures)
+
+# Verify no system test setup contains unrestricted WebMock.disable!
+system_test_files = Dir.glob(File.expand_path('../system/*_test.rb', __dir__))
+system_test_files.each do |st_file|
+  file_content = File.read(st_file)
+  rel_path = st_file.sub(%r{^.*/test/}, 'test/')
+  assert(!file_content.include?('WebMock.disable!'),
+         "#{rel_path} must NOT contain WebMock.disable!", failures)
+end
 
 puts "\n" + ("=" * 60)
 if failures.empty?

@@ -3,7 +3,7 @@ require "application_system_test_case"
 class LoginFlowsTest < ApplicationSystemTestCase
 
   setup do
-    WebMock.disable!
+    TestTargetGuard.configure_webmock!
     @user_john = fixtures(:users)[:john]
     @user_bob = fixtures(:users)[:bob]
   end

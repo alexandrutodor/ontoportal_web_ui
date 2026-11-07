@@ -3,7 +3,7 @@ require 'webmock/minitest'
 
 class ContentRedirectionTest < ApplicationSystemTestCase
   def setup
-    WebMock.disable!
+    TestTargetGuard.configure_webmock!
 
     @sty_url = root_url + 'ontologies/STY'
     @ontology_portal_uri = 'div.field-container p.field-description_text'

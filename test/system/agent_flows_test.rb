@@ -4,7 +4,7 @@ class AgentFlowsTest < ApplicationSystemTestCase
   include AgentHelper
 
   setup do
-    WebMock.disable!
+    TestTargetGuard.configure_webmock!
     teardown
     @logged_user = fixtures(:users)[:john]
     @new_person = fixtures(:agents)[:agent1]

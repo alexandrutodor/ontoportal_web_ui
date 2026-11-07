@@ -11,6 +11,7 @@ module TestTargetGuard
   class InvalidURLError < TargetIsolationError; end
 
   MARKER_ENV_VAR = 'ONTOPORTAL_ISOLATED_TEST'
+  DEFAULT_CAPYBARA_PORT = 31_337
 
   # Actual local bootstrap and container hostnames from ontoportal_docker compose setup
   APPROVED_HOSTS = %w[
@@ -113,17 +114,52 @@ module TestTargetGuard
 
       uri = verify_isolated_test_target!(url)
 
+      # Ensure HTTP library adapters are enabled (WebMock.disable! turns off adapters;
+      # WebMock.enable! restores them so default-deny interception is active)
+      WebMock.enable! if WebMock.respond_to?(:enable!)
+
+      # Bounded endpoint allowances: explicit host:port only, never bare host
       allowed_hosts = [
         "#{uri.host}:#{uri.port}",
-        uri.host,
         '127.0.0.1:4444',
         'localhost:4444'
       ]
 
-      if defined?(Capybara) && Capybara.respond_to?(:server_port) && Capybara.server_port
-        allowed_hosts << "127.0.0.1:#{Capybara.server_port}"
-        allowed_hosts << "localhost:#{Capybara.server_port}"
-        allowed_hosts << "#{Socket.gethostname}:#{Capybara.server_port}"
+      if ENV['SELENIUM_REMOTE_URL'].to_s.strip != ''
+        begin
+          grid_uri = URI.parse(ENV['SELENIUM_REMOTE_URL'].strip)
+          grid_port = grid_uri.port || (grid_uri.scheme == 'https' ? 443 : 80)
+          allowed_hosts << "#{grid_uri.host}:#{grid_port}" if grid_uri.host
+        rescue URI::InvalidURIError
+        end
+      end
+
+      if defined?(Capybara)
+        if Capybara.respond_to?(:server_port)
+          Capybara.server_port ||= (ENV['CAPYBARA_SERVER_PORT'] || DEFAULT_CAPYBARA_PORT).to_i
+        end
+        if Capybara.respond_to?(:server_host) && (Capybara.server_host.nil? || Capybara.server_host.empty?)
+          Capybara.server_host = ENV['CAPYBARA_SERVER_HOST'] || '0.0.0.0'
+        end
+
+        port = Capybara.respond_to?(:server_port) ? Capybara.server_port : nil
+        if port
+          server_host = Capybara.respond_to?(:server_host) && Capybara.server_host ? Capybara.server_host : '0.0.0.0'
+          allowed_hosts << "#{server_host}:#{port}"
+          allowed_hosts << "0.0.0.0:#{port}"
+          allowed_hosts << "127.0.0.1:#{port}"
+          allowed_hosts << "localhost:#{port}"
+          allowed_hosts << "#{Socket.gethostname}:#{port}"
+
+          if Capybara.respond_to?(:app_host) && Capybara.app_host
+            begin
+              app_uri = URI.parse(Capybara.app_host)
+              app_port = app_uri.port || port
+              allowed_hosts << "#{app_uri.host}:#{app_port}" if app_uri.host
+            rescue URI::InvalidURIError
+            end
+          end
+        end
       end
 
       WebMock.disable_net_connect!(
