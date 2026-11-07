@@ -1,5 +1,6 @@
 require "test_helper"
 require_relative 'helpers/application_test_helpers'
+require_relative 'helpers/browse_wait'
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   include ApplicationTestHelpers::Ontologies
@@ -8,6 +9,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   include ApplicationTestHelpers::Categories
   include ApplicationTestHelpers::Groups
   include ApplicationTestHelpers::Agents
+  include BrowseWait
 
   setup do
     TestTargetGuard.configure_webmock!
@@ -19,11 +21,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   }
 
   def wait_for(selector, tries = 60)
-    tries.times.each do
-      puts "waiting for #{selector}"
-      break if page.has_selector?(selector)
-      sleep 1
-    end
+    assert page.has_selector?(selector, wait: tries), "Timed out after #{tries}s waiting for #{selector} at #{page.current_url}"
   end
 
   def wait_for_text(text, tries = 60)
