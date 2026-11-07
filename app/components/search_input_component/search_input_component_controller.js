@@ -97,23 +97,46 @@ export default class extends Controller {
         }
     }
 
+    #baseUri() {
+        return (document.location && document.location.protocol && document.location.protocol.startsWith('http'))
+            ? document.location.href
+            : 'http://localhost';
+    }
+
     #renderLines() {
         this.loaderTarget.classList.add("d-none")
         this.buttonTarget.classList.remove("d-none")
         const inputValue = this.#inputValue();
         let results_list = []
         if (inputValue.length > 0) {
-            this.buttonTarget.href = `${this.searchEndpointValue}?q=${inputValue}`;
-            this.actionLinks.forEach(action => {
-                const content = action.querySelector('p')
-                content.innerHTML = inputValue
-                const currentURL = new URL(action.href, document.location)
-                currentURL.searchParams.set(currentURL.searchParams.keys().next().value, inputValue)
-                action.href = currentURL.pathname + currentURL.search
-            })
+            const base = this.#baseUri();
+            const origin = new URL(base).origin;
+            const searchUrl = new URL(this.searchEndpointValue || '/search', base);
+            searchUrl.searchParams.set("q", inputValue);
+            this.buttonTarget.href = (searchUrl.origin === origin)
+                ? (searchUrl.pathname + searchUrl.search + searchUrl.hash)
+                : searchUrl.href;
 
-            this.dropDown.innerHTML = ""
-            let breaker = 0
+            this.actionLinks.forEach(action => {
+                const content = action.querySelector('p');
+                if (content) {
+                    content.textContent = inputValue;
+                }
+                const rawHref = action.getAttribute('href') || action.href || '';
+                const currentURL = new URL(rawHref, base);
+                const targetKey = currentURL.searchParams.has('query')
+                    ? 'query'
+                    : (currentURL.searchParams.has('search')
+                        ? 'search'
+                        : (currentURL.searchParams.keys().next().value || 'q'));
+                currentURL.searchParams.set(targetKey, inputValue);
+                action.href = (currentURL.origin === origin)
+                    ? (currentURL.pathname + currentURL.search + currentURL.hash)
+                    : currentURL.href;
+            });
+
+            this.dropDown.replaceChildren();
+            let breaker = 0;
             for (let i = 0; i < this.items.length; i++) {
                 if (!this.displayAllValue && breaker === 4) {
                     break;
@@ -121,21 +144,23 @@ export default class extends Controller {
                 // Get the current item from the ontologies array
                 const item = this.items[i];
 
-                let text =  Object.values(item).reduce((acc, value) => acc + value, "")
+                let text = Object.values(item).reduce((acc, value) => acc + (value != null ? value : ""), "");
                 
                 // Check if the item contains the substring
                 if (!this.cacheValue || text.toLowerCase().includes(inputValue.toLowerCase())) {
                     results_list.push(item);
-                    breaker = breaker + 1
+                    breaker = breaker + 1;
                 }
             }
 
             results_list.forEach((item) => {
                 let link = this.#renderLine(item);
-                this.dropDown.appendChild(link);
+                if (link) {
+                    this.dropDown.appendChild(link);
+                }
             });
 
-            this.actionLinks.forEach(x => this.dropDown.appendChild(x))
+            this.actionLinks.forEach(x => this.dropDown.appendChild(x));
             this.dropDown.style.display = "block";
 
             this.input.classList.add("home-dropdown-active");
@@ -148,24 +173,76 @@ export default class extends Controller {
 
     }
 
+    #isSafeHref(url) {
+        if (typeof url !== 'string') return false;
+        const trimmed = url.trim();
+        if (!trimmed || /[\x00-\x1F\x7F]/.test(trimmed)) return false;
+        try {
+            const parsed = new URL(trimmed, this.#baseUri());
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    }
+
     #renderLine(item) {
-        let template = this.templateTarget.content
-        let newElement = template.firstElementChild.outerHTML
-        Object.entries(item).forEach( ([key, value]) => {
-            key = key.toString().toUpperCase()
-            if (key === 'TYPE'){
-                value  = value.toString().split('/').slice(-1)
+        const template = this.templateTarget.content;
+        if (!template || !template.firstElementChild) return null;
+        const element = template.firstElementChild.cloneNode(true);
+
+        const dict = {};
+        for (const [rawKey, rawVal] of Object.entries(item)) {
+            if (rawKey == null) continue;
+            const key = String(rawKey).toUpperCase();
+            let val = rawVal != null ? String(rawVal) : '';
+            if (key === 'TYPE') {
+                const segments = val.split('/').filter(Boolean);
+                val = segments.length > 0 ? segments[segments.length - 1] : val;
+            } else if (key === 'ACRONYM') {
+                val = val ? `(${val})` : '';
+            } else if (key === 'IDENTIFIERS') {
+                val = val ? `- ${val}` : '';
             }
-            if (key === 'ACRONYM'){
-                value = value ? `(${value.toString()})` : ''
+            dict[key] = val;
+        }
+
+        const itemLink = item.link != null ? String(item.link) : (item.LINK != null ? String(item.LINK) : '');
+        const anchors = (element.matches('a') ? [element] : []).concat(Array.from(element.querySelectorAll('a')));
+        anchors.forEach(a => {
+            const rawHref = a.getAttribute('href');
+            if (rawHref && /\bLINK\b/i.test(rawHref)) {
+                const candidate = (rawHref === 'LINK') ? itemLink : rawHref.replace(/\bLINK\b/gi, itemLink);
+                if (this.#isSafeHref(candidate)) {
+                    a.setAttribute('href', candidate);
+                } else {
+                    a.removeAttribute('href');
+                }
             }
-            if (key === 'IDENTIFIERS'){
-                value = value ? `- ${value.toString()}` : ''
+        });
+
+        const keys = Object.keys(dict).filter(k => k.length > 0);
+        if (keys.length > 0) {
+            keys.sort((a, b) => b.length - a.length);
+            const pattern = new RegExp('\\b(' + keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b', 'gi');
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            const textNodes = [];
+            while (walker.nextNode()) {
+                textNodes.push(walker.currentNode);
             }
-            const regex = new RegExp('\\b' + key + '\\b', 'gi');
-            newElement =  newElement.replace(regex, value ? value.toString() : "")
-        })
-        
-        return new DOMParser().parseFromString(newElement, "text/html").body.firstElementChild
+            for (const node of textNodes) {
+                const originalText = node.nodeValue;
+                if (!originalText) continue;
+                pattern.lastIndex = 0;
+                if (pattern.test(originalText)) {
+                    pattern.lastIndex = 0;
+                    node.nodeValue = originalText.replace(pattern, (match) => {
+                        const upper = match.toUpperCase();
+                        return Object.prototype.hasOwnProperty.call(dict, upper) ? dict[upper] : match;
+                    });
+                }
+            }
+        }
+
+        return element;
     }
 }
