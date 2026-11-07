@@ -90,8 +90,8 @@ class RouteSet
     actions = options[:only] ? Array(options[:only]).map(&:to_s) : %w[index create new show edit update destroy]
     actions -= Array(options[:except]).map(&:to_s) if options[:except]
 
-    base_path = full_path(name_str)
-    ctrl = current_controller(name_str)
+    base_path = name_str
+    ctrl = options[:controller] || name_str
 
     get(base_path, to: "#{ctrl}#index") if actions.include?("index")
     post(base_path, to: "#{ctrl}#create") if actions.include?("create")
@@ -111,14 +111,15 @@ class RouteSet
   def resource(name, options = {}, &block)
     name_str = name.to_s
     actions = options[:only] ? Array(options[:only]).map(&:to_s) : %w[show new create edit update destroy]
-    ctrl = options[:controller] || current_controller(name_str.pluralize)
-    base_path = full_path(name_str)
+    ctrl = options[:controller] || name_str.pluralize
+    base_path = name_str
     get(base_path, to: "#{ctrl}#show") if actions.include?("show")
     put(base_path, to: "#{ctrl}#update") if actions.include?("update")
     patch(base_path, to: "#{ctrl}#update") if actions.include?("update")
   end
 
   def match_request(verb, path)
+    clean_path = (path.length > 1 && path.end_with?("/")) ? path.chomp("/") : path
     routes.each do |r|
       next unless r.verb == verb.upcase
       pattern = r.path_spec.dup
@@ -134,7 +135,7 @@ class RouteSet
         end
       end
       regex = Regexp.new("\\A#{pattern}\\z")
-      if (m = regex.match(path))
+      if (m = regex.match(clean_path))
         ctrl = r.controller.empty? ? (m.names.include?("controller") ? m[:controller] : "") : r.controller
         act = r.action.empty? ? (m.names.include?("action") ? m[:action] : "index") : r.action
         return { controller: ctrl, action: act, path_spec: r.path_spec, params: m.named_captures }
@@ -252,6 +253,14 @@ assert(!has_get_submissions_update, "GET alias for submissions#update is removed
 has_dead_edit_metadata = routes_source.match?(/edit_metadata/)
 assert(!has_dead_edit_metadata, "Obsolete dead route edit_metadata is removed", failures)
 
+# 6. Explicit GET /search/json_search must exist (preserving json_search/:id)
+has_json_search = routes_source.match?(/^\s*get\s+['"]search\/json_search['"]/)
+assert(has_json_search, "Explicit 'get search/json_search' is declared in config/routes.rb", failures)
+
+# 7. Explicit GET /statistics must exist (preserving statistics/index)
+has_statistics = routes_source.match?(/^\s*get\s+['"]\/?statistics['"],\s*to:\s*['"]statistics#index['"]/)
+assert(has_statistics, "Explicit 'get statistics, to: statistics#index' is declared in config/routes.rb", failures)
+
 puts "\n=== Step 3: Route rejection of mutating GET requests (Pass-After) ==="
 # These paths previously reached mutation actions via catchall or obsolete GET aliases.
 # Verify that routing either rejects them entirely (404) or routes only to safe read actions,
@@ -298,6 +307,11 @@ res_sub_update = route_set.match_request("POST", "/ontologies/STY/submissions/1"
 assert(res_sub_update && res_sub_update[:controller] == "submissions" && res_sub_update[:action] == "update",
        "POST /ontologies/STY/submissions/1 routes to submissions#update", failures)
 
+# GET /ontologies/STY/submissions/1 hits submissions#show via nested resources :submissions
+res_sub_show = route_set.match_request("GET", "/ontologies/STY/submissions/1")
+assert(res_sub_show && res_sub_show[:controller] == "submissions" && res_sub_show[:action] == "show",
+       "GET /ontologies/STY/submissions/1 routes to submissions#show via nested resources :submissions", failures)
+
 puts "\n=== Step 5: Preservation of legitimate read URLs ==="
 required_read_urls = [
   { path: "/about", expected_ctrl: "about", expected_act: "index", desc: "About page" },
@@ -309,7 +323,12 @@ required_read_urls = [
   { path: "/ontologies/STY/classes/T071", expected_ctrl: "ontologies", expected_act: "show", desc: "Ontology class PURL redirection" },
   { path: "/ontologies/STY/123", expected_ctrl: "ontologies_redirection", expected_act: "redirect", desc: "Ontology resource URI redirection" },
   { path: "/ontologies_filter", expected_ctrl: "ontologies", expected_act: "ontologies_filter", desc: "Ontologies filter" },
-  { path: "/search", expected_ctrl: "search", expected_act: "index", desc: "Search index" }
+  { path: "/search", expected_ctrl: "search", expected_act: "index", desc: "Search index" },
+  { path: "/search/json_search", expected_ctrl: "search", expected_act: "json_search", desc: "Search json_search query endpoint" },
+  { path: "/search/json_search/", expected_ctrl: "search", expected_act: "json_search", desc: "Search json_search autocomplete trailing-slash endpoint" },
+  { path: "/search/json_search/123", expected_ctrl: "search", expected_act: "json_search", desc: "Search json_search path-id endpoint" },
+  { path: "/statistics", expected_ctrl: "statistics", expected_act: "index", desc: "Statistics navigation endpoint" },
+  { path: "/statistics/index", expected_ctrl: "statistics", expected_act: "index", desc: "Statistics index explicit endpoint" }
 ]
 
 required_read_urls.each do |r|
@@ -326,7 +345,9 @@ required_write_urls = [
   { verb: "DELETE", path: "/admin/ontologies", expected_ctrl: "admin", expected_act: "delete_ontologies", desc: "Delete ontologies via DELETE /admin/ontologies" },
   { verb: "POST", path: "/admin/clearcache", expected_ctrl: "admin", expected_act: "clearcache", desc: "Clear cache via POST /admin/clearcache" },
   { verb: "POST", path: "/admin/resetcache", expected_ctrl: "admin", expected_act: "resetcache", desc: "Reset cache via POST /admin/resetcache" },
-  { verb: "PUT", path: "/admin/ontologies", expected_ctrl: "admin", expected_act: "process_ontologies", desc: "Process ontologies via PUT /admin/ontologies" }
+  { verb: "PUT", path: "/admin/ontologies", expected_ctrl: "admin", expected_act: "process_ontologies", desc: "Process ontologies via PUT /admin/ontologies" },
+  { verb: "PUT", path: "/ontologies/STY/submissions/1", expected_ctrl: "submissions", expected_act: "update", desc: "Update submission via PUT /ontologies/:ontology_id/submissions/:id" },
+  { verb: "PATCH", path: "/ontologies/STY/submissions/1", expected_ctrl: "submissions", expected_act: "update", desc: "Update submission via PATCH /ontologies/:ontology_id/submissions/:id" }
 ]
 
 required_write_urls.each do |w|

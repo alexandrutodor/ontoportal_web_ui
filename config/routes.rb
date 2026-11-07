@@ -168,6 +168,7 @@ Rails.application.routes.draw do
   get '/site_config' => 'home#site_config'
   post '/annotator_recommender_form' => 'home#annotator_recommender_form'
   match '/visits', to: 'visits#index', via: :get
+  get 'statistics', to: 'statistics#index'
   get 'statistics/index'
 
   # Error pages
@@ -241,6 +242,7 @@ Rails.application.routes.draw do
 
   # Search
   get 'search', to: 'search#index'
+  get 'search/json_search', to: 'search#json_search'
   get 'search/json_search/:id', to: 'search#json_search'
   get 'ajax/search/ontologies/content', to: 'search#json_ontology_content_search'
   get 'ajax/search/ontologies/:ontology_acronym/classes', to: 'search#json_ontology_classes_search'
