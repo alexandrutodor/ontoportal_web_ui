@@ -9,7 +9,7 @@ name: "Run local API tests CI"
 on:
   push:
   pull_request:
-    types: [ opened, reopened ]
+    types: [ opened, reopened, synchronize ]
 env:
   API_URL: http://localhost:9393
   REMOTE_API_KEY: 8b5b7825-538d-40e0-9e9e-5ab9274a9aeb

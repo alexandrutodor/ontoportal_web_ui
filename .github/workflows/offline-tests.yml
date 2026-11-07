@@ -1,0 +1,21 @@
+name: "Offline shell tests CI"
+
+on:
+  push:
+  pull_request:
+    types: [ opened, reopened, synchronize ]
+
+permissions:
+  contents: read
+
+jobs:
+  offline-shell:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Run offline shell tests
+        run: bash test/bin/run_api_test.sh
