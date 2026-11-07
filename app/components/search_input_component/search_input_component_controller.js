@@ -22,13 +22,25 @@ export default class extends Controller {
         this.actionLinks = this.actionLinkTargets
         this.items = this.itemsValue
         this.search = debounce(this.search.bind(this), 100);
+        this.requestSeq = 0;
+    }
+
+    disconnect() {
+        this.requestSeq = (this.requestSeq || 0) + 1;
     }
 
     search() {
         this.selectedItemValue = 0
-        this.loaderTarget.classList.remove("d-none")
-        this.buttonTarget.classList.add("d-none")
+        this.#setLoading(true)
         this.searchInput()
+    }
+
+    retry(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        this.search();
     }
 
     searchInput() {
@@ -77,7 +89,25 @@ export default class extends Controller {
     }
 
 
+    #setLoading(loading) {
+        if (this.hasLoaderTarget) {
+            if (loading) {
+                this.loaderTarget.classList.remove("d-none");
+            } else {
+                this.loaderTarget.classList.add("d-none");
+            }
+        }
+        if (this.hasButtonTarget) {
+            if (loading) {
+                this.buttonTarget.classList.add("d-none");
+            } else {
+                this.buttonTarget.classList.remove("d-none");
+            }
+        }
+    }
+
     #fetchItems() {
+        const seq = ++this.requestSeq;
         if (this.items.length !== 0 && this.#useCache()) {
             this.#renderLines()
         } else {
@@ -86,15 +116,45 @@ export default class extends Controller {
                 url: this.ajaxUrlValue + encodeURIComponent(this.#inputValue()),
                 dataType: "json",
                 success: (data) => {
+                    if (seq !== this.requestSeq) return;
                     this.items = data.map(x => { return {...x, link: (this.itemLinkBaseValue + x[this.idKeyValue])}} )
                     this.#renderLines()
                 },
                 error: () => {
-                    console.log("error")
-                    //TODO show errors
+                    if (seq !== this.requestSeq) return;
+                    this.#renderError()
                 }
             })
         }
+    }
+
+    #renderError() {
+        this.#setLoading(false);
+        this.items = [];
+        this.dropDown.replaceChildren();
+
+        const errorContainer = document.createElement("div");
+        errorContainer.className = "search-error p-3 text-center text-muted";
+
+        const textNode = document.createElement("span");
+        textNode.className = "search-error-message";
+        textNode.textContent = "Failed to load results.";
+        errorContainer.appendChild(textNode);
+
+        const retryBtn = document.createElement("button");
+        retryBtn.type = "button";
+        retryBtn.className = "btn btn-link btn-sm p-0 search-retry-action ms-2";
+        retryBtn.textContent = "Retry";
+        retryBtn.setAttribute("data-action", "click->search-input#retry");
+        retryBtn.addEventListener("click", (e) => {
+            this.retry(e);
+        });
+        errorContainer.appendChild(retryBtn);
+
+        this.dropDown.appendChild(errorContainer);
+        this.actionLinks.forEach(x => this.dropDown.appendChild(x));
+        this.dropDown.style.display = "block";
+        this.input.classList.add("home-dropdown-active");
     }
 
     #baseUri() {
@@ -104,8 +164,7 @@ export default class extends Controller {
     }
 
     #renderLines() {
-        this.loaderTarget.classList.add("d-none")
-        this.buttonTarget.classList.remove("d-none")
+        this.#setLoading(false)
         const inputValue = this.#inputValue();
         let results_list = []
         if (inputValue.length > 0) {

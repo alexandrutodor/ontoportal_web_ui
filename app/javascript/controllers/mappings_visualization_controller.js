@@ -13,6 +13,7 @@ export default class extends Controller {
   static targets = ['frame', 'bubbles', 'submit', 'modal', 'selector', 'ontologies', 'loader']
 
   connect () {
+    this.requestSeq = 0
 
     this.drawBubbles = (mappingsList) => {
       const zoomRatio = this.zoomRatioValue
@@ -38,6 +39,10 @@ export default class extends Controller {
       this.#clickOnSelectedAcronymBubble()
     }
 
+  }
+
+  disconnect () {
+    this.requestSeq = (this.requestSeq || 0) + 1
   }
 
   filterOntologies () {
@@ -94,16 +99,12 @@ export default class extends Controller {
       return
     }
 
-    this.#toggleAnimation()
-
     if (selected_bubble.getAttribute('data-highlighted') === 'true') {
       // user clicks on a bubble that have mapping with the current highlighted bubble, should show a modal with the mappings
       this.#showMappingsModal(selected_bubble)
-      this.#toggleAnimation()
     } else if (selected_bubble.getAttribute('data-selected') === 'true') {
       // user clicks on current bubble (should deselect it, but nothing happen if we're in ontology mappings section not the page)
       this.#unSelectBubble(selected_bubble)
-      this.#toggleAnimation()
     } else {
       this.#selectBubble(selected_bubble)
     }
@@ -157,6 +158,9 @@ export default class extends Controller {
   }
 
   #fetchMappingsDataAndSetBubblesColor (url) {
+    const seq = ++this.requestSeq
+    this.#setLoading(true)
+
     fetch(url, {
       method: 'GET',
       headers: {
@@ -170,18 +174,23 @@ export default class extends Controller {
         return response.json()
       })
       .then(data => {
+        if (seq !== this.requestSeq) return
+
         const mappings_list = data.map(item => ({
           acronym: item.target_ontology.acronym,
           count: item.count
         }))
 
         this.#setBubblesColors(mappings_list)
-
-        this.#toggleAnimation()
       })
       .catch(error => {
+        if (seq !== this.requestSeq) return
         console.error('Error fetching or processing data:', error)
-        // Handle errors here
+      })
+      .finally(() => {
+        if (seq === this.requestSeq) {
+          this.#setLoading(false)
+        }
       })
   }
 
@@ -231,9 +240,21 @@ export default class extends Controller {
     return normalization_ratio
   }
 
-  #toggleAnimation () {
-    this.loaderTarget.classList.toggle('d-none')
-    this.bubblesTarget.classList.toggle('d-none')
+  #setLoading (loading) {
+    if (this.hasLoaderTarget) {
+      if (loading) {
+        this.loaderTarget.classList.remove('d-none')
+      } else {
+        this.loaderTarget.classList.add('d-none')
+      }
+    }
+    if (this.hasBubblesTarget) {
+      if (loading) {
+        this.bubblesTarget.classList.add('d-none')
+      } else {
+        this.bubblesTarget.classList.remove('d-none')
+      }
+    }
   }
 
   #selectionEnabled () {
