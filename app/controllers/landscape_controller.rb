@@ -40,6 +40,7 @@ class LandscapeController < ApplicationController
     org_count_hash = {}
 
     ontology_relations_array = []
+    relation_targets = {}
 
     ontologyFormatsCount = {"OWL" => 0, "SKOS" => 0, "UMLS" => 0, "OBO" => 0}
 
@@ -275,7 +276,9 @@ class LandscapeController < ApplicationController
               # if we find our portal URL in the ontology URL, then we just keep the ACRONYM to try to get the ontology.
               if relation_value.include?(helpers.portal_name)
                 relation_value = relation_value.split('/').last
-                target_ont = LinkedData::Client::Models::Ontology.find_by_acronym(relation_value).first
+                # One lookup per distinct acronym per request instead of one per relation value.
+                relation_targets[relation_value] = LinkedData::Client::Models::Ontology.find_by_acronym(relation_value).first unless relation_targets.key?(relation_value)
+                target_ont = relation_targets[relation_value]
               end
 
               # Use acronym to get ontology from the portal
