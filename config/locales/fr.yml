@@ -418,6 +418,10 @@ fr:
     cancel_button: Annuler
     check_resolvability: vérification de la résolvabilité...
     classes: classes
+    clipboard:
+      copy: Copier
+      copied: Copié !
+      failed: Échec de la copie
     concepts: concepts
     copy_original_uri: Copier l'URI d'origine
     copy_portal_uri: Copier l'URI de %{portal_name}

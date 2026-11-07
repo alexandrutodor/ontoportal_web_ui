@@ -408,6 +408,10 @@ en:
     cancel_button: Cancel
     check_resolvability: checking resolvability...
     classes: classes
+    clipboard:
+      copy: Copy
+      copied: Copied!
+      failed: Copy failed
     concepts: concepts
     copy_original_uri: Copy original URI
     copy_portal_uri: Copy %{portal_name} URI
