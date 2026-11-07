@@ -147,8 +147,8 @@ class ConceptsController < ApplicationController
     @ontology = LinkedData::Client::Models::Ontology.find_by_acronym(params[:ontology]).first
     ontology_not_found(params[:ontology]) if @ontology.nil?
 
-    @concept = @ontology.explore.single_class({ full: true }, CGI.unescape(params[:conceptid]))
-    concept_not_found(CGI.unescape(params[:conceptid])) if @concept.nil? || @concept.errors
+    @concept = @ontology.explore.single_class({ full: true }, params[:conceptid])
+    concept_not_found(params[:conceptid]) if @concept.nil? || @concept.errors
     @container_id = params[:modal] ? 'application_modal_content' : 'concept_details'
 
     render :partial => "details"

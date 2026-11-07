@@ -1,4 +1,5 @@
 require 'uri'
+require 'cgi'
 
 module SearchHelper
   def search_content_params
@@ -43,13 +44,15 @@ module SearchHelper
       next_page_link = query_string.empty? ? base_url : "#{base_url}?#{query_string}"
     end
 
+    child_url_with_lang = child_url.include?('?') ? "#{child_url}&lang=#{CGI.escape(lang.to_s)}" : "#{child_url}?lang=#{CGI.escape(lang.to_s)}"
+
     if show_count && page.eql?(1)
       [
         replace("#{container_id}_count", content_tag(:span, @results.totalCount).html_safe),
         prepend("#{container_id}_view-page-1", paginated_list_component(id: container_id,
                                                                                         results: @results,
                                                                                         next_page_url: next_page_link,
-                                                                                        child_url: child_url.include?('?') ? "#{child_url}&lang=#{lang}" : "#{child_url}?lang=#{lang}",
+                                                                                        child_url: child_url_with_lang,
                                                                                         child_param: child_param,
                                                                                         child_turbo_frame: child_turbo_frame,
                                                                                         open_in_modal: show_count,
@@ -59,7 +62,7 @@ module SearchHelper
       paginated_list_component(id: container_id,
                                results: @results,
                                next_page_url: next_page_link,
-                               child_url: child_url.include?('?') ? "#{child_url}&lang=#{lang}" : "#{child_url}?lang=#{lang}",
+                               child_url: child_url_with_lang,
                                child_param: child_param,
                                child_turbo_frame: child_turbo_frame,
                                open_in_modal: show_count,
