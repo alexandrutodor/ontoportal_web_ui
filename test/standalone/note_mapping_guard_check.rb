@@ -175,6 +175,7 @@ class BoundarySpy
   attr_accessor :note_delete_calls, :note_delete_response, :note_errors
   attr_accessor :http_post_calls, :http_post_args, :http_post_response
   attr_accessor :http_patch_calls, :http_patch_args, :http_patch_response
+  attr_accessor :http_delete_calls, :http_delete_args, :http_delete_response
   attr_accessor :mapping_find_calls, :ontology_find_by_acronym_calls
 
   def initialize
@@ -195,6 +196,10 @@ class BoundarySpy
     @http_patch_calls = 0
     @http_patch_args = []
     @http_patch_response = OpenStruct.new(status: 204, body: '')
+
+    @http_delete_calls = 0
+    @http_delete_args = []
+    @http_delete_response = OpenStruct.new(status: 204, body: '')
 
     @mapping_find_calls = 0
     @ontology_find_by_acronym_calls = 0
@@ -244,6 +249,12 @@ module LinkedData::Client::HTTP
       $spy.http_patch_calls += 1
       $spy.http_patch_args << [path, args, kwargs]
       $spy.http_patch_response
+    end
+
+    def delete(path, *args, **kwargs)
+      $spy.http_delete_calls += 1
+      $spy.http_delete_args << [path, args, kwargs]
+      $spy.http_delete_response
     end
   end
 end
@@ -295,6 +306,25 @@ class NoteMappingGuardCheck < Minitest::Test
   ADMIN_USER = OpenStruct.new(id: 'http://example.com/users/admin_user', username: 'admin_user', admin?: true).freeze
   REGULAR_USER = OpenStruct.new(id: 'http://example.com/users/regular_user', username: 'regular_user', admin?: false).freeze
   IMPERSONATED_ADMIN = OpenStruct.new(id: 'http://example.com/users/real_admin', username: 'real_admin', admin?: true).freeze
+  # Non-admin who created the mapping: creator status grants nothing (admin-only decision).
+  CREATOR_USER = OpenStruct.new(id: 'http://example.com/users/mapping_creator', username: 'mapping_creator', admin?: false).freeze
+
+  MAPPING_UPDATE_PARAMS = {
+    id: 'http://example.com/mappings/101',
+    mapping_type: 'external',
+    map_to_external_ontology: 'http://example.com/ontologies/EXT',
+    map_to_external_class: 'http://example.com/classes/C2',
+    map_from_bioportal_ontology_id: 'ONT1',
+    map_from_bioportal_full_id: 'http://example.com/classes/C1',
+    mapping: {
+      relation: ['http://www.w3.org/2004/02/skos/core#exactMatch'],
+      source_contact_info: 'test@example.com',
+      source_name: 'test_user',
+      name: 'Mapping Test',
+      comment: 'Testing update'
+    }
+  }.freeze
+  TURBO = { 'Accept' => 'text/vnd.turbo-stream.html' }.freeze
 
   def setup
     $spy.reset!
@@ -510,43 +540,47 @@ class NoteMappingGuardCheck < Minitest::Test
   # ===========================================================================
   # 8. MappingsController Callback Declaration and Operator Boundary Verification
   # ===========================================================================
-  def test_08_mappings_controller_callback_declaration_and_operator_boundary
+  def test_08_mappings_controller_callback_declaration_and_policy
     callbacks = ORIGINAL_MAPPINGS_CALLBACKS
-    auth_cb = callbacks.find { |c| c.filter == :authorize_and_redirect }
-    refute_nil auth_cb, 'MappingsController must declare :authorize_and_redirect callback'
+    actions_of = ->(cb) { cb.instance_variable_get(:@if)&.first&.instance_variable_get(:@actions) }
 
-    auth_actions = auth_cb.instance_variable_get(:@if)&.first&.instance_variable_get(:@actions)
-    assert_includes auth_actions, 'update', ':authorize_and_redirect must include :update'
-    assert_includes auth_actions, 'loader_process', ':authorize_and_redirect must include :loader_process'
-    assert_includes auth_actions, 'create', ':authorize_and_redirect must include :create'
-    assert_includes auth_actions, 'new', ':authorize_and_redirect must include :new'
-    assert_includes auth_actions, 'destroy', ':authorize_and_redirect must include :destroy'
+    login_cb = callbacks.find { |c| c.filter == :authorize_and_redirect }
+    refute_nil login_cb, 'MappingsController must declare :authorize_and_redirect callback'
+    assert_equal Set['create', 'new', 'loader_process'], actions_of.call(login_cb)
 
-    # Operator policy check: MappingsController must NOT declare owner or admin filters
+    # Decision b04-mapping-policy-decision.json: update/destroy are administrator-only.
+    admin_cb = callbacks.find { |c| c.filter == :authorize_admin }
+    refute_nil admin_cb, 'MappingsController must declare :authorize_admin callback'
+    assert_equal Set['update', 'destroy'], actions_of.call(admin_cb)
+
     filter_names = callbacks.map(&:filter)
-    refute_includes filter_names, :authorize_admin,
-                    'MappingsController must NOT impose admin-only restriction (open operator decision)'
-    refute_includes filter_names, :verify_owner,
-                    'MappingsController must NOT impose unapproved owner filter (open operator decision)'
+    assert_operator filter_names.index(:authorize_admin), :<, filter_names.index(:set_global_thread_values),
+                    ':authorize_admin must run before inherited startup callbacks'
+    refute_includes filter_names, :verify_owner, 'No owner filter: owner access is not part of the decision'
   end
 
   # ===========================================================================
   # 9. MappingsController#update: Anonymous Denied Before Any HTTP Call
   # ===========================================================================
-  def test_09_anonymous_mapping_update_denied_before_http_call
-    _ctrl, _req, res = dispatch(
-      MappingsController,
-      :update,
-      user: nil,
-      params: { id: 'http://example.com/mappings/101' },
-      headers: { 'Accept' => 'text/vnd.turbo-stream.html' }
-    )
+  def test_09_anonymous_and_non_admin_mapping_update_destroy_denied_before_startup_and_http
+    [nil, REGULAR_USER, CREATOR_USER].each do |user|
+      [:update, :destroy].each do |action|
+        $spy.reset!
+        sentinel = Object.new
+        Thread.current[:request] = sentinel
 
-    assert_equal 302, res.status, 'Anonymous mapping update must redirect'
-    assert_equal 'http://test.host/', res.location, 'Anonymous mapping update must redirect to home (/)'
+        _ctrl, _req, res = dispatch(MappingsController, action, user: user,
+                                    params: MAPPING_UPDATE_PARAMS.dup, headers: TURBO)
 
-    assert_equal 0, $spy.http_patch_calls, 'Anonymous mapping update must make ZERO HTTP patch calls'
-    assert_equal 0, $spy.mapping_find_calls, 'Anonymous mapping update must make ZERO Mapping find calls'
+        who = user ? user.username : 'anonymous'
+        assert_equal 302, res.status, "#{who} mapping #{action} must redirect"
+        assert_equal 'http://test.host/', res.location, "#{who} mapping #{action} must redirect home"
+        assert_same sentinel, Thread.current[:request], "#{who} mapping #{action} denied before startup"
+        assert_equal 0, $spy.http_patch_calls, "#{who} mapping #{action} makes no patch"
+        assert_equal 0, $spy.http_delete_calls, "#{who} mapping #{action} makes no delete"
+        assert_equal 0, $spy.mapping_find_calls, "#{who} mapping #{action} makes no lookup"
+      end
+    end
   end
 
   # ===========================================================================
@@ -591,36 +625,42 @@ class NoteMappingGuardCheck < Minitest::Test
   # ===========================================================================
   # 12. MappingsController#update: Authenticated User Reaches Action
   # ===========================================================================
-  def test_12_authenticated_mapping_update_reaches_action
+  def test_12_admin_mapping_update_reaches_action
     $spy.http_patch_response = OpenStruct.new(status: 204, body: '')
 
-    update_params = {
-      id: 'http://example.com/mappings/101',
-      mapping_type: 'external',
-      map_to_external_ontology: 'http://example.com/ontologies/EXT',
-      map_to_external_class: 'http://example.com/classes/C2',
-      map_from_bioportal_ontology_id: 'ONT1',
-      map_from_bioportal_full_id: 'http://example.com/classes/C1',
-      mapping: {
-        relation: ['http://www.w3.org/2004/02/skos/core#exactMatch'],
-        source_contact_info: 'test@example.com',
-        source_name: 'test_user',
-        name: 'Mapping Test',
-        comment: 'Testing update'
-      }
-    }
+    _ctrl, _req, res = dispatch(MappingsController, :update, user: ADMIN_USER,
+                                params: MAPPING_UPDATE_PARAMS.dup, headers: TURBO)
 
-    _ctrl, _req, res = dispatch(
-      MappingsController,
-      :update,
-      user: REGULAR_USER,
-      params: update_params,
-      headers: { 'Accept' => 'text/vnd.turbo-stream.html' }
-    )
-
-    assert_equal 200, res.status, 'Authenticated mapping update must return 200 turbo-stream response'
-    assert_equal 1, $spy.http_patch_calls, 'Authenticated mapping update MUST reach action and invoke HTTP.patch'
+    assert_equal 200, res.status, 'Admin mapping update must return 200 turbo-stream response'
+    assert_equal 1, $spy.http_patch_calls, 'Admin mapping update MUST reach action and invoke HTTP.patch'
     assert_equal 'http://example.com/mappings/101', $spy.http_patch_args.last[0]
     assert_includes res.body, 'alert-success', 'Successful update must render alert-success'
+  end
+
+  def test_13_admin_mapping_update_failure_renders_error_not_success
+    $spy.http_patch_response = OpenStruct.new(status: 403, body: 'Forbidden by API')
+
+    _ctrl, _req, res = dispatch(MappingsController, :update, user: ADMIN_USER,
+                                params: MAPPING_UPDATE_PARAMS.dup, headers: TURBO)
+
+    assert_equal 1, $spy.http_patch_calls
+    assert_includes res.body, 'alert-danger', 'Non-204 patch must render the error branch'
+    refute_includes res.body, 'alert-success', 'Non-204 patch must never render success'
+  end
+
+  def test_14_admin_mapping_destroy_reaches_action_and_failure_is_not_success
+    $spy.http_delete_response = OpenStruct.new(status: 204, body: '')
+    _ctrl, _req, res = dispatch(MappingsController, :destroy, user: ADMIN_USER,
+                                params: { id: 'http://example.com/mappings/101' }, headers: TURBO)
+    assert_equal 1, $spy.http_delete_calls, 'Admin mapping destroy MUST reach HTTP.delete'
+    assert_includes res.body, 'alert-success'
+
+    $spy.reset!
+    $spy.http_delete_response = OpenStruct.new(status: 401, body: 'Unauthorized by API')
+    _ctrl, _req, res = dispatch(MappingsController, :destroy, user: ADMIN_USER,
+                                params: { id: 'http://example.com/mappings/101' }, headers: TURBO)
+    assert_equal 1, $spy.http_delete_calls
+    assert_includes res.body, 'alert-danger', 'Non-204 delete must render the error branch'
+    refute_includes res.body, 'alert-success', 'Non-204 delete must never render success'
   end
 end
