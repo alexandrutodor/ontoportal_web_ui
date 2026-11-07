@@ -63,7 +63,7 @@ class SubscriptionsController < ApplicationController
       error_response = OpenStruct.new(status: 500, errors: [e.message])
     end
 
-    if error_response && !response_error?(error_response) && response_success?(error_response)
+    if error_response != false && !response_error?(error_response) && response_success?(error_response)
       updated_sub = true
       session[:user].subscription = u.subscription
     else

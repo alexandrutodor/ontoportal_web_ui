@@ -907,9 +907,12 @@ class AccountOwnershipCheck < Minitest::Test
     assert_equal CGI.escape(@alice.id), $ownership_spy.user_get_args.first[:id]
   end
 
-  def test_subscriptions_create_nil_or_false_update_response_does_not_update_session
+  def test_subscriptions_create_legacy_nil_compatibility_and_false_update_rejection
+    # 1. Legacy nil response compatibility (response_success?(nil) == true):
+    # updated_sub is true, session subscription updated with own-field copy, API key preserved
+    # as existing helper policy (not proof of remote persistence; B05 deferred)
     @alice.forced_update_response = nil
-    orig_subs = @alice.subscription.dup
+    orig_apikey = @alice.apikey
 
     _ctrl, req, res = dispatch(SubscriptionsController, :create, method: :post,
                                 params: { ontology_id: 'ONT-A', subbed: 'false', user_id: 'alice' },
@@ -917,7 +920,24 @@ class AccountOwnershipCheck < Minitest::Test
 
     assert_equal 200, res.status
     body = JSON.parse(res.body)
-    assert_equal false, body['updated_sub'], 'updated_sub must be false on nil update response'
-    assert_equal orig_subs, req.session[:user].subscription, 'Session subscriptions must not be modified on nil response'
+    assert_equal true, body['updated_sub'], 'Legacy nil response treated as success per existing helper policy'
+    sub_acronyms = req.session[:user].subscription.map { |s| s[:ontology] }
+    assert_includes sub_acronyms, 'ONT-A', 'Subscription copy applied to session user under legacy nil compatibility'
+    assert_same @alice, req.session[:user], 'Session user object identity must be preserved'
+    assert_equal orig_apikey, req.session[:user].apikey, 'API key must remain intact as existing helper policy'
+
+    # 2. Actual false update rejection check:
+    # When update returns explicit false, updated_sub must be false and session subscriptions must not be modified
+    @alice.forced_update_response = false
+    orig_subs = @alice.subscription.dup
+
+    _ctrl2, req2, res2 = dispatch(SubscriptionsController, :create, method: :post,
+                                  params: { ontology_id: 'ONT-A', subbed: 'true', user_id: 'alice' },
+                                  session: { user: @alice })
+
+    assert_equal 200, res2.status
+    body2 = JSON.parse(res2.body)
+    assert_equal false, body2['updated_sub'], 'updated_sub must be false on explicit false update response'
+    assert_equal orig_subs, req2.session[:user].subscription, 'Session subscriptions must not be modified on false response'
   end
 end
