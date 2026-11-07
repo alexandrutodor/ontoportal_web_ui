@@ -152,10 +152,10 @@ class SearchController < ApplicationController
   end
 
   def json_ontology_content_search
-    query = params[:search] || '*'
-    page = (params[:page] || 1).to_i
+    query = params[:search].presence || '*'
+    page = params[:page].to_i > 0 ? params[:page].to_i : 1
     acronyms = params[:ontologies]&.split(',') || []
-    page_size = (params[:page_size] || 10).to_i
+    page_size = params[:page_size].to_i > 0 ? params[:page_size].to_i : 10
     type = params[:types]&.split(',') || []
     show_ontologies = !params[:show_ontologies].eql?('false')
 
