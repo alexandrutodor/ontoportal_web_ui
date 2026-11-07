@@ -4,7 +4,7 @@
       %div{style: 'width: 90%'}
         = template
       %div.d-flex.justify-content-end{style: 'width: 10%'}
-        %button.delete{type: "button", "aria-label" => t('components.remove_row'), data: {action:"click->nested-form#remove"}}
+        %button.delete.bg-transparent.p-0.text-reset.text-left{type: "button", "aria-label" => t('components.remove_row'), data: {action:"click->nested-form#remove"}}
           = inline_svg 'icons/delete.svg'
 
   %div.titles
@@ -16,7 +16,7 @@
       %div{style: 'width: 90%'}
         = row
       %div.d-flex.justify-content-end{style: 'width: 10%'}
-        %button.delete{type: "button", "aria-label" => t('components.remove_row'), data: {action:"click->nested-form#remove"}}
+        %button.delete.bg-transparent.p-0.text-reset.text-left{type: "button", "aria-label" => t('components.remove_row'), data: {action:"click->nested-form#remove"}}
           = inline_svg 'icons/delete.svg'
 
   - if @default_row && rows.empty?
@@ -24,11 +24,11 @@
       %div{style: 'width: 90%'}
         = template
       %div.d-flex.justify-content-end{style: 'width: 10%'}
-        %button.delete{type: "button", "aria-label" => t('components.remove_row'), data: {action:"click->nested-form#remove"}}
+        %button.delete.bg-transparent.p-0.text-reset.text-left{type: "button", "aria-label" => t('components.remove_row'), data: {action:"click->nested-form#remove"}}
           = inline_svg 'icons/delete.svg'
 
   %div{'data-nested-form-target': "target"}
-  %button.add-another-object{type: "button", data: {action:"click->nested-form#add"}}
+  %button.add-another-object.w-100.bg-transparent.text-reset.text-left{type: "button", data: {action:"click->nested-form#add"}}
     = inline_svg 'icons/plus.svg', width: "14px", height: "14px"
     %div
       = t('components.add_another_object', object_name: @object_name)

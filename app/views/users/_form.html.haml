@@ -10,41 +10,41 @@
       %div
     .register-double-input
       .register-first-input
-        %label.register-input-title{for: "user_firstName"}
+        %label.register-input-title.d-block{for: "user_firstName"}
           = t('register.first_name')
           %font{:color => "red"} *
         = text_field :user, :firstName, value: @user.firstName, class: "register-input-short"
       %div
-        %label.register-input-title{for: "user_lastName"}
+        %label.register-input-title.d-block{for: "user_lastName"}
           = t('register.last_name')
           %font{:color => "red"} *
         = text_field :user, :lastName, value: @user.lastName, class: "register-input-short"
-    %label.register-input-title{for: "user_username"}
+    %label.register-input-title.d-block{for: "user_username"}
       = t('register.username')
       %font{:color => "red"} *
     = text_field :user, :username, value: @user.username, class: "register-input-long"
-    %label.register-input-title{for: "user_orcidId"}
+    %label.register-input-title.d-block{for: "user_orcidId"}
       ORCID ID
       %font.register-optional 
       = t('register.optional')
     = inline_svg_tag 'orcid.svg', class: 'register-input-icon'
     = text_field :user, :orcidId, value: @user.orcidId, class: "register-input-long register-input-with-icon"
-    %label.register-input-title{for: "user_githubId"}
+    %label.register-input-title.d-block{for: "user_githubId"}
       Github ID
       %font.register-optional 
       = t('register.optional')
     = inline_svg_tag 'github-icon.svg', class: 'register-input-icon'
     = text_field :user, :githubId, value: @user.githubId, class: "register-input-long register-input-with-icon"
-    %label.register-input-title{for: "user_email"}
+    %label.register-input-title.d-block{for: "user_email"}
       = t('register.email')
       %font{:color => "red"} *
     = text_field :user, :email, value: @user.email, class: "register-input-long"
-    %label.register-input-title{for: "user_password"}
+    %label.register-input-title.d-block{for: "user_password"}
       = t('register.password')
       %font{:color => "red"} *
     .password-toggle-wrapper.mb-3{data: { controller: "password-toggle" }}
       = password_field :user, :password, class: "register-input-long mb-0"
-    %label.register-input-title{for: "user_password_confirmation"}
+    %label.register-input-title.d-block{for: "user_password_confirmation"}
       = t('register.confirm_password')
       %font{:color => "red"} *
     .password-toggle-wrapper.mb-3{data: { controller: "password-toggle" }}

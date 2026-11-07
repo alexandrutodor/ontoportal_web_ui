@@ -190,7 +190,8 @@ class AccessibleControlsCheck < Minitest::Test
   def test_dropdown_container_trigger_button_semantics
     c_open = DropdownContainerComponent.new(id: 'section_one', title: 'Details', is_open: true)
     html_open = c_open.render_in(view)
-    assert_match(/<button[^>]*class=['"][^'"]*dropdown-title-bar[^'"]*btn[^'"]*['"]/, html_open)
+    assert_match(/<button[^>]*class=['"][^'"]*dropdown-title-bar[^'"]*['"]/, html_open)
+    refute_match(/dropdown-title-bar[^'"]*\bbtn\b/, html_open) # .btn would override the bar's flex/font rules
     assert_match(/type=['"]button['"]/, html_open)
     assert_match(/aria-expanded=['"]true['"]/, html_open)
     assert_match(/aria-controls=['"]section_one['"]/, html_open)

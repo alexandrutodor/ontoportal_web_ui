@@ -8,9 +8,9 @@
   .login-form
     = form_for(:user, :url => {:controller => 'login',:action=>'create'}) do |f|
       = hidden_field_tag :redirect, @redirect_url
-      %label.login-input-title{for: "user_username"}= t('login.username_or_email')
+      %label.login-input-title.d-block{for: "user_username"}= t('login.username_or_email')
       = text_field 'user', 'username', class: "login-input email-input", placeholder: t('login.enter_email')
-      %label.login-input-title{for: "user_password"}= t('login.password')
+      %label.login-input-title.d-block{for: "user_password"}= t('login.password')
       .password-toggle-wrapper.password-input{data: { controller: "password-toggle" }}
         = password_field 'user','password', :autocomplete => "off", class: "login-input mb-0", placeholder:  t('login.enter_password')
       %a.login-forgot-password{:href => "/lost_pass"}
