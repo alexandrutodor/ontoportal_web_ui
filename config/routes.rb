@@ -118,6 +118,7 @@ Rails.application.routes.draw do
   post 'admin/clear_goo_cache', to: 'admin#clear_goo_cache'
   post 'admin/clear_http_cache', to: 'admin#clear_http_cache'
   get 'metadata_administration', to: 'admin#metadata_administration'
+  get 'admin/metadata_administration', to: 'admin#metadata_administration'
   get 'admin/ontologies_report', to: 'admin#ontologies_report'
   post 'admin/refresh_ontologies_report', to: 'admin#refresh_ontologies_report'
   delete 'admin/ontologies', to: 'admin#delete_ontologies'
@@ -184,13 +185,12 @@ Rails.application.routes.draw do
   get '/ontologies/:acronym/htaccess' => 'ontologies_redirection#generate_htaccess'
 
   get '/ontologies/success/:id' => 'ontologies#submit_success'
-  match '/ontologies/:acronym' => 'ontologies#update', via: [:get, :post]
-  match '/ontologies/:acronym/submissions/:id' => 'submissions#update', via: [:get, :post]
+  post '/ontologies/:acronym' => 'ontologies#update'
+  post '/ontologies/:acronym/submissions/:id' => 'submissions#update'
   get '/ontologies/:ontology_id/submissions/new' => 'submissions#new', :ontology_id => /.+/
   match '/ontologies/:ontology_id/submissions' => 'submissions#create', :ontology_id => /.+/, via: [:post]
   match '/ontologies/:ontology_id/submissions' => 'submissions#index', :ontology_id => /.+/, via: [:get]
   get '/ontologies/:acronym/classes/:purl_conceptid', to: 'ontologies#show', constraints: { purl_conceptid: /[^\/]+/ }
-  match '/ontologies/:acronym/submissions/:id/edit_metadata' => 'submissions#edit_metadata', via: [:get, :post]
   get '/ontologies_filter', to: 'ontologies#ontologies_filter'
 
 
@@ -206,7 +206,6 @@ Rails.application.routes.draw do
   # Ajax
   get '/ajax/class_details' => 'concepts#details'
   get '/ajax/mappings/get_concept_table' => 'mappings#get_concept_table'
-  get '/ajax/notes/delete' => 'notes#destroy'
   get '/ajax/classes/label' => 'concepts#show_label'
   get '/ajax/classes/definition' => 'concepts#show_definition'
   get '/ajax/classes/treeview' => 'concepts#show_tree'
@@ -249,8 +248,10 @@ Rails.application.routes.draw do
   get 'check_resolvability' => 'check_resolvability#index'
   get 'check_url_resolvability' => 'check_resolvability#check_resolvability'
 
-  # Install the default route as the lowest priority.
-  get '/:controller(/:action(/:id))'
+  # Explicit read-only routes replacing legacy catchall route
+  get '/about', to: 'about#index'
+  get '/landscape', to: 'landscape#index'
+  get '/content_finder', to: 'content_finder#index'
 
   mount Lookbook::Engine, at: '/lookbook'
 end
