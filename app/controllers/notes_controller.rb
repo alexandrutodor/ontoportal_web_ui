@@ -2,8 +2,10 @@ class NotesController < ApplicationController
   include TurboHelper
   layout 'ontology'
 
-  before_action :authorize_and_redirect, only: :create
-  before_action :verify_note_creator, only: :create
+  # Prepended in reverse declaration order so :authorize_and_redirect runs before
+  # :verify_note_creator, and both precede ApplicationController startup callbacks.
+  prepend_before_action :verify_note_creator, only: :create
+  prepend_before_action :authorize_and_redirect, only: :create
  
   NOTES_PROPOSAL_TYPES = {
     ProposalNewClass:  t('notes.new_class_proposal'),

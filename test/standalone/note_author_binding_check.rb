@@ -94,6 +94,9 @@ require 'notes_controller'
 require 'base_decorator'
 require 'note_decorator'
 
+# Record pristine callback order immediately upon loading NotesController, prior to any fixture skips
+ORIGINAL_ACTION_CALLBACKS = NotesController._process_action_callbacks.map(&:filter).freeze
+
 module TestViewHelpers
   def current_user_admin?
     false
@@ -193,6 +196,7 @@ end
 ActionView::Base.include TestViewHelpers
 NotesController.prepend_view_path(File.join(worktree_root, 'app/views'))
 NotesController.layout false
+# Finite unrelated startup boundaries skipped honestly for offline standalone test environment
 NotesController.skip_before_action :set_locale, :domain_ontology_set, :init_trial_license, raise: false
 
 class NoteAuthorBindingCheck < Minitest::Test
@@ -211,6 +215,11 @@ class NoteAuthorBindingCheck < Minitest::Test
     @last_reply_values = nil
     @last_note_payload = nil
     @last_reply_payload = nil
+  end
+
+  def teardown
+    Thread.current[:request] = nil
+    Thread.current[:session] = nil
   end
 
   def dispatch_create(params = {}, user = ACTOR_USER)
@@ -278,16 +287,34 @@ class NoteAuthorBindingCheck < Minitest::Test
   end
 
   # ===========================================================================
-  # 1. Callback Chain Registration
+  # 1. Callback Chain Registration & Startup Guard Precedence
   # ===========================================================================
   def test_callback_chain_includes_actual_guards_without_replacement
-    callbacks = NotesController._process_action_callbacks.map(&:filter)
+    callbacks = ORIGINAL_ACTION_CALLBACKS
     auth_idx = callbacks.index(:authorize_and_redirect)
     verify_idx = callbacks.index(:verify_note_creator)
+    thread_idx = callbacks.index(:set_global_thread_values)
+    license_idx = callbacks.index(:init_trial_license)
 
     refute_nil auth_idx, 'NotesController must declare :authorize_and_redirect callback'
     refute_nil verify_idx, 'NotesController must declare :verify_note_creator callback'
+    refute_nil thread_idx, 'Inherited ApplicationController must provide :set_global_thread_values callback'
+    refute_nil license_idx, 'Inherited ApplicationController must provide :init_trial_license callback'
+
     assert_operator auth_idx, :<, verify_idx, ':authorize_and_redirect must precede :verify_note_creator'
+    assert_operator auth_idx, :<, thread_idx, ':authorize_and_redirect must precede inherited :set_global_thread_values'
+    assert_operator verify_idx, :<, thread_idx, ':verify_note_creator must precede inherited :set_global_thread_values'
+    assert_operator auth_idx, :<, license_idx, ':authorize_and_redirect must precede inherited :init_trial_license'
+    assert_operator verify_idx, :<, license_idx, ':verify_note_creator must precede inherited :init_trial_license'
+
+    # Also assert on active unskipped fixture callbacks
+    active_callbacks = NotesController._process_action_callbacks.map(&:filter)
+    active_auth_idx = active_callbacks.index(:authorize_and_redirect)
+    active_verify_idx = active_callbacks.index(:verify_note_creator)
+    active_thread_idx = active_callbacks.index(:set_global_thread_values)
+
+    assert_operator active_auth_idx, :<, active_verify_idx, 'Active chain: :authorize_and_redirect must precede :verify_note_creator'
+    assert_operator active_verify_idx, :<, active_thread_idx, 'Active chain: :verify_note_creator must precede :set_global_thread_values'
   end
 
   # ===========================================================================
@@ -295,64 +322,104 @@ class NoteAuthorBindingCheck < Minitest::Test
   # ===========================================================================
   def test_anonymous_request_stopped_before_constructor_and_save_with_redirect
     dummy_dto = LinkedData::Client::Models::Note.new(values: { id: 'x', relatedOntology: ['TEST'] })
-    stub_note_lifecycle(dummy_dto) do
-      ctrl, req, res = dispatch_create({
-        type: 'ontology',
-        parent: 'TEST_ONTO',
-        creator: 'http://example.com/users/spoofed_attacker',
-        subject: 'Anon attempt',
-        body: 'Body text'
-      }, nil)
+    orig_req = Thread.current[:request]
+    orig_session = Thread.current[:session]
+    sentinel_req = Object.new
+    sentinel_session = Object.new
+    Thread.current[:request] = sentinel_req
+    Thread.current[:session] = sentinel_session
 
-      assert_equal 302, res.status
-      assert_equal 'http://test.host/', res.location
-      assert_equal 0, @note_init_calls, 'Note constructor must NOT be called for anonymous request'
-      assert_equal 0, @note_save_calls, 'Note save must NOT be called for anonymous request'
-      assert_nil @last_note_values
-      refute_includes res.body, 'alert-success'
+    begin
+      stub_note_lifecycle(dummy_dto) do
+        ctrl, req, res = dispatch_create({
+          type: 'ontology',
+          parent: 'TEST_ONTO',
+          creator: 'http://example.com/users/spoofed_attacker',
+          subject: 'Anon attempt',
+          body: 'Body text'
+        }, nil)
+
+        assert_equal 302, res.status
+        assert_equal 'http://test.host/', res.location
+        assert_equal 0, @note_init_calls, 'Note constructor must NOT be called for anonymous request'
+        assert_equal 0, @note_save_calls, 'Note save must NOT be called for anonymous request'
+        assert_nil @last_note_values
+        refute_includes res.body, 'alert-success'
+        assert_same sentinel_req, Thread.current[:request], 'Anonymous request must not invoke set_global_thread_values startup callback'
+        assert_same sentinel_session, Thread.current[:session], 'Anonymous request must not mutate Thread.current[:session]'
+      end
+    ensure
+      Thread.current[:request] = orig_req
+      Thread.current[:session] = orig_session
     end
   end
 
   def test_missing_actor_id_stopped_before_constructor_and_save_with_redirect
     dummy_reply = LinkedData::Client::Models::Reply.new(values: { id: 'r1', parent: 'p1' })
     user_without_id = OpenStruct.new(id: nil, username: 'blank_id_user')
+    orig_req = Thread.current[:request]
+    orig_session = Thread.current[:session]
+    sentinel_req = Object.new
+    sentinel_session = Object.new
+    Thread.current[:request] = sentinel_req
+    Thread.current[:session] = sentinel_session
 
-    stub_reply_lifecycle(dummy_reply) do
-      ctrl, req, res = dispatch_create({
-        type: 'reply',
-        parent: 'http://example.com/notes/parent_1',
-        creator: 'http://example.com/users/spoofed_attacker',
-        body: 'Reply without actor id'
-      }, user_without_id)
+    begin
+      stub_reply_lifecycle(dummy_reply) do
+        ctrl, req, res = dispatch_create({
+          type: 'reply',
+          parent: 'http://example.com/notes/parent_1',
+          creator: 'http://example.com/users/spoofed_attacker',
+          body: 'Reply without actor id'
+        }, user_without_id)
 
-      assert_equal 302, res.status
-      assert_equal 'http://test.host/', res.location
-      assert_equal 0, @reply_init_calls, 'Reply constructor must NOT be called when actor id is nil'
-      assert_equal 0, @reply_save_calls, 'Reply save must NOT be called when actor id is nil'
-      assert_nil @last_reply_values
-      refute_includes res.body, 'alert-success'
+        assert_equal 302, res.status
+        assert_equal 'http://test.host/', res.location
+        assert_equal 0, @reply_init_calls, 'Reply constructor must NOT be called when actor id is nil'
+        assert_equal 0, @reply_save_calls, 'Reply save must NOT be called when actor id is nil'
+        assert_nil @last_reply_values
+        refute_includes res.body, 'alert-success'
+        assert_same sentinel_req, Thread.current[:request], 'Nil actor id must not invoke set_global_thread_values startup callback'
+        assert_same sentinel_session, Thread.current[:session], 'Nil actor id must not mutate Thread.current[:session]'
+      end
+    ensure
+      Thread.current[:request] = orig_req
+      Thread.current[:session] = orig_session
     end
   end
 
   def test_empty_or_whitespace_actor_id_stopped_before_constructor_and_save
     dummy_dto = LinkedData::Client::Models::Note.new(values: { id: 'x', relatedOntology: ['TEST'] })
     user_empty_id = OpenStruct.new(id: '   ', username: 'empty_id_user')
+    orig_req = Thread.current[:request]
+    orig_session = Thread.current[:session]
+    sentinel_req = Object.new
+    sentinel_session = Object.new
+    Thread.current[:request] = sentinel_req
+    Thread.current[:session] = sentinel_session
 
-    stub_note_lifecycle(dummy_dto) do
-      ctrl, req, res = dispatch_create({
-        type: 'class',
-        parent: 'http://example.com/class/1',
-        ontology_id: 'TEST_ONTO',
-        creator: 'http://example.com/users/spoofed_attacker',
-        subject: 'Whitespace id attempt',
-        body: 'Body text'
-      }, user_empty_id)
+    begin
+      stub_note_lifecycle(dummy_dto) do
+        ctrl, req, res = dispatch_create({
+          type: 'class',
+          parent: 'http://example.com/class/1',
+          ontology_id: 'TEST_ONTO',
+          creator: 'http://example.com/users/spoofed_attacker',
+          subject: 'Whitespace id attempt',
+          body: 'Body text'
+        }, user_empty_id)
 
-      assert_equal 302, res.status
-      assert_equal 'http://test.host/', res.location
-      assert_equal 0, @note_init_calls, 'Note constructor must NOT be called when actor id is whitespace'
-      assert_equal 0, @note_save_calls, 'Note save must NOT be called when actor id is whitespace'
-      assert_nil @last_note_values
+        assert_equal 302, res.status
+        assert_equal 'http://test.host/', res.location
+        assert_equal 0, @note_init_calls, 'Note constructor must NOT be called when actor id is whitespace'
+        assert_equal 0, @note_save_calls, 'Note save must NOT be called when actor id is whitespace'
+        assert_nil @last_note_values
+        assert_same sentinel_req, Thread.current[:request], 'Whitespace actor id must not invoke set_global_thread_values startup callback'
+        assert_same sentinel_session, Thread.current[:session], 'Whitespace actor id must not mutate Thread.current[:session]'
+      end
+    ensure
+      Thread.current[:request] = orig_req
+      Thread.current[:session] = orig_session
     end
   end
 
@@ -368,33 +435,51 @@ class NoteAuthorBindingCheck < Minitest::Test
       created: '2026-11-07T00:00:00Z'
     })
 
-    stub_note_lifecycle(success_dto) do
-      ctrl, req, res = dispatch_create(
-        type: 'ontology',
-        parent: 'TEST_ONTO',
-        creator: 'http://example.com/users/spoofed_attacker',
-        subject: 'Ontology discussion',
-        body: 'Discussion body'
-      )
+    orig_req = Thread.current[:request]
+    orig_session = Thread.current[:session]
+    sentinel_req = Object.new
+    sentinel_session = Object.new
+    Thread.current[:request] = sentinel_req
+    Thread.current[:session] = sentinel_session
 
-      assert_equal 200, res.status
-      assert_equal 1, @note_init_calls
-      assert_equal 1, @note_save_calls
+    begin
+      stub_note_lifecycle(success_dto) do
+        ctrl, req, res = dispatch_create(
+          type: 'ontology',
+          parent: 'TEST_ONTO',
+          creator: 'http://example.com/users/spoofed_attacker',
+          subject: 'Ontology discussion',
+          body: 'Discussion body'
+        )
 
-      # Payload creator strictly matches session actor id, ignoring spoofed creator
-      assert_equal ACTOR_ID, @last_note_values[:creator]
-      refute_equal 'http://example.com/users/spoofed_attacker', @last_note_values[:creator]
+        assert_equal 200, res.status
+        assert_equal 1, @note_init_calls
+        assert_equal 1, @note_save_calls
 
-      # String and symbol uniqueness: exactly 1 creator key
-      assert_equal 1, @last_note_values.keys.map(&:to_s).count('creator')
-      assert_equal ACTOR_ID, @last_note_payload[:creator]
-      assert_equal 1, @last_note_payload.keys.map(&:to_s).count('creator')
-      assert_equal true, @last_note_payload.key?(:creator)
-      assert_equal false, @last_note_payload.key?('creator')
+        # Real inherited set_global_thread_values callback reaches execution for valid actor control
+        refute_same sentinel_req, Thread.current[:request], 'Valid authenticated control must reach inherited set_global_thread_values callback'
+        refute_same sentinel_session, Thread.current[:session], 'Valid authenticated control must update Thread.current[:session]'
+        assert_equal req, Thread.current[:request]
+        assert_equal req.session, Thread.current[:session]
 
-      # Parent deleted from note values
-      assert_nil @last_note_values[:parent]
-      assert_equal ['TEST_ONTO'], @last_note_values[:relatedOntology]
+        # Payload creator strictly matches session actor id, ignoring spoofed creator
+        assert_equal ACTOR_ID, @last_note_values[:creator]
+        refute_equal 'http://example.com/users/spoofed_attacker', @last_note_values[:creator]
+
+        # String and symbol uniqueness: exactly 1 creator key
+        assert_equal 1, @last_note_values.keys.map(&:to_s).count('creator')
+        assert_equal ACTOR_ID, @last_note_payload[:creator]
+        assert_equal 1, @last_note_payload.keys.map(&:to_s).count('creator')
+        assert_equal true, @last_note_payload.key?(:creator)
+        assert_equal false, @last_note_payload.key?('creator')
+
+        # Parent deleted from note values
+        assert_nil @last_note_values[:parent]
+        assert_equal ['TEST_ONTO'], @last_note_values[:relatedOntology]
+      end
+    ensure
+      Thread.current[:request] = orig_req
+      Thread.current[:session] = orig_session
     end
   end
 
