@@ -66,6 +66,7 @@ class SubscriptionsController < ApplicationController
     if error_response != false && !response_error?(error_response) && response_success?(error_response)
       updated_sub = true
       session[:user].subscription = u.subscription
+      Rails.cache.delete(OntologiesHelper::SUBSCRIPTION_COUNTS_CACHE_KEY)
     else
       updated_sub = false
     end

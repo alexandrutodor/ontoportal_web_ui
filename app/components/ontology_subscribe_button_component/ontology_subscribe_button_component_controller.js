@@ -39,12 +39,12 @@ export default class extends Controller {
 
                 // Change button text
                 let txt = this.textTarget.innerHTML
-                let count = parseInt(this.countTarget.innerHTML)
+                let count = this.hasCountTarget ? parseInt(this.countTarget.innerHTML) : NaN
 
                 let newButtonText = txt.match(this.unwatchValue) ? txt.replace(this.unwatchValue, this.watchValue) : txt.replace(this.watchValue, this.unwatchValue);
                 this.element.setAttribute('title', newButtonText + ' this ontology')
                 this.textTarget.innerHTML  = newButtonText
-                this.countTarget.innerHTML  = newButtonText.match(this.unwatchValue) ? (count + 1) :  (count - 1)
+                if (!isNaN(count)) this.countTarget.innerHTML  = newButtonText.match(this.unwatchValue) ? (count + 1) :  (count - 1)
             },
             error: () => {
                 this.#hideSpinner()

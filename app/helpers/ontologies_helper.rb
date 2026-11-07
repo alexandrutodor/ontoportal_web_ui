@@ -675,10 +675,20 @@ module OntologiesHelper
     end
   end
 
+  SUBSCRIPTION_COUNTS_CACHE_KEY = 'ontology_subscription_counts/v1'
+
+  # Watchers per ontology acronym, tallied once and shared by every subscribe button.
+  # shortcut: still one full user scan per 5 minutes; narrow include to 'subscription' once the API is
+  # confirmed to embed subscriptions for it, or use a scoped count API if the backend adds one.
+  # Returns nil when the count cannot be obtained, so the button stays usable without it.
   def count_subscriptions(ontology_id)
-    ontology_id = ontology_id.split('/').last
-    users = LinkedData::Client::Models::User.all(include: 'all', display_context: false, display_links: false)
-    users.select { |u| u.subscription.find { |s| s.ontology && s.ontology.split('/').last.eql?(ontology_id) } }.count
+    counts = Rails.cache.fetch(SUBSCRIPTION_COUNTS_CACHE_KEY, expires_in: 5.minutes) do
+      users = LinkedData::Client::Models::User.all(include: 'all', display_context: false, display_links: false)
+      Array(users).flat_map { |u| Array(u.subscription).filter_map { |s| s.ontology&.split('/')&.last }.uniq }.tally
+    end
+    counts.fetch(ontology_id.split('/').last, 0)
+  rescue StandardError
+    nil
   end
 
   def new_submission_button
