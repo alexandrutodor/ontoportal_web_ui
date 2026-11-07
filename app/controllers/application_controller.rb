@@ -49,9 +49,7 @@ class ApplicationController < ActionController::Base
   helper :all # include all helpers, all the time
   helper_method :bp_config_json, :current_license, :using_captcha?
 
-  if !Rails.env.development? && !Rails.env.test?
-    rescue_from ActiveRecord::RecordNotFound, with: :not_found_record
-  end
+  rescue_from ActiveRecord::RecordNotFound, with: :not_found_record
 
   # Pull configuration parameters for REST connection.
   REST_URI = $REST_URL
@@ -134,20 +132,23 @@ class ApplicationController < ActionController::Base
   end
 
   def ontology_not_found(ontology_acronym)
-    not_found(t('application.ontology_not_found',acronym: ontology_acronym))
+    not_found(t('application.ontology_not_found', acronym: ontology_acronym))
   end
 
   def concept_not_found(concept_id)
-    not_found(t('application.concept_not_found',concept: concept_id))
+    not_found(t('application.concept_not_found', concept: concept_id))
   end
 
-  def not_found(message = '')
-    if request.xhr?
-      render plain: message || t('application.error_load')
-      return
-    end
+  def not_found(message = nil)
+    msg = if message.blank?
+            nil
+          elsif message.is_a?(Array)
+            message.join(', ')
+          else
+            message.to_s
+          end
 
-    raise ActiveRecord::RecordNotFound.new(message || t('application.not_found_message'))
+    raise ActiveRecord::RecordNotFound.new(msg || '')
   end
 
   def bp_config_json
@@ -448,8 +449,28 @@ class ApplicationController < ActionController::Base
 
   private
   def not_found_record(exception)
-    @error_message = exception.message
+    raw_message = exception.message.presence
+    message = (raw_message && raw_message != exception.class.name) ? raw_message : nil
 
-    render 'errors/not_found', status: 404
+    frame_id = if respond_to?(:turbo_frame_request_id, true) && turbo_frame_request_id.present?
+                 turbo_frame_request_id
+               elsif request.headers['Turbo-Frame'].present?
+                 request.headers['Turbo-Frame']
+               end
+
+    if frame_id
+      @error_message = message || t('application.not_found_message')
+      frame_content = if helpers.respond_to?(:turbo_frame_tag)
+                        helpers.turbo_frame_tag(frame_id) { @error_message }
+                      else
+                        helpers.tag.turbo_frame(id: frame_id) { @error_message }
+                      end
+      render html: frame_content, status: 404
+    elsif request.xhr?
+      render plain: message || t('application.error_load'), status: 404
+    else
+      @error_message = message || t('application.not_found_message')
+      render 'errors/not_found', status: 404
+    end
   end
 end

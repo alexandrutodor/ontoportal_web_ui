@@ -24,9 +24,9 @@ class ConceptsController < ApplicationController
 
     @submission = get_ontology_submission_ready(@ontology)
     @concept = @ontology.explore.single_class({ full: true, language: request_lang }, params[:id])
-    @instances_concept_id = @concept.id
+    concept_not_found(params[:id]) if @concept.nil? || (@concept.respond_to?(:errors) && @concept.errors.present?)
 
-    concept_not_found(params[:id]) if @concept.nil?
+    @instances_concept_id = @concept.id
     @notes = @concept.explore.notes
     render partial: 'show'
   end
@@ -64,10 +64,11 @@ class ConceptsController < ApplicationController
     ont_id = params[:ontology]
     pref_label = begin
                    concept_label(ont_id, cls_id)
-                 rescue
+                 rescue => e
+                   raise if e.is_a?(ActiveRecord::RecordNotFound)
                    cls_id
                  end
-    cls = @ontology.explore&.single_class({ language: request_lang, include: 'prefLabel' }, cls_id)
+    cls = @ontology&.explore&.single_class({ language: request_lang, include: 'prefLabel' }, cls_id)
     label = helpers.main_language_label(pref_label)
     link = concept_path(cls_id, ont_id, request_lang)
 

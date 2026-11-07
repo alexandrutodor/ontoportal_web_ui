@@ -4,9 +4,9 @@ class PropertiesController < ApplicationController
   def index
     acronym = params[:ontology]
     @ontology = LinkedData::Client::Models::Ontology.find_by_acronym(acronym).first
-    @submission = @ontology.explore.latest_submission(include:'uriRegexPattern,preferredNamespaceUri')
-
     ontology_not_found(acronym) if @ontology.nil?
+
+    @submission = @ontology.explore.latest_submission(include:'uriRegexPattern,preferredNamespaceUri')
 
     if params[:search].blank?
       index_tree('properties_sorted_list_view-page-1')
@@ -33,6 +33,7 @@ class PropertiesController < ApplicationController
   def show
     @acronym = params[:ontology]
     @property = get_property(params[:id],  @acronym, include: 'all')
+    not_found if @property.nil? || (@property.respond_to?(:errors) && @property.errors.present?)
 
     redirect_to(ontology_path(id: params[:ontology], p: 'properties', propertyid: params[:id], lang: request_lang)) and return unless turbo_frame_request?
 
