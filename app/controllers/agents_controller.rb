@@ -1,8 +1,10 @@
 class AgentsController < ApplicationController
   include TurboHelper, AgentHelper, ApplicationHelper
   
+  prepend_before_action :authorize_admin, only: [:destroy, :update_agent_usages]
+  prepend_before_action :authorize_and_redirect, only: [:new, :create, :edit, :update]
   before_action :check_agents_enabled
-  before_action :authorize_and_redirect, :only => [:edit, :update, :create, :new]
+  before_action :authorize_agent_editor, only: [:edit, :update]
   layout :determine_layout, only: [:index, :details]
 
   def index
@@ -140,7 +142,7 @@ class AgentsController < ApplicationController
   end
 
   def edit
-    @agent = LinkedData::Client::Models::Agent.find(params[:id].split('/').last)
+    @agent ||= find_agent
     @name_prefix = params[:name_prefix] || ''
     @show_affiliations = params[:show_affiliations].nil? || params[:show_affiliations].eql?('true')
     @deletable = params[:deletable].to_s.eql?('true')
@@ -165,13 +167,15 @@ class AgentsController < ApplicationController
   end
 
   def update
-    agent_update, agent = update_agent(params[:id].split('/').last, agent_params)
+    agent_update, agent = update_agent(@agent, agent_params)
 
     parent_id = params[:parent_id]
     alert_id = agent_alert_container_id(agent, parent_id)
     deletable = params[:deletable]&.eql?('true')
     if response_error?(agent_update)
-      errors = generate_errors(response_errors(agent_update).values.first)
+      raw_errors = response_errors(agent_update)
+      err_target = raw_errors.is_a?(Hash) && raw_errors.values.first.is_a?(Hash) ? raw_errors.values.first : raw_errors
+      errors = generate_errors(err_target)
       render_turbo_stream alert_error(id: alert_id) { errors.join(', ') }
     else
       success_message = t('agents.update_agent')
@@ -204,7 +208,11 @@ class AgentsController < ApplicationController
     if responses.values.any? { |x| response_error?(x) }
       errors = {}
       responses.each do |ont, response|
-        errors[ont.acronym] = response_errors(response) if response_error?(response)
+        if response_error?(response)
+          err = response_errors(response)
+          err = { error: { error: { message: err[:error] } } } if err.is_a?(Hash) && err[:error].is_a?(String)
+          errors[ont.acronym] = err
+        end
       end
 
       render_turbo_stream(alert_error(id: alert_id) { helpers.agent_usage_errors_display(errors) })
@@ -317,9 +325,7 @@ class AgentsController < ApplicationController
     agent.save
   end
 
-  def update_agent(id = params[:id], params)
-    agent = LinkedData::Client::Models::Agent.find(id)
-
+  def update_agent(agent, params)
     params[:creator] = session[:user].id if (agent.creator.nil? || agent.creator.empty?) && (params[:creator] || '').empty?
 
     res = agent.update(values: params)
@@ -457,18 +463,38 @@ class AgentsController < ApplicationController
 
   def generate_errors(response_errors)
     errors = []
+    return [response_errors.to_s] unless response_errors.respond_to?(:values)
+
+    # B04: Handle non-Hash/string error structures (e.g. API 401/403) so they do not crash or become success
     response_errors.values.each_with_index do |v, i|
-      if v[:existence]
+      if v.is_a?(Hash) && v[:existence]
         errors << "#{response_errors.keys[i].capitalize} #{t('agents.errors.required')}"
-      elsif v[:unique_identifiers]
+      elsif v.is_a?(Hash) && v[:unique_identifiers]
         errors << t('agents.errors.used_identifier')
-      elsif v[:no_url]
+      elsif v.is_a?(Hash) && v[:no_url]
         errors << t('agents.errors.invalid_url')
+      elsif v.is_a?(String)
+        errors << v
       else
         errors << JSON.pretty_generate(response_errors)
       end
     end
     return errors
+  end
+
+  def authorize_agent_editor
+    find_agent
+    return if performed?
+
+    return if current_user_admin?
+
+    actor = session[:user]
+    actor_id = actor&.id
+    persisted_creator = @agent.respond_to?(:creator) ? @agent.creator : nil
+
+    if actor_id.to_s.strip.empty? || persisted_creator.to_s.strip.empty? || !persisted_creator.eql?(actor_id)
+      redirect_to_home
+    end
   end
 
   def check_agents_enabled
