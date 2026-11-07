@@ -1,6 +1,8 @@
 require 'cgi'
 
 module NotesHelper
+  include ActionView::Helpers::TagHelper
+  include ActionView::Helpers::OutputSafetyHelper
 
   NOTES_TAGS = %w(a br b em strong i)
 
@@ -33,88 +35,37 @@ module NotesHelper
 
   def proposal_html(note)
     return "" unless note.respond_to?(:proposal) && note.proposal
-    case note.proposal.type
+
+    rows = case note.proposal.type
     when "ProposalNewClass"
-      html = <<-html
-        <table class="proposal">
-          <tr>
-            <th>Reason for Change</th>
-            <td>#{note.proposal.reasonForChange}</td>
-          <tr>
-            <th>Contact Info</th>
-            <td>#{note.proposal.contactInfo}</td>
-          </tr>
-          <tr>
-            <th>Preferred Name</th>
-            <td>#{note.proposal.label}</td>
-          <tr>
-            <th>Provisional id</th>
-            <td>#{note.proposal.classId}</td>
-          <tr>
-            <th>Parent</th>
-            <td>#{note.proposal.parent}</td>
-          </tr>
-          <tr>
-            <th>Synonyms</th>
-            <td>#{note.proposal.synonym.join(", ")}</td>
-          </tr>
-          <tr>
-            <th>Definition</th>
-            <td>#{note.proposal.definition.join(", ")}</td>
-          </tr>
-        </table>
-      html
+      [
+        content_tag(:tr, content_tag(:th, "Reason for Change") + content_tag(:td, note.proposal.reasonForChange)),
+        content_tag(:tr, content_tag(:th, "Contact Info") + content_tag(:td, note.proposal.contactInfo)),
+        content_tag(:tr, content_tag(:th, "Preferred Name") + content_tag(:td, note.proposal.label)),
+        content_tag(:tr, content_tag(:th, "Provisional id") + content_tag(:td, note.proposal.classId)),
+        content_tag(:tr, content_tag(:th, "Parent") + content_tag(:td, note.proposal.parent)),
+        content_tag(:tr, content_tag(:th, "Synonyms") + content_tag(:td, safe_join(Array(note.proposal.synonym), ", "))),
+        content_tag(:tr, content_tag(:th, "Definition") + content_tag(:td, safe_join(Array(note.proposal.definition), ", ")))
+      ]
     when "ProposalChangeHierarchy"
-      html = <<-html
-        <table class="proposal">
-          <tr>
-            <th>Relationship Type</th>
-            <td>#{note.proposal.newRelationshipType.join(", ")}</td>
-          </tr>
-          <tr>
-            <th>New Relationship Target</th>
-            <td colspan="3">#{note.proposal.newTarget}</td>
-          </tr>
-          <tr>
-            <th>Old Relationship Target</th>
-            <td colspan="3">#{note.proposal.oldTarget}</td>
-          </tr>
-          <tr>
-            <th>Reason for Change</th>
-            <td>#{note.proposal.reasonForChange}</td>
-          <tr>
-            <th>Contact Info</th>
-            <td>#{note.proposal.contactInfo}</td>
-          </tr>
-        </table>
-      html
+      [
+        content_tag(:tr, content_tag(:th, "Relationship Type") + content_tag(:td, safe_join(Array(note.proposal.newRelationshipType), ", "))),
+        content_tag(:tr, content_tag(:th, "New Relationship Target") + content_tag(:td, note.proposal.newTarget, colspan: 3)),
+        content_tag(:tr, content_tag(:th, "Old Relationship Target") + content_tag(:td, note.proposal.oldTarget, colspan: 3)),
+        content_tag(:tr, content_tag(:th, "Reason for Change") + content_tag(:td, note.proposal.reasonForChange)),
+        content_tag(:tr, content_tag(:th, "Contact Info") + content_tag(:td, note.proposal.contactInfo))
+      ]
     when "ProposalChangeProperty"
-      html = <<-html
-        <table class="proposal">
-          <tr>
-            <th>Property id</th>
-            <td>#{note.proposal.propertyId}</td>
-          </tr>
-          <tr>
-            <th>New Property Value</th>
-            <td colspan="3">#{note.proposal.newValue}</td>
-          </tr>
-          <tr>
-            <th>Old Property Value</th>
-            <td colspan="3">#{note.proposal.oldValue}</td>
-          </tr>
-          <tr>
-            <th>Reason for Change</th>
-            <td>#{note.proposal.reasonForChange}</td>
-          <tr>
-            <th>Contact Info</th>
-            <td>#{note.proposal.contactInfo}</td>
-          </tr>
-        </table>
-      html
+      [
+        content_tag(:tr, content_tag(:th, "Property id") + content_tag(:td, note.proposal.propertyId)),
+        content_tag(:tr, content_tag(:th, "New Property Value") + content_tag(:td, note.proposal.newValue, colspan: 3)),
+        content_tag(:tr, content_tag(:th, "Old Property Value") + content_tag(:td, note.proposal.oldValue, colspan: 3)),
+        content_tag(:tr, content_tag(:th, "Reason for Change") + content_tag(:td, note.proposal.reasonForChange)),
+        content_tag(:tr, content_tag(:th, "Contact Info") + content_tag(:td, note.proposal.contactInfo))
+      ]
     end
 
-    html
+    rows ? content_tag(:table, safe_join(rows), class: "proposal") : nil
   end
 
   def get_note_type_text(note_type)

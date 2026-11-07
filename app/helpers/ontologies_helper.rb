@@ -1,5 +1,7 @@
 require 'iso-639'
 module OntologiesHelper
+  include ActionView::Helpers::TagHelper
+  include ActionView::Helpers::OutputSafetyHelper
   REST_URI = $REST_URL
   API_KEY = $API_KEY
   LANGUAGE_FILTERABLE_SECTIONS = %w[classes schemes collections instances properties].freeze
@@ -124,13 +126,19 @@ module OntologiesHelper
   end
 
   def display_contact(contacts)
-    contacts.map do |c|
-      next unless c.member?(:name) && c.member?(:email)
+    return nil if contacts.nil?
 
-      formatted_name = c[:name].titleize
-      formatted_email = c[:email].downcase
-      "<span class='date_creation_text'>#{formatted_name}</span> (#{formatted_email})"
-    end&.join(" and ")
+    items = contacts.map do |c|
+      next unless c.respond_to?(:member?) && (c.member?(:name) || c.member?('name')) && (c.member?(:email) || c.member?('email'))
+
+      name = c[:name] || c['name']
+      email = c[:email] || c['email']
+      formatted_name = name.html_safe? ? name : name.to_s.titleize
+      formatted_email = email.html_safe? ? email : email.to_s.downcase
+      safe_join([content_tag(:span, formatted_name, class: 'date_creation_text'), " (#{formatted_email})"])
+    end.compact
+
+    safe_join(items, " and ")
   end
 
   def count_links(ont_acronym, page_name = 'summary', count = 0)
