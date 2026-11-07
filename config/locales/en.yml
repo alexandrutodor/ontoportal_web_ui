@@ -971,6 +971,7 @@ en:
       cancel: Cancel
       comment: Comment
       save: save
+    save_uncertain: The note save status is uncertain. Please check the thread before retrying to prevent duplicate entries.
     thread:
       submitted_by: submitted by
   ontolobridge:

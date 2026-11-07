@@ -1001,6 +1001,7 @@ fr:
       cancel: Annuler
       comment: Commentaire
       save: sauvegarder
+    save_uncertain: "Le statut de l'enregistrement de la note est incertain. Veuillez vérifier le fil avant de réessayer pour éviter les doublons."
     thread:
       submitted_by: soumis par
   ontolobridge:
