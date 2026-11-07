@@ -522,7 +522,10 @@ class CatalogConfigCheck < Minitest::Test
     assert_equal 'http://example.com/Agents/1', creators[0].id
     assert_equal 'Alice', creators[0].name
     assert_equal 'http://example.com/Agents/999', creators[1].id
-    assert_equal 'http://example.com/Agents/2', ctrl_html.instance_variable_get(:@catalog_data)[:rightsHolder].id
+    rights_holder = ctrl_html.instance_variable_get(:@catalog_data)[:rightsHolder]
+    assert_equal 'http://example.com/Agents/2', rights_holder.id
+    assert_equal 'Org', rights_holder.name, 'Known singleton OpenStruct name must be retained'
+    assert_equal 'organization', rights_holder.agentType, 'Known singleton OpenStruct agentType must be retained'
 
     assert_equal prior_session, ctrl_html.session[:catalog_data],
                  'Session catalog data must remain unpolluted by rejected update'
@@ -533,10 +536,14 @@ class CatalogConfigCheck < Minitest::Test
     assert res_html.body.include?('Submitted Title'), 'Rendered HTML form must retain submitted title'
     assert res_html.body.include?('name="config[creator][0][id]"'), 'Rendered HTML must retain first creator hidden input'
     assert res_html.body.include?('value="http://example.com/Agents/1"'), 'Rendered HTML must retain first creator ID'
+    assert res_html.body.include?('Alice'), 'Rendered HTML must retain first creator name'
     assert res_html.body.include?('name="config[creator][1][id]"'), 'Rendered HTML must retain second creator hidden input'
     assert res_html.body.include?('value="http://example.com/Agents/999"'), 'Rendered HTML must retain unresolved creator ID'
     assert res_html.body.include?('name="config[rightsHolder][0][id]"'), 'Rendered HTML must retain rightsHolder hidden input'
     assert res_html.body.include?('value="http://example.com/Agents/2"'), 'Rendered HTML must retain rightsHolder ID'
+    assert res_html.body.include?('Org'), 'Rendered HTML must retain known singleton agent name'
+    assert res_html.body.include?('parent_id=rightsHolder') && res_html.body.include?('agent_type=organization'),
+           'Rendered HTML must retain known singleton replacement link'
 
     # Test Turbo Stream format
     ctrl_turbo, _req_turbo, res_turbo = dispatch(
@@ -552,9 +559,90 @@ class CatalogConfigCheck < Minitest::Test
     assert res_turbo.body.include?('Submitted Title'), 'Turbo stream must contain submitted title'
     assert res_turbo.body.include?('name="config[creator][0][id]"')
     assert res_turbo.body.include?('value="http://example.com/Agents/1"')
+    assert res_turbo.body.include?('Alice')
     assert res_turbo.body.include?('name="config[creator][1][id]"')
     assert res_turbo.body.include?('value="http://example.com/Agents/999"')
+    assert res_turbo.body.include?('name="config[rightsHolder][0][id]"')
+    assert res_turbo.body.include?('value="http://example.com/Agents/2"')
+    assert res_turbo.body.include?('Org')
+    assert res_turbo.body.include?('parent_id=rightsHolder') && res_turbo.body.include?('agent_type=organization')
     assert_includes ctrl_turbo.flash.now[:alert], 'HTTP 400'
+
+    # Verify cached Hash agent normalization and rendering for both list and singleton shapes
+    hash_creator = { 'id' => 'http://example.com/Agents/3', 'name' => 'Carol Hash', 'agentType' => 'person' }
+    hash_rights_holder = { 'id' => 'http://example.com/Agents/4', 'name' => 'Hash Org', 'agentType' => 'organization' }
+    hash_minimal = { 'id' => 'http://example.com/Agents/5' }
+    hash_session = {
+      acronym: 'HASH_ACR',
+      title: 'Hash Prior Title',
+      creator: [hash_creator, hash_minimal],
+      rightsHolder: hash_rights_holder
+    }
+    submitted_hash_config = {
+      title: 'Submitted Hash Title',
+      creator: {
+        '0' => { 'id' => 'http://example.com/Agents/3' },
+        '1' => { 'id' => 'http://example.com/Agents/5' }
+      },
+      rightsHolder: {
+        '0' => { 'id' => 'http://example.com/Agents/4' }
+      }
+    }
+
+    ctrl_h_html, _req_h_html, res_h_html = dispatch(
+      :update,
+      method: :patch,
+      params: { config: submitted_hash_config },
+      headers: { 'Accept' => 'text/html' },
+      session: { catalog_data: hash_session, catalog_metadata: attr_metadata_mock }
+    )
+    assert_equal 422, res_h_html.status
+
+    h_creators = ctrl_h_html.instance_variable_get(:@catalog_data)[:creator]
+    assert_kind_of Array, h_creators
+    assert_equal 2, h_creators.size
+    refute h_creators[0].is_a?(Hash), 'Cached Hash creator must be normalized out of raw Hash representation'
+    assert_equal 'http://example.com/Agents/3', h_creators[0].id
+    assert_equal 'Carol Hash', h_creators[0].name
+    assert_equal 'person', h_creators[0].agentType
+    assert_equal 'http://example.com/Agents/5', h_creators[1].id
+
+    h_rh = ctrl_h_html.instance_variable_get(:@catalog_data)[:rightsHolder]
+    refute h_rh.is_a?(Hash), 'Cached Hash rightsHolder must be normalized out of raw Hash representation'
+    assert_equal 'http://example.com/Agents/4', h_rh.id
+    assert_equal 'Hash Org', h_rh.name
+    assert_equal 'organization', h_rh.agentType
+
+    # Rendered HTML preservation for cached Hash agents
+    assert res_h_html.body.include?('name="config[creator][0][id]"'), 'Rendered HTML must retain cached Hash creator hidden input'
+    assert res_h_html.body.include?('value="http://example.com/Agents/3"'), 'Rendered HTML must retain cached Hash creator ID'
+    assert res_h_html.body.include?('Carol Hash'), 'Rendered HTML must retain cached Hash creator name'
+    assert res_h_html.body.include?('name="config[creator][1][id]"'), 'Rendered HTML must retain minimal cached Hash hidden input'
+    assert res_h_html.body.include?('value="http://example.com/Agents/5"'), 'Rendered HTML must retain minimal cached Hash ID'
+    assert res_h_html.body.include?('name="config[rightsHolder][0][id]"'), 'Rendered HTML must retain cached Hash rightsHolder hidden input'
+    assert res_h_html.body.include?('value="http://example.com/Agents/4"'), 'Rendered HTML must retain cached Hash rightsHolder ID'
+    assert res_h_html.body.include?('Hash Org'), 'Rendered HTML must retain cached Hash rightsHolder name'
+    assert res_h_html.body.include?('parent_id=rightsHolder') && res_h_html.body.include?('agent_type=organization'),
+           'Rendered HTML must retain cached Hash replacement link'
+
+    # Turbo format for cached Hash agents
+    _ctrl_h_turbo, _req_h_turbo, res_h_turbo = dispatch(
+      :update,
+      method: :patch,
+      params: { config: submitted_hash_config },
+      headers: { 'Accept' => 'text/vnd.turbo-stream.html' },
+      session: { catalog_data: hash_session, catalog_metadata: attr_metadata_mock }
+    )
+    assert_equal 422, res_h_turbo.status
+    assert res_h_turbo.body.include?('name="config[creator][0][id]"')
+    assert res_h_turbo.body.include?('value="http://example.com/Agents/3"')
+    assert res_h_turbo.body.include?('Carol Hash')
+    assert res_h_turbo.body.include?('name="config[creator][1][id]"')
+    assert res_h_turbo.body.include?('value="http://example.com/Agents/5"')
+    assert res_h_turbo.body.include?('name="config[rightsHolder][0][id]"')
+    assert res_h_turbo.body.include?('value="http://example.com/Agents/4"')
+    assert res_h_turbo.body.include?('Hash Org')
+    assert res_h_turbo.body.include?('parent_id=rightsHolder') && res_h_turbo.body.include?('agent_type=organization')
   end
 
   # ===========================================================================

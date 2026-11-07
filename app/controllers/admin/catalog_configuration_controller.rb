@@ -252,11 +252,17 @@ class Admin::CatalogConfigurationController < ApplicationController
 
     cached_agents = {}
     agents_list.each do |agent_key|
-      Array(known[agent_key.to_sym] || known[agent_key.to_s]).each do |ag|
-        if ag.respond_to?(:id) && ag.id.present?
-          cached_agents[ag.id.to_s] = ag
-        elsif ag.is_a?(Hash) && (ag['id'] || ag[:id]).present?
-          cached_agents[(ag['id'] || ag[:id]).to_s] = ag
+      raw_val = known[agent_key.to_sym] || known[agent_key.to_s]
+      agent_items = case raw_val
+                    when Array then raw_val
+                    when nil then []
+                    else [raw_val]
+                    end
+
+      agent_items.each do |ag|
+        normalized = normalize_agent_representation(ag)
+        if normalized.respond_to?(:id) && normalized.id.present?
+          cached_agents[normalized.id.to_s] = normalized
         end
       end
     end
@@ -299,7 +305,34 @@ class Admin::CatalogConfigurationController < ApplicationController
                             end
       end
     end
+
+    agents_list.each do |agent_key|
+      sym_key = agent_key.to_sym
+      next if submitted.key?(agent_key.to_s) || submitted.key?(sym_key)
+
+      val = retained[sym_key]
+      if val.is_a?(Hash)
+        retained[sym_key] = normalize_agent_representation(val)
+      elsif val.is_a?(Array)
+        retained[sym_key] = val.map { |item| normalize_agent_representation(item) }
+      end
+    end
+
     retained
+  end
+
+  def normalize_agent_representation(agent)
+    agent = agent.to_unsafe_h if agent.is_a?(ActionController::Parameters)
+    return agent unless agent.is_a?(Hash)
+
+    id = (agent['id'] || agent[:id]).to_s
+    return nil if id.blank?
+
+    attrs = agent.transform_keys(&:to_sym)
+    attrs[:id] = id
+    attrs[:name] ||= agent['name'] || agent[:name]
+    attrs[:agentType] ||= agent['agentType'] || agent[:agentType] || agent['agent_type'] || agent[:agent_type]
+    OpenStruct.new(attrs)
   end
 
   def extract_update_error(response)
