@@ -26,6 +26,7 @@ require 'action_view'
 require 'view_component'
 require 'nokogiri'
 require 'haml'
+require 'haml/template'
 require 'turbo-rails'
 
 module Turbo
@@ -37,6 +38,11 @@ ActionController::Base.logger = Logger.new(nil)
 Rails.logger = Logger.new(nil)
 $REST_URL = 'http://example.com'
 $API_KEY = 'test'
+
+# Minimal ActiveRecord stub for ApplicationController error handling
+module ActiveRecord
+  class RecordNotFound < StandardError; end
+end
 
 # Real production helpers
 require 'urls_helper'
@@ -54,6 +60,7 @@ require 'mappings_helper'
 require 'concepts_helper'
 require 'turbo_helper'
 
+# Real production components
 module Display; end
 module Buttons; end
 
@@ -62,8 +69,15 @@ require 'loader_component'
 require 'display/search_result_component'
 require 'display/image_component'
 require 'buttons/regular_button_component'
+require 'infinite_scroll_component'
+require 'link_text_component'
+require 'popup_link_text_component'
+require 'tree_link_component'
+require 'tree_view_component'
+require 'tree_infinite_scroll_component'
 
-# Stub TurboFrameComponent render_in for isolated component testing
+
+# Stub ConceptDetailsComponent block wrapper for isolated view testing
 class ConceptDetailsComponent < ViewComponent::Base
   def initialize(**kwargs); @kwargs = kwargs; end
   def header(**kwargs, &block)
@@ -87,6 +101,7 @@ class TurboFrameComponent < ViewComponent::Base
 end
 
 class ViewComponent::Base
+  def inline_svg(*_args); '<svg></svg>'.html_safe; end
   def inline_svg_tag(*_args); '<svg></svg>'.html_safe; end
   def t(key, *_args); key.to_s; end
 end
@@ -98,11 +113,17 @@ class StandaloneViewContext < ActionView::Base
   include FederationHelper
   include ComponentsHelper
   include SearchHelper
+  include CollectionsHelper
   include Turbo::FramesHelper if defined?(Turbo::FramesHelper)
 
+  def inline_svg(*_args); '<svg></svg>'.html_safe; end
   def inline_svg_tag(*_args); '<svg></svg>'.html_safe; end
   def t(key, *_args); key.to_s; end
   def request_lang; 'en'; end
+  def concept_reused?(**_); false; end
+  def replace(id, content); "replace:#{id}:#{content}"; end
+  def prepend(id, content); "prepend:#{id}:#{content}"; end
+
   def render(comp, &block)
     if comp.is_a?(ViewComponent::Base)
       comp.render_in(self, &block)
@@ -110,6 +131,20 @@ class StandaloneViewContext < ActionView::Base
       super
     end
   end
+end
+
+# Real production ApplicationController and Models
+require 'ontologies_api_client'
+require 'application_controller'
+
+# Skip session/network before_actions on real ApplicationController for offline test safety
+ApplicationController.skip_before_action :set_locale, :set_global_thread_values, :domain_ontology_set,
+                                        :clean_empty_strings_from_params_arrays, :init_trial_license,
+                                        raise: false
+
+class ApplicationController
+  def concept_not_found(id); raise "404: #{id}"; end
+  def ontology_not_found(id); raise "404: #{id}"; end
 end
 
 # Upstream model doubles for ConceptsController
@@ -135,16 +170,6 @@ module LinkedData
   end
 end
 
-class ApplicationController < ActionController::Base
-  def concept_not_found(id); raise "404: #{id}"; end
-  def ontology_not_found(id); raise "404: #{id}"; end
-
-  def show_image_modal
-    url = params[:url]
-    render turbo_stream: helpers.prepend('application_modal_content') { helpers.image_tag(url, style: 'width: 100%') }
-  end
-end
-
 require 'concepts_controller'
 ConceptsController.layout false
 
@@ -166,7 +191,16 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
   }.freeze
 
   def setup
-    @view_context = StandaloneViewContext.new(ActionView::LookupContext.new([]), {}, nil)
+    lookup_context = ActionView::LookupContext.new([
+      File.join(WORKTREE_ROOT, 'app/components'),
+      File.join(WORKTREE_ROOT, 'app/components/buttons/regular_button_component'),
+      File.join(WORKTREE_ROOT, 'app/components/tree_link_component'),
+      File.join(WORKTREE_ROOT, 'app/components/tree_view_component'),
+      File.join(WORKTREE_ROOT, 'app/components/infinite_scroll_component'),
+      File.join(WORKTREE_ROOT, 'app/components/tree_infinite_scroll_component')
+    ])
+    controller = ActionController::Base.new
+    @view_context = StandaloneViewContext.new(lookup_context, {}, controller)
     $received_conceptid = nil
   end
 
@@ -317,7 +351,7 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
       params = Rack::Utils.parse_nested_query(parsed_uri.query)
       assert_equal raw_img_url, params['url'], "Rack query parse must yield original raw nested image URL for #{label}"
 
-      # Dispatch to ApplicationController#show_image_modal
+      # Dispatch to actual production ApplicationController#show_image_modal
       req = ActionDispatch::TestRequest.create
       params.each { |k, v| req.params[k] = v }
       res = ActionDispatch::TestResponse.create
@@ -336,19 +370,23 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
 
       assert_equal raw_img_url, rendered_image_src,
                    "show_image_modal must receive EXACT uncorrupted nested image URL for #{label}"
+      assert_includes Array(ctrl.response_body).join, raw_img_url,
+                      "show_image_modal response must include EXACT uncorrupted nested image URL for #{label}"
     end
   end
 
   # =========================================================================
-  # Flow 5: collections/_show.html.haml memberURL -> collection filter handoff
+  # Flow 5: collections/_show.html.haml memberURL -> collections picker receiver
   # =========================================================================
   def test_collections_show_haml_members_link_roundtrips_collection_id
-    template_path = File.join(WORKTREE_ROOT, 'app/views/collections/_show.html.haml')
-    template_content = File.read(template_path)
-    engine = Haml::Engine.new(template_content)
+    show_template_path = File.join(WORKTREE_ROOT, 'app/views/collections/_show.html.haml')
+    show_engine = Haml::Engine.new(File.read(show_template_path))
+
+    picker_template_path = File.join(WORKTREE_ROOT, 'app/views/ontologies/concepts_browsers/_collections_picker.html.haml')
+    picker_engine = Haml::Engine.new(File.read(picker_template_path))
 
     MATRIX_CASES.each do |label, raw_collection_id|
-      # Context for Haml template execution
+      # Context for collections/_show.html.haml template execution
       ctx = StandaloneViewContext.new(ActionView::LookupContext.new([]), {}, nil)
       ctx.instance_variable_set(:@ontology, OpenStruct.new(acronym: 'TEST_ONTO'))
 
@@ -361,7 +399,6 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
       ctx.define_singleton_method(:ontology_object_details_component) { |**_kwargs, &block| block.call }
       ctx.define_singleton_method(:render) do |comp, &block|
         if comp.class.name.to_s.include?('ConceptDetailsComponent')
-          # Execute the block passed to ConceptDetailsComponent
           builder = Object.new
           builder.define_singleton_method(:header) do |**_opts, &tbl_block|
             tbl = Object.new
@@ -383,7 +420,7 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
       ctx.define_singleton_method(:display_in_multiple_languages) { |*_args| '' }
       ctx.define_singleton_method(:get_collection_label) { |*_args| '' }
 
-      rendered_html = engine.render(ctx)
+      rendered_html = show_engine.render(ctx)
       doc = Nokogiri::HTML.fragment(rendered_html)
       link = doc.at_css('a[data-turbo-frame="_top"]')
       refute_nil link, "Collection memberCount link must render for #{label}"
@@ -398,11 +435,23 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
       assert_equal raw_collection_id, params['concept_collections'],
                    "collection member URL must roundtrip exact raw collection IRI for #{label}"
 
-      # Verify downstream receiver collections picker filter logic matches raw IRI:
-      collections_list = [{ '@id' => raw_collection_id }, { '@id' => 'http://example.org/other' }]
-      selected = collections_list.select { |s| params['concept_collections']&.split(',')&.include?(s['@id']) }
-      assert_equal 1, selected.size, "Downstream collection filter must match collection for #{label}"
-      assert_equal raw_collection_id, selected.first['@id']
+      # Feed Rack-parsed query params into the actual receiver collections picker template
+      picker_ctx = StandaloneViewContext.new(ActionView::LookupContext.new([]), {}, nil)
+      picker_ctx.instance_variable_set(:@collections, [
+        { '@id' => raw_collection_id, 'prefLabel' => ['Selected Collection'], 'color' => '#ffffff' },
+        { '@id' => 'http://example.org/other_collection', 'prefLabel' => ['Other Collection'], 'color' => '#000000' }
+      ])
+      picker_ctx.define_singleton_method(:params) { params.symbolize_keys }
+      picker_ctx.define_singleton_method(:id) { 'collections_picker_test' }
+      picker_ctx.define_singleton_method(:multiple) { true }
+      picker_ctx.define_singleton_method(:data) { {} }
+
+      picker_html = picker_engine.render(picker_ctx)
+      picker_doc = Nokogiri::HTML.fragment(picker_html)
+      selected_option = picker_doc.at_css('option[selected="selected"]')
+      refute_nil selected_option, "Receiver collections picker must select the matching collection option for #{label}"
+      assert_equal raw_collection_id, selected_option['value'],
+                   "Receiver collections picker selected option must match exact raw collection IRI for #{label}"
     end
   end
 
@@ -413,43 +462,42 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
     template_path = File.join(WORKTREE_ROOT, 'app/views/recommender/index.html.haml')
     template_content = File.read(template_path)
 
+    # Extract actual unchanged .go-to-annotator Haml fragment from recommender template
+    match = template_content.match(/^\s*\.go-to-annotator\n(?:\s{12,}.*\n?)+/)
+    refute_nil match, 'recommender/index.html.haml must contain .go-to-annotator block'
+    flines = match[0].lines
+    indent = flines.first[/^\s*/].size
+    dedented_fragment = flines.map { |l| l.sub(/^\s{0,#{indent}}/, '') }.join
+    engine = Haml::Engine.new(dedented_fragment)
+
     recommender_cases = [
       { text: 'melanoma + skin cancer & stage#2 %20 extra äöü', ontologies: 'NCIT,MESH,HP#Sub' },
       { text: 'http://example.org/onto#Term+1 & text', ontologies: 'CHEBI,GO+EXTRA' },
-      { text: 'simple input', ontologies: 'SNOMEDCT' }
+      { text: 'Class+Positive Condition', ontologies: 'ONTO+PLUS,CHEBI' },
+      { text: 'item%20with%2Fescapes', ontologies: 'ONT%201,ONT%2F2' },
+      { text: 'Phänomen_Entität_äöü_日本語', ontologies: 'ONTO_äöü,MESH_日本語' },
+      { text: 'http://example.org/onto#Class+Positive&filter=A%20B&tag=äöü_日本語', ontologies: 'NCIT#1,GO+2&3%20äöü' }
     ]
 
     recommender_cases.each do |tc|
-      # Test Haml button rendering logic directly
       input_val = tc[:text]
       ontologies_val = tc[:ontologies]
 
-      params_hash = { input: input_val, ontologies: ontologies_val }
+      ctx = StandaloneViewContext.new(@view_context.lookup_context, {}, nil)
+      ctx.define_singleton_method(:params) { { input: input_val, ontologies: ontologies_val } }
 
-      btn_href = "/annotator?text=#{CGI.escape(params_hash[:input].to_s)}&ontologies=#{CGI.escape(params_hash[:ontologies].to_s)}"
-      btn = Buttons::RegularButtonComponent.new(
-        id: 'recommender_go_annotator',
-        value: 'Call Annotator',
-        variant: 'secondary',
-        href: btn_href,
-        size: 'slim',
-        target: '_blank',
-        state: 'regular'
-      )
-      btn.instance_variable_set(:@view_context, @view_context)
-
-      html = btn.button_elem
-      doc = Nokogiri::HTML.fragment(html)
+      rendered_html = engine.render(ctx)
+      doc = Nokogiri::HTML.fragment(rendered_html)
       link = doc.at_css('a#recommender_go_annotator')
-      refute_nil link, 'Recommender go_annotator button must render link'
+      refute_nil link, "Recommender go_annotator button must render link for #{input_val}"
 
       rendered_href = link['href']
       parsed_uri = URI.parse(rendered_href)
-      assert_nil parsed_uri.fragment, "Annotator outer URL fragment must be nil"
+      assert_nil parsed_uri.fragment, "Annotator outer URL fragment must be nil for #{input_val}"
 
       params = Rack::Utils.parse_nested_query(parsed_uri.query)
-      assert_equal input_val, params['text'], 'params[:text] must roundtrip exact input value'
-      assert_equal ontologies_val, params['ontologies'], 'params[:ontologies] must roundtrip exact ontologies'
+      assert_equal input_val, params['text'], "params[:text] must roundtrip exact input value for #{input_val}"
+      assert_equal ontologies_val, params['ontologies'], "params[:ontologies] must roundtrip exact ontologies for #{ontologies_val}"
     end
   end
 
@@ -464,25 +512,26 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
       'fr&style=compact%20special'
     ]
 
+    lookup_context = ActionView::LookupContext.new([
+      File.join(WORKTREE_ROOT, 'app/components'),
+      File.join(WORKTREE_ROOT, 'app/components/tree_link_component'),
+      File.join(WORKTREE_ROOT, 'app/components/tree_view_component'),
+      File.join(WORKTREE_ROOT, 'app/components/infinite_scroll_component'),
+      File.join(WORKTREE_ROOT, 'app/components/tree_infinite_scroll_component')
+    ])
+
     lang_cases.each do |raw_lang|
-      host = Object.new
-      host.extend(SearchHelper)
-      host.extend(UrlsHelper)
+      controller = ActionController::Base.new
+      host = StandaloneViewContext.new(lookup_context, {}, controller)
+
+      raw_concept_id = 'http://example.org/onto#Concept+1&val=2%20extra'
+      results_list = [{ name: 'ontology' }, { name: raw_concept_id }]
 
       # -------------------------------------------------------------
       # Branch 1: show_count: true, page: 1
       # -------------------------------------------------------------
-      captured_branch1 = nil
-      host.define_singleton_method(:paginated_list_component) do |**kwargs|
-        captured_branch1 = kwargs
-        '<div id="paginated_b1">items</div>'.html_safe
-      end
-      host.define_singleton_method(:replace) { |id, content| "replace:#{id}:#{content}" }
-      host.define_singleton_method(:prepend) { |id, content| "prepend:#{id}:#{content}" }
-      host.define_singleton_method(:content_tag) { |_tag, content| "<span>#{content}</span>" }
-      host.define_singleton_method(:request_lang) { raw_lang }
       host.define_singleton_method(:params) do
-        { search: 'query+1&tag#2', page: '1', page_size: '50', child_id: 'http://example.org/inst1' }
+        { search: 'query+1&tag#2', page: '1', page_size: '50', child_id: raw_concept_id, type: 'SpecialIndividual' }
       end
 
       result1 = host.render_search_paginated_list(
@@ -493,30 +542,38 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
         child_param: :child_id,
         show_count: true,
         lang: raw_lang,
-        results: [{ name: 'ontology' }, { name: 'http://example.org/inst1' }],
+        results: results_list,
         next_page: 2,
         total_count: 50
       )
 
       assert_kind_of Array, result1, 'show_count branch must return array of Turbo stream actions'
-      refute_nil captured_branch1, 'paginated_list_component must be called on branch 1'
+      doc1 = Nokogiri::HTML.fragment(result1[1])
+      link1 = doc1.at_css('a')
+      refute_nil link1, 'Branch 1 must render child tree link'
 
-      child_url1 = captured_branch1[:child_url]
+      child_url1 = link1['href']
       parsed_child1 = URI.parse(child_url1)
       assert_nil parsed_child1.fragment, 'child_url outer fragment must be nil on branch 1'
       params_child1 = Rack::Utils.parse_nested_query(parsed_child1.query)
       assert_equal raw_lang, params_child1['lang'], 'Branch 1 child_url must roundtrip raw lang'
+      assert_equal raw_concept_id, params_child1['id'], 'Branch 1 child_url must roundtrip raw concept id'
+
+      # Verify next_page_url emitted in lazy-loading turbo-frame
+      next_frame1 = doc1.at_css('turbo-frame[loading="lazy"]')
+      refute_nil next_frame1, 'Branch 1 must emit lazy-loading turbo-frame for next page'
+      next_params1 = Rack::Utils.parse_nested_query(URI.parse(next_frame1['src']).query)
+      assert_equal '2', next_params1['page']
+      assert_equal 'query+1&tag#2', next_params1['search']
+      assert_equal raw_lang, next_params1['lang']
+      assert_equal raw_concept_id, next_params1['child_id']
+      assert_equal 'SpecialIndividual', next_params1['type']
 
       # -------------------------------------------------------------
       # Branch 2: show_count: false, page: 2
       # -------------------------------------------------------------
-      captured_branch2 = nil
-      host.define_singleton_method(:paginated_list_component) do |**kwargs|
-        captured_branch2 = kwargs
-        '<div id="paginated_b2">items</div>'.html_safe
-      end
       host.define_singleton_method(:params) do
-        { search: 'query+1&tag#2', page: '2', page_size: '50', child_id: 'http://example.org/inst2' }
+        { search: 'query+1&tag#2', page: '2', page_size: '50', child_id: raw_concept_id, type: 'SpecialIndividual' }
       end
 
       result2 = host.render_search_paginated_list(
@@ -527,40 +584,35 @@ class QueryValueRoundtripRegressionTest < Minitest::Test
         child_param: :child_id,
         show_count: false,
         lang: raw_lang,
-        results: [{ name: 'ontology' }, { name: 'http://example.org/inst2' }],
+        results: results_list,
         next_page: 3,
         total_count: 50
       )
 
-      refute_nil captured_branch2, 'paginated_list_component must be called on branch 2'
-      child_url2 = captured_branch2[:child_url]
+      assert_kind_of String, result2, 'show_count=false branch must return rendered HTML string'
+      doc2 = Nokogiri::HTML.fragment(result2)
+      link2 = doc2.at_css('a')
+      refute_nil link2, 'Branch 2 must render child tree link'
+
+      child_url2 = link2['href']
       parsed_child2 = URI.parse(child_url2)
       assert_nil parsed_child2.fragment, 'child_url outer fragment must be nil on branch 2'
       params_child2 = Rack::Utils.parse_nested_query(parsed_child2.query)
       assert_equal raw_lang, params_child2['lang'], 'Branch 2 child_url must roundtrip raw lang'
+      assert_equal raw_concept_id, params_child2['id'], 'Branch 2 child_url must roundtrip raw concept id'
 
       # Verify consistent encoding across both branches
       assert_equal child_url1, child_url2, 'child_url encoding must be identical across both branches'
 
-      # Verify downstream TreeLink href generation from ComponentsHelper#paginated_list_component:
-      # Concept ID is escaped once, child_url already contains encoded lang
-      raw_concept_id = 'http://example.org/onto#Concept+1&val=2%20extra'
-      treelink_href = child_url1.include?('?') ? "#{child_url1}&id=#{CGI.escape(raw_concept_id)}" : "#{child_url1}?id=#{CGI.escape(raw_concept_id)}"
-      parsed_tree = URI.parse(treelink_href)
-      assert_nil parsed_tree.fragment, 'TreeLink href outer fragment must be nil'
-      params_tree = Rack::Utils.parse_nested_query(parsed_tree.query)
-      assert_equal raw_lang, params_tree['lang'], 'TreeLink href must preserve exact lang'
-      assert_equal raw_concept_id, params_tree['id'], 'TreeLink href must preserve exact concept ID'
-
-      # Verify next_page_link preserves search, page, lang, child_param, and filters
-      next_url = captured_branch1[:next_page_url]
-      parsed_next = URI.parse(next_url)
-      params_next = Rack::Utils.parse_nested_query(parsed_next.query)
-      assert_equal '2', params_next['page']
-      assert_equal 'query+1&tag#2', params_next['search']
-      assert_equal raw_lang, params_next['lang']
-      assert_equal 'http://example.org/inst1', params_next['child_id']
-      assert_equal 'SpecialIndividual', params_next['type']
+      # Verify next_page_url emitted in lazy-loading turbo-frame for branch 2
+      next_frame2 = doc2.at_css('turbo-frame[loading="lazy"]')
+      refute_nil next_frame2, 'Branch 2 must emit lazy-loading turbo-frame for next page'
+      next_params2 = Rack::Utils.parse_nested_query(URI.parse(next_frame2['src']).query)
+      assert_equal '3', next_params2['page']
+      assert_equal 'query+1&tag#2', next_params2['search']
+      assert_equal raw_lang, next_params2['lang']
+      assert_equal raw_concept_id, next_params2['child_id']
+      assert_equal 'SpecialIndividual', next_params2['type']
     end
   end
 end
