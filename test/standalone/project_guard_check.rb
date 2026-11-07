@@ -166,12 +166,14 @@ module LinkedData
         attr_accessor :forced_save_response, :forced_update_response, :forced_delete_response
 
         class << self
-          attr_accessor :registry
+          attr_accessor :registry, :raise_on_find_by_acronym
         end
         self.registry = {}
+        self.raise_on_find_by_acronym = false
 
         def self.reset_registry!
           self.registry = {}
+          self.raise_on_find_by_acronym = false
         end
 
         def self.register(proj)
@@ -185,6 +187,8 @@ module LinkedData
         end
 
         def self.find_by_acronym(acronym)
+          raise RuntimeError, 'Backend outage: find_by_acronym unavailable' if @raise_on_find_by_acronym
+
           $project_spy.project_find_by_acronym_calls += 1
           $project_spy.project_find_by_acronym_args << acronym.to_s
           proj = self.registry[acronym.to_s]
@@ -629,19 +633,56 @@ class ProjectGuardCheck < Minitest::Test
   end
 
   def test_permitted_actor_cancel_update_performs_zero_writes
+    LinkedData::Client::Models::Project.raise_on_find_by_acronym = true
     params = {
       id: 'SCALAR',
       commit: 'Cancel',
       project: { name: 'Cancelled Name' }
     }
+
+    # 1. Permitted owner Cancel update redirects to /projects with zero lookups and zero writes
     _ctrl, _req, res = dispatch(:update, method: :put, params: params, session: { user: @user_alice })
 
     assert_equal 302, res.status
     assert_includes res.location, '/projects'
-    assert_equal 1, $project_spy.project_find_by_acronym_calls, '1 read to verify ownership'
+    assert_equal 0, $project_spy.total_lookup_calls, 'Cancel must perform 0 project/resource lookups'
+    assert_equal 0, $project_spy.project_find_by_acronym_calls, 'Cancel must not lookup project by acronym'
+    assert_equal 0, $project_spy.project_all_calls, 'Cancel must not lookup all projects'
+    assert_equal 0, $project_spy.user_all_calls, 'Cancel must not expand user list'
+    assert_equal 0, $project_spy.ontology_all_calls, 'Cancel must not expand ontology list'
     assert_equal 0, $project_spy.project_update_from_params_calls, 'Cancel must not update params'
-    assert_equal 0, $project_spy.project_update_calls, 'Cancel must make 0 update writes'
+    assert_equal 0, $project_spy.total_write_calls, 'Cancel must perform 0 writes'
+    assert_equal 0, $project_spy.project_save_calls, 'Cancel must not call save'
+    assert_equal 0, $project_spy.project_update_calls, 'Cancel must not call update'
+    assert_equal 0, $project_spy.project_delete_calls, 'Cancel must not call delete'
     assert_equal 'Scalar Project', @scalar_proj.name, 'Registry project name must remain unmodified'
+
+    # 2. Permitted admin Cancel update also succeeds with zero lookups and zero writes
+    _ctrl_adm, _req_adm, res_adm = dispatch(:update, method: :put, params: params, session: { user: @user_admin })
+    assert_equal 302, res_adm.status
+    assert_includes res_adm.location, '/projects'
+    assert_equal 0, $project_spy.total_lookup_calls, 'Admin Cancel must perform 0 lookups'
+    assert_equal 0, $project_spy.total_write_calls, 'Admin Cancel must perform 0 writes'
+
+    # 3. Anonymous Cancel update must not bypass login guard (redirects to /login with zero lookups and writes)
+    _ctrl_anon, _req_anon, res_anon = dispatch(:update, method: :put, params: params, session: {})
+    assert_equal 302, res_anon.status
+    assert_includes res_anon.location, '/login'
+    assert_equal 0, $project_spy.total_lookup_calls, 'Anonymous Cancel must perform 0 lookups'
+    assert_equal 0, $project_spy.total_write_calls, 'Anonymous Cancel must perform 0 writes'
+
+    # 4. Scope: edit action does not bypass ownership guard when commit is Cancel (reaches find_by_acronym and raises)
+    assert_raises(RuntimeError) do
+      dispatch(:edit, params: { id: 'SCALAR', commit: 'Cancel' }, session: { user: @user_alice })
+    end
+
+    # 5. Scope: non-owner edit with Cancel is denied by ownership guard
+    LinkedData::Client::Models::Project.raise_on_find_by_acronym = false
+    _ctrl_nonowner, _req_nonowner, res_nonowner = dispatch(:edit, params: { id: 'SCALAR', commit: 'Cancel' }, session: { user: @user_charlie })
+    assert_equal 302, res_nonowner.status
+    assert_equal 'http://test.host/', res_nonowner.location
+  ensure
+    LinkedData::Client::Models::Project.raise_on_find_by_acronym = false
   end
 
   # ===========================================================================

@@ -148,6 +148,8 @@ class ProjectsController < ApplicationController
   end
 
   def authorize_owner
+    return if action_name == 'update' && params['commit'] == 'Cancel'
+
     projects = LinkedData::Client::Models::Project.find_by_acronym(params[:id])
     if projects.nil? || projects.empty?
       flash[:notice] = flash_error(t('projects.project_not_found', id: params[:id]))
