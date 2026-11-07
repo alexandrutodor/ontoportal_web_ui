@@ -99,6 +99,14 @@ class ApplicationController
     @redirected_to = target
   end
 
+  def subscribe_user_path(username)
+    "/users/subscribe/#{URI::RFC2396_PARSER.escape(username.to_s)}"
+  end
+
+  def unsubscribe_user_path(email)
+    "/users/un-subscribe/#{URI::RFC2396_PARSER.escape(email.to_s)}"
+  end
+
   def helpers
     self
   end
@@ -255,6 +263,17 @@ class RouteSetDouble
     path = args.first
     verbs = Array(options[:via] || [:get, :post, :put, :patch, :delete])
     ctrl, act = parse_to(options[:to])
+    as_name = options[:as]
+    if as_name
+      helper_name = "#{as_name}_path"
+      m = Module.new do
+        define_method(helper_name) do |target|
+          segment = URI::RFC2396_PARSER.escape(target.to_s)
+          path.sub(/:[a-zA-Z0-9_]+/, segment)
+        end
+      end
+      RouteSetDouble.include(m)
+    end
     verbs.each do |v|
       @routes << Route.new(v.to_s.upcase, path, ctrl, act, options[:constraints])
     end
@@ -295,7 +314,12 @@ class RouteSetDouble
       end
       regex = Regexp.new("\\A#{pattern}\\z")
       if (m = regex.match(path))
-        return { controller: r.controller, action: r.action, params: m.named_captures }
+        # Rails Journey router unescapes captured route parameters once (rails-7.0.8-journey-router.rb:128)
+        unescaped_params = {}
+        m.named_captures.each do |k, v|
+          unescaped_params[k] = v ? URI::RFC2396_PARSER.unescape(v) : v
+        end
+        return { controller: r.controller, action: r.action, params: unescaped_params }
       end
     end
     nil
@@ -307,6 +331,65 @@ class RouteSetDouble
     return ["", ""] unless to_str.is_a?(String)
 
     to_str.split("#")
+  end
+end
+
+class ViewContextDouble
+  attr_accessor :action_type, :user, :target_username, :email, :target_email
+
+  def initialize(assigns = {})
+    assigns.each { |k, v| instance_variable_set("@#{k}", v) }
+  end
+
+  def t(key, options = {})
+    @locales ||= begin
+      en = YAML.load_file(File.expand_path('../../config/locales/en.yml', __dir__))
+      en['en'] || {}
+    rescue StandardError
+      {}
+    end
+
+    parts = key.to_s.split('.')
+    val = parts.inject(@locales) { |acc, k| acc.is_a?(Hash) ? acc[k] : nil }
+    val ||= key.to_s
+
+    if val.is_a?(String) && options.any?
+      result = val.dup
+      options.each do |k, v|
+        result = result.gsub("%{#{k}}", v.to_s)
+      end
+      result
+    else
+      val.to_s
+    end
+  end
+
+  def subscribe_user_path(username)
+    "/users/subscribe/#{URI::RFC2396_PARSER.escape(username.to_s)}"
+  end
+
+  def unsubscribe_user_path(email)
+    "/users/un-subscribe/#{URI::RFC2396_PARSER.escape(email.to_s)}"
+  end
+
+  def form_with(url:, method: :post, data: {}, &block)
+    builder = FormBuilderDouble.new
+    content = block.call(builder)
+    "<form action=\"#{url}\" method=\"#{method}\">\n#{content}\n</form>"
+  end
+
+  def link_to(text, url, options = {})
+    "<a href=\"#{url}\">#{text}</a>"
+  end
+end
+
+class FormBuilderDouble
+  def hidden_field(name, value: nil)
+    "<input type=\"hidden\" name=\"#{name}\" value=\"#{CGI.escapeHTML(value.to_s)}\" />"
+  end
+
+  def submit(text, options = {})
+    "<input type=\"submit\" value=\"#{CGI.escapeHTML(text.to_s)}\" />"
   end
 end
 
@@ -345,11 +428,27 @@ class SubscriptionConfirmationTest < Minitest::Test
       lastName: "Brown",
       admin: false
     )
+    @percent_user = LinkedData::Client::Models::User.new(
+      username: "literal%2Buser",
+      email: "literal%2Buser@example.org",
+      firstName: "Literal",
+      lastName: "PercentPlus",
+      admin: false
+    )
 
     LinkedData::Client::Models::User.register(@admin_user)
     LinkedData::Client::Models::User.register(@standard_user)
     LinkedData::Client::Models::User.register(@plus_user)
     LinkedData::Client::Models::User.register(@dot_user)
+    LinkedData::Client::Models::User.register(@percent_user)
+  end
+
+  def render_subscription_confirm(assigns = {})
+    view_path = File.expand_path('../../app/views/users/subscription_confirm.html.haml', __dir__)
+    content = File.read(view_path)
+    engine = Haml::Engine.new(content)
+    ctx = ViewContextDouble.new(assigns)
+    engine.render(ctx)
   end
 
   # --- Route Model Assertions ---
@@ -534,28 +633,106 @@ class SubscriptionConfirmationTest < Minitest::Test
     assert_equal "charlie.brown@example.org", SubscribeMailer.register_calls.first[:email]
   end
 
-  # --- Legacy Format Handling ---
+  def test_subscribe_with_literal_percent_encoded_username_does_not_double_decode_to_different_user
+    load File.expand_path('../../config/routes.rb', __dir__)
+    route_set = Rails.application.routes.route_set
 
-  def test_legacy_format_reconstruction_for_split_dot_username
+    # /users/subscribe/charlie%252Ebrown router match decodes to charlie%2Ebrown
+    matched = route_set.match_request("POST", "/users/subscribe/charlie%252Ebrown")
+    assert matched, "Route must match POST /users/subscribe/charlie%252Ebrown"
+    assert_equal "charlie%2Ebrown", matched[:params]["username"]
+
     controller = UsersController.new
-    controller.params = { username: "charlie", format: "brown" }
-    controller.request = RequestDouble.new(method: "POST", url: "/users/subscribe/charlie.brown")
+    controller.params = { username: matched[:params]["username"] }
+    controller.request = RequestDouble.new(method: "POST", url: "/users/subscribe/charlie%252Ebrown")
+
+    # charlie.brown exists, but literal charlie%2Ebrown does not.
+    # Must NOT double-decode to charlie.brown; must halt with not_found and deliver ZERO mail.
+    assert_raises(ActiveRecord::RecordNotFound) do
+      controller.subscribe
+    end
+    assert_empty SubscribeMailer.register_calls, "Double-decoding must not select charlie.brown or deliver mail"
+  end
+
+  def test_subscribe_preserves_literal_percent_and_plus_target
+    load File.expand_path('../../config/routes.rb', __dir__)
+    route_set = Rails.application.routes.route_set
+
+    matched = route_set.match_request("POST", "/users/subscribe/literal%252Buser")
+    assert matched
+    assert_equal "literal%2Buser", matched[:params]["username"]
+
+    controller = UsersController.new
+    controller.params = { username: matched[:params]["username"] }
+    controller.request = RequestDouble.new(method: "POST", url: "/users/subscribe/literal%252Buser")
 
     controller.subscribe
 
     assert_equal 1, SubscribeMailer.register_calls.size
-    assert_equal "charlie.brown@example.org", SubscribeMailer.register_calls.first[:email]
+    assert_equal "literal%2Buser@example.org", SubscribeMailer.register_calls.first[:email],
+                 "Percent and plus must remain exact; plus must not become a space"
   end
 
-  def test_legacy_format_reconstruction_for_split_dot_email
+  def test_find_user_preserves_preexisting_full_uri_caller_contract
     controller = UsersController.new
-    controller.params = { email: "alice@example", format: "org" }
+    # Full-URI caller (show action session id pattern)
+    user = controller.send(:find_user, "http://data.matportal.org/users/alice")
+    assert_equal "alice", user.username
+
+    # Escaped URI caller
+    user_escaped = controller.send(:find_user, "http://data.matportal.org/users/charlie%2Ebrown")
+    assert_equal "charlie.brown", user_escaped.username
+  end
+
+  # --- Format Parameters Do Not Alter Route Targets ---
+
+  def test_format_parameter_in_body_or_query_does_not_retarget_email
+    controller = UsersController.new
+    # Counterexample from review: parsed params { email: "alice@example.org", format: "net" }
+    controller.params = { email: "alice@example.org", format: "net" }
     controller.request = RequestDouble.new(method: "POST", url: "/users/un-subscribe/alice@example.org")
 
     controller.un_subscribe
 
     assert_equal 1, SubscribeMailer.unregister_calls.size
-    assert_equal "alice@example.org", SubscribeMailer.unregister_calls.first[:email]
+    assert_equal "alice@example.org", SubscribeMailer.unregister_calls.first[:email],
+                 "Format param must never append to email address or retarget mail"
+    refute_equal "alice@example.org.net", SubscribeMailer.unregister_calls.first[:email]
+  end
+
+  def test_format_parameter_in_body_or_query_does_not_retarget_username
+    controller = UsersController.new
+    # Counterexample from review: parsed params { username: "charlie", format: "brown" }
+    # charlie does not exist, charlie.brown exists
+    controller.params = { username: "charlie", format: "brown" }
+    controller.request = RequestDouble.new(method: "POST", url: "/users/subscribe/charlie")
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      controller.subscribe
+    end
+    assert_empty SubscribeMailer.register_calls,
+                 "Format param must never select charlie.brown when target is charlie"
+
+    # And with existing user alice, format must not alter username
+    controller2 = UsersController.new
+    controller2.params = { username: "alice", format: "brown" }
+    controller2.request = RequestDouble.new(method: "POST", url: "/users/subscribe/alice")
+
+    controller2.subscribe
+
+    assert_equal 1, SubscribeMailer.register_calls.size
+    assert_equal "alice@example.org", SubscribeMailer.register_calls.first[:email]
+  end
+
+  def test_format_parameter_alone_without_target_does_not_satisfy_lookup
+    controller = UsersController.new
+    controller.params = { format: "net" }
+    controller.request = RequestDouble.new(method: "POST", url: "/users/un-subscribe/")
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      controller.un_subscribe
+    end
+    assert_empty SubscribeMailer.unregister_calls
   end
 
   def test_standard_html_format_is_not_appended_to_target
@@ -626,9 +803,88 @@ class SubscriptionConfirmationTest < Minitest::Test
     assert engine, "Haml engine must compile template without syntax error"
 
     assert_includes content, "form_with", "Template must use form_with helper"
+    assert_includes content, "subscribe_user_path", "Template must use subscribe_user_path route helper"
+    assert_includes content, "unsubscribe_user_path", "Template must use unsubscribe_user_path route helper"
     assert_includes content, "method: :post", "Template must declare method: :post"
     assert_includes content, "hidden_field :username", "Template must preserve escaped username hidden field"
     assert_includes content, "hidden_field :email", "Template must preserve escaped email hidden field"
     assert_includes content, "link_to t('users.cancel'), \"/account\"", "Template must provide cancel link to /account"
+  end
+
+  def test_rendered_action_round_trip_for_unsubscribe_preserves_literal_percent_plus
+    load File.expand_path('../../config/routes.rb', __dir__)
+    route_set = Rails.application.routes.route_set
+
+    raw_email = "alice%2Btag@example.org"
+    html = render_subscription_confirm(action_type: "unsubscribe", email: raw_email)
+
+    action_url = html[/<form action="([^"]+)"/, 1]
+    assert_equal "/users/un-subscribe/alice%252Btag@example.org", action_url,
+                 "unsubscribe_user_path must percent-encode literal % as %25"
+    assert_includes html, "value=\"alice%2Btag@example.org\"",
+                    "Hidden field must preserve raw email"
+
+    # Round trip: Browser submits POST to rendered action URL
+    matched = route_set.match_request("POST", action_url)
+    assert matched, "Rendered action URL must match POST route"
+    assert_equal raw_email, matched[:params]["email"],
+                 "Journey router Utils.unescape_uri must decode %25 back to literal %2B"
+
+    controller = UsersController.new
+    controller.params = { email: matched[:params]["email"] }
+    controller.request = RequestDouble.new(method: "POST", url: action_url)
+
+    controller.un_subscribe
+
+    assert_equal 1, SubscribeMailer.unregister_calls.size
+    assert_equal raw_email, SubscribeMailer.unregister_calls.first[:email],
+                 "Full round trip must deliver to exact literal email"
+  end
+
+  def test_counterexample_unencoded_action_corrupts_literal_percent_plus_to_plus
+    load File.expand_path('../../config/routes.rb', __dir__)
+    route_set = Rails.application.routes.route_set
+
+    # If action was interpolated directly without route helper:
+    unencoded_action = "/users/un-subscribe/alice%2Btag@example.org"
+    matched = route_set.match_request("POST", unencoded_action)
+
+    assert_equal "alice+tag@example.org", matched[:params]["email"],
+                 "Demonstrates defect: Journey router unescapes %2B into +"
+
+    controller = UsersController.new
+    controller.params = { email: matched[:params]["email"] }
+    controller.request = RequestDouble.new(method: "POST", url: unencoded_action)
+
+    controller.un_subscribe
+
+    assert_equal 1, SubscribeMailer.unregister_calls.size
+    assert_equal "alice+tag@example.org", SubscribeMailer.unregister_calls.first[:email],
+                 "Delivery was corrupted to plus tag address instead of literal percent"
+  end
+
+  def test_rendered_action_round_trip_for_subscribe_preserves_literal_percent_plus
+    load File.expand_path('../../config/routes.rb', __dir__)
+    route_set = Rails.application.routes.route_set
+
+    raw_username = "literal%2Buser"
+    html = render_subscription_confirm(action_type: "subscribe", user: @percent_user, target_username: raw_username)
+
+    action_url = html[/<form action="([^"]+)"/, 1]
+    assert_equal "/users/subscribe/literal%252Buser", action_url,
+                 "subscribe_user_path must percent-encode literal % as %25"
+
+    matched = route_set.match_request("POST", action_url)
+    assert matched
+    assert_equal raw_username, matched[:params]["username"]
+
+    controller = UsersController.new
+    controller.params = { username: matched[:params]["username"] }
+    controller.request = RequestDouble.new(method: "POST", url: action_url)
+
+    controller.subscribe
+
+    assert_equal 1, SubscribeMailer.register_calls.size
+    assert_equal "literal%2Buser@example.org", SubscribeMailer.register_calls.first[:email]
   end
 end

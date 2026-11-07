@@ -12,7 +12,7 @@
         = t('users.subscribe_confirm_prompt', user: (@user&.username || @target_username), list: ($ANNOUNCE_LIST || 'announcements'))
       - else
         = t('users.unsubscribe_confirm_prompt', email: (@email || @target_email), list: ($ANNOUNCE_LIST || 'announcements'))
-    - target_url = is_subscribe ? "/users/subscribe/#{@user&.username || @target_username}" : "/users/un-subscribe/#{@email || @target_email}"
+    - target_url = is_subscribe ? subscribe_user_path(@user&.username || @target_username) : unsubscribe_user_path(@email || @target_email)
     = form_with(url: target_url, method: :post, data: { turbo: false }) do |f|
       - if is_subscribe
         = f.hidden_field :username, value: (@user&.username || @target_username)

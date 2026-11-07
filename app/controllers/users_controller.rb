@@ -178,7 +178,7 @@ class UsersController < ApplicationController
       return
     end
 
-    @user = find_user(target)
+    @user = find_subscription_user(target)
     return if @user.nil?
 
     if request.post?
@@ -214,19 +214,24 @@ class UsersController < ApplicationController
 
   private
 
-  def find_user(id = (params[:id] || params[:username]))
-    raw_id = id || params[:username] || params[:id]
-    not_found("User id not provided") if raw_id.nil? || raw_id.to_s.strip.empty?
+  def find_user(id = params[:id])
+    return not_found("User id not provided") if id.nil? || id.to_s.strip.empty?
 
-    clean_id = raw_id.to_s
-    # Preserve exact already-parsed dots/plus; only decode if percent-encoded
-    clean_id = helpers.unescape(clean_id) if clean_id.include?('%')
-    user_key = clean_id.split('/').last
+    id = helpers.unescape(id.to_s)
+    @user = LinkedData::Client::Models::User.find(id.split('/').last, {include: 'all'})
 
-    @user = LinkedData::Client::Models::User.find(user_key, {include: 'all'})
+    not_found("User with id #{id} not found") if @user.nil?
 
-    not_found("User with id #{raw_id} not found") if @user.nil?
+    @user
+  end
 
+  def find_subscription_user(username)
+    return not_found("User not found") if username.nil? || username.to_s.strip.empty?
+
+    # Rails Journey router already unescapes URI path parameters once.
+    # Subscription target username is literal and must not be unescaped again.
+    @user = LinkedData::Client::Models::User.find(username.to_s, {include: 'all'})
+    not_found("User with id #{username} not found") if @user.nil?
     @user
   end
 
@@ -234,22 +239,14 @@ class UsersController < ApplicationController
     target = params[:username] || params[:id]
     return nil if target.nil? || target.to_s.strip.empty?
 
-    target = target.to_s
-    if params[:format].present? && !['html', 'json', 'xml'].include?(params[:format].to_s.downcase)
-      target = "#{target}.#{params[:format]}"
-    end
-    target
+    target.to_s
   end
 
   def subscription_target_email
     email = params[:email]
     return nil if email.nil? || email.to_s.strip.empty?
 
-    email = email.to_s
-    if params[:format].present? && !['html', 'json', 'xml'].include?(params[:format].to_s.downcase)
-      email = "#{email}.#{params[:format]}"
-    end
-    email
+    email.to_s
   end
 
   def valid_subscription_email?(email)
