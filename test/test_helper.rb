@@ -4,6 +4,7 @@ require_relative '../config/environment'
 require 'rails/test_help'
 require 'webmock/minitest'
 require_relative 'helpers/test_target_guard'
+require_relative 'helpers/external_portal_stub_helper'
 
 # Configure explicit Capybara test server host and port before policy
 if defined?(Capybara)
@@ -31,6 +32,7 @@ class ActiveSupport::TestCase
   setup do
     TestTargetGuard.enforce_isolated_test_target!
     FlipperSetup.test_configure!
+    ExternalPortalStubHelper.stub_configured_external_portal_health_checks
   end
 end
 
