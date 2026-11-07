@@ -142,8 +142,9 @@ $NOTIFICATION_EMAIL = ENV['SUPPORT_EMAIL']
 #         site_key: your_site_key
 #         secret_key: your_secret_key
 #
-#    3. Set the USE_RECAPTCHA option to 'true'
-ENV['USE_RECAPTCHA'] = 'false'
+#    3. Set the USE_RECAPTCHA option to 'true' in your environment or below
+#       (default is disabled; preserve operator setting if provided)
+# ENV['USE_RECAPTCHA'] = 'true'
 # Custom BioPortal logging
 require 'log'
 
