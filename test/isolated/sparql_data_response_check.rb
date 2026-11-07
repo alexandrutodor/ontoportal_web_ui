@@ -5,8 +5,11 @@
 # Verifies replacement of runtime-data inline template evaluation with safe data rendering,
 # preservation of harmless literal ERB arithmetic as data, preservation of JSON/XML payload and MIME,
 # validation of unexpected/active MIME to non-active data fallback (text/plain),
+# consistency of character set encoding and header parameters (UTF-8 / Latin-1),
+# preservation of actual binary payload bytes without silent transcoding,
 # preservation of non-success HTTP status for local/upstream/timeout/authorization errors,
-# and preservation of query rewrite and authorization policy.
+# preservation of query rewrite and authorization policy with comments,
+# and removal of speculative compatibility branches for malformed controller responses.
 #
 # Supports both real Rails mode (inside onto-q02-proof container with Rails 7.0.8, Faraday, SPARQL)
 # and host fallback mode.
@@ -29,15 +32,17 @@ begin
   require 'rack'
   require 'faraday'
   require 'sparql'
+  require 'sparql/grammar'
   REAL_RAILS_MODE = true
   RAILS_VERSION = ActionPack.version.to_s
 rescue LoadError => e
   REAL_RAILS_MODE = false
   RAILS_VERSION = nil
+  MISSING_LIB_REASON = e.message
 end
 
 puts "=== Step 1: Framework Environment Verification ==="
-puts "Execution mode: #{REAL_RAILS_MODE ? "Real Rails #{RAILS_VERSION} (ActionPack #{ActionPack.version}, Faraday #{Faraday::VERSION}, SPARQL #{SPARQL::VERSION})" : 'Host fallback'}"
+puts "Execution mode: #{REAL_RAILS_MODE ? "Real Rails #{RAILS_VERSION} (ActionPack #{ActionPack.version}, Faraday #{Faraday::VERSION}, SPARQL #{SPARQL::VERSION})" : "Host fallback (Native libraries absent: #{MISSING_LIB_REASON})"}"
 
 require 'ostruct'
 require 'cgi'
@@ -122,15 +127,35 @@ unless defined?(Faraday)
   end
 end
 
-# Load the actual SparqlHelper and AdminController
+# Test fixture doubles strictly scoped to host fallback mode when gems are absent
+unless REAL_RAILS_MODE
+  $LOADED_FEATURES << 'sparql/grammar.rb' unless $LOADED_FEATURES.include?('sparql/grammar.rb')
+  module SPARQL
+    module Grammar
+      def self.parse(query)
+        raise StandardError, 'Failed to parse query: syntax error' if query.to_s.strip.empty? || query.to_s.count('{') != query.to_s.count('}')
+        true
+      end
+    end
+  end
+  class Object
+    def blank?
+      respond_to?(:empty?) ? !!empty? : !self
+    end
+  end unless Object.method_defined?(:blank?)
+end
+
 repo_root = File.expand_path('../..', __dir__)
+require File.join(repo_root, 'app/helpers/urls_helper.rb')
 require File.join(repo_root, 'app/helpers/sparql_helper.rb')
 
 if REAL_RAILS_MODE
   class ApplicationController < ActionController::Base
+    helper UrlsHelper
     helper SparqlHelper
     def determine_layout; nil; end
     def authorize_admin; true; end
+    def cache_setup; true; end
     def t(key, **opts)
       case key
       when 'admin.query_not_permitted' then 'Query not permitted'
@@ -159,6 +184,7 @@ else
 
     attr_accessor :params, :response
 
+    include UrlsHelper
     include SparqlHelper
 
     def initialize
@@ -175,7 +201,15 @@ else
         @response.body = options[:plain].to_s
         @response.content_type = options[:content_type] || 'text/plain; charset=utf-8'
         status = options[:status] || 200
-        @response.status = status == :forbidden ? 403 : status
+        status_map = {
+          forbidden: 403,
+          bad_gateway: 502,
+          service_unavailable: 503,
+          bad_request: 400,
+          internal_server_error: 500,
+          ok: 200
+        }
+        @response.status = status_map[status] || status
       elsif options[:inline]
         # In vulnerable version this evaluated inline ERB
         @response.body = options[:inline].to_s
@@ -262,7 +296,7 @@ end) do
   assert(!resp.body.include?('49') && !resp.body.include?('30'), 'Harmless ERB delimiters are NOT evaluated by template compiler')
 end
 
-puts "\n=== Step 3: Standard JSON and XML Payload & MIME Preservation ==="
+puts "\n=== Step 3: Standard JSON and XML Payload, MIME Preservation & Charset Consistency ==="
 # JSON preservation
 with_stubbed_faraday(lambda do |url|
   Faraday::Response.new(
@@ -292,7 +326,23 @@ end) do
   assert(resp.body.include?('<literal><%= 1 + 1 %></literal>'), "XML payload preserved with unevaluated ERB")
 end
 
-puts "\n=== Step 4: Upstream Error Status Preservation ==="
+# Charset consistency: Latin-1 text converted to UTF-8 with updated header charset
+latin1_payload = "{\"greeting\": \"caf\xE9\"}".b
+with_stubbed_faraday(lambda do |url|
+  Faraday::Response.new(
+    status: 200,
+    body: latin1_payload,
+    response_headers: { 'content-type' => 'application/sparql-results+json; charset=iso-8859-1' }
+  )
+end) do
+  resp = execute_sparql_endpoint('named-graph-uri' => valid_graph, 'query' => valid_query)
+  assert(resp.status == 200, "Latin-1 JSON response returns status 200")
+  assert(resp.content_type.to_s.include?('charset=utf-8'), "Header charset updated consistently to UTF-8 (actual: #{resp.content_type})")
+  assert(!resp.content_type.to_s.downcase.include?('iso-8859-1'), "Header does NOT retain stale ISO-8859-1 charset")
+  assert(resp.body.include?('café'), "Latin-1 byte 0xE9 normalized to valid UTF-8 'é'")
+end
+
+puts "\n=== Step 4: Upstream Error Status & Malformed Controller Response Contract ==="
 with_stubbed_faraday(lambda do |url|
   Faraday::Response.new(
     status: 500,
@@ -305,7 +355,26 @@ end) do
   assert(resp.body.include?('Virtuoso 37000 Error'), "Upstream error text preserved in response body")
 end
 
-puts "\n=== Step 5: Unexpected Active MIME Fallback to Safe Data Type ==="
+# Malformed / non-Faraday response does not falsely return 200
+malformed_controller = AdminController.new
+if REAL_RAILS_MODE
+  env = Rack::MockRequest.env_for("/sparql_proxy?named-graph-uri=#{CGI.escape(valid_graph)}&query=#{CGI.escape(valid_query)}")
+  malformed_controller.set_request!(ActionDispatch::Request.new(env))
+  malformed_controller.set_response!(ActionDispatch::Response.new)
+else
+  malformed_controller.params = { 'named-graph-uri' => valid_graph, 'query' => valid_query }
+end
+malformed_controller.helpers.define_singleton_method(:ontology_sparql_query) { |*| "malformed string response" }
+if REAL_RAILS_MODE
+  malformed_controller.process(:sparql_endpoint)
+else
+  malformed_controller.sparql_endpoint
+end
+assert(malformed_controller.response.status != 200, "Malformed non-Faraday response does NOT return 200 (actual: #{malformed_controller.response.status})")
+assert(malformed_controller.response.status == 502, "Malformed non-Faraday response returns 502 Bad Gateway (actual: #{malformed_controller.response.status})")
+assert(malformed_controller.response.body.include?('SPARQL query failed'), "Malformed response renders safe non-ERB error message")
+
+puts "\n=== Step 5: Unexpected Active MIME Fallback & Binary Preservation ==="
 # Active HTML fallback
 with_stubbed_faraday(lambda do |url|
   Faraday::Response.new(
@@ -332,7 +401,34 @@ end) do
   assert(resp.content_type.to_s.include?('text/plain'), "application/javascript sanitized to text/plain fallback (actual: #{resp.content_type})")
 end
 
-puts "\n=== Step 6: Local Parse / Disallowed / Unconfigured / Timeout Errors ==="
+# Guessed binary thrift MIME sanitized to text/plain fallback
+with_stubbed_faraday(lambda do |url|
+  Faraday::Response.new(
+    status: 200,
+    body: "thrift-payload",
+    response_headers: { 'content-type' => 'application/sparql-results+thrift' }
+  )
+end) do
+  resp = execute_sparql_endpoint('named-graph-uri' => valid_graph, 'query' => valid_query)
+  assert(resp.content_type.to_s.include?('text/plain'), "application/sparql-results+thrift not advertised; sanitized to text/plain (actual: #{resp.content_type})")
+  assert(!resp.content_type.to_s.include?('thrift'), "Response does NOT advertise guessed binary thrift MIME")
+end
+
+# Unsupported binary body preservation without silent transcoding
+binary_bytes = "\x00\x01\x02\xFF\xFE\x00".b
+with_stubbed_faraday(lambda do |url|
+  Faraday::Response.new(
+    status: 200,
+    body: binary_bytes,
+    response_headers: { 'content-type' => 'application/octet-stream' }
+  )
+end) do
+  resp = execute_sparql_endpoint('named-graph-uri' => valid_graph, 'query' => valid_query)
+  assert(resp.content_type.to_s.include?('text/plain'), "Binary octet-stream MIME sanitized to text/plain (actual: #{resp.content_type})")
+  assert(resp.body.b == binary_bytes, "Unsupported binary body bytes preserved without silent transcoding")
+end
+
+puts "\n=== Step 6: Local Parse / Disallowed / Comment Policy / Unconfigured / Timeout Errors ==="
 # Unconfigured endpoint
 old_sparql_url = $SPARQL_URL
 $SPARQL_URL = nil
@@ -341,13 +437,40 @@ assert(resp.status == 503, "Unconfigured endpoint returns 503 Service Unavailabl
 assert(resp.body.include?('No SPARQL endpoint configured'), "Unconfigured endpoint body matches expected message")
 $SPARQL_URL = old_sparql_url
 
-# Disallowed mutation query (INSERT DATA)
+# Disallowed mutation operation in query (e.g. DESCRIBE with forbidden keyword)
 resp = execute_sparql_endpoint(
   'named-graph-uri' => valid_graph,
-  'query' => 'INSERT DATA { <http://example.org/s> <http://example.org/p> <http://example.org/o> }'
+  'query' => 'DESCRIBE <http://example.org/INSERT> WHERE { ?s ?p ?o }'
 )
-assert(resp.status == 403, "Disallowed INSERT query returns 403 Forbidden (actual: #{resp.status})")
+assert(resp.status == 403, "Disallowed mutation query returns 403 Forbidden (actual: #{resp.status})")
 assert(resp.body.include?('INSERT Queries not permitted'), "Disallowed query body matches expected message")
+
+# Direct sparql_query rejects INSERT DATA
+class HelperHost
+  include UrlsHelper
+  include SparqlHelper
+end
+helper = HelperHost.new
+direct_disallowed = helper.sparql_query('INSERT DATA { <http://example.org/s> <http://example.org/p> <http://example.org/o> }')
+assert(direct_disallowed.status == 403, "Direct sparql_query with INSERT DATA returns 403 (actual: #{direct_disallowed.status})")
+assert(direct_disallowed.body.include?('INSERT Queries not permitted'), "Direct sparql_query returns expected forbidden message")
+
+# Comment + SELECT regression: legal comments containing DELETE/INSERT before SELECT are permitted
+with_stubbed_faraday(lambda do |url|
+  Faraday::Response.new(
+    status: 200,
+    body: '{"results": {"bindings": []}}',
+    response_headers: { 'content-type' => 'application/sparql-results+json' }
+  )
+end) do
+  comment_query = "# Comment mentions DELETE and INSERT operations\nSELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
+  resp = execute_sparql_endpoint(
+    'named-graph-uri' => valid_graph,
+    'query' => comment_query
+  )
+  assert(resp.status == 200, "Legal comment containing DELETE/INSERT before SELECT returns 200 (actual: #{resp.status})")
+  assert($faraday_call_count == 1, "Faraday call was made for permitted comment+SELECT query")
+end
 
 # Local query syntax parse error
 resp = execute_sparql_endpoint(
@@ -408,12 +531,7 @@ resp = execute_sparql_endpoint(
 assert(resp.status == 403, "Ontology with errors short-circuits with 403 Forbidden (actual: #{resp.status})")
 assert($faraday_call_count == 0, 'No Faraday call made on ontology error failure')
 
-puts "\n=== Step 8: Scoped Query Rewrite & Encoding Normalization ==="
-class HelperHost
-  include SparqlHelper
-end
-helper = HelperHost.new
-
+puts "\n=== Step 8: Scoped Query Rewrite & Encoding / Content-Type Helpers ==="
 # Query rewrite
 rewritten = helper.change_from_clause(valid_query, valid_graph)
 expected_graph = valid_graph.gsub($REST_URL, 'http://data.bioontology.org')
@@ -426,6 +544,26 @@ assert(helper.normalize_body_encoding(utf8_in) == utf8_in, "normalize_body_encod
 # Encoding normalization: ISO-8859-1 conversion
 iso_bytes = "caf\xE9".b
 assert(helper.normalize_body_encoding(iso_bytes) == "café", "normalize_body_encoding cleanly converts legacy ISO-8859-1 bytes to UTF-8")
+
+# Content type validation: updates charset to utf-8
+ct_latin1 = helper.validate_sparql_content_type('application/sparql-results+json; charset=ISO-8859-1')
+assert(ct_latin1 == 'application/sparql-results+json; charset=utf-8', "validate_sparql_content_type updates Latin-1 charset to utf-8 (actual: #{ct_latin1})")
+
+# Content type validation: guessed binary thrift rejected from allowed types
+ct_thrift = helper.validate_sparql_content_type('application/sparql-results+thrift')
+assert(ct_thrift == 'text/plain; charset=utf-8', "validate_sparql_content_type sanitizes thrift to text/plain (actual: #{ct_thrift})")
+
+# Actual helper comment+SELECT regression
+with_stubbed_faraday(lambda do |url|
+  Faraday::Response.new(
+    status: 200,
+    body: '{"results": {"bindings": []}}',
+    response_headers: { 'content-type' => 'application/sparql-results+json' }
+  )
+end) do
+  h_comment_resp = helper.ontology_sparql_query("# DELETE and INSERT in comment\nSELECT ?s ?p ?o WHERE { ?s ?p ?o }", valid_graph)
+  assert(h_comment_resp.status == 200, "helper.ontology_sparql_query allows comment+SELECT without outer rejection")
+end
 
 puts "\n=== Regression Check Summary ==="
 if $failures.empty?

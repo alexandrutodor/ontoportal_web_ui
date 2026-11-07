@@ -1,33 +1,10 @@
-begin
-  require 'sparql/grammar'
-rescue LoadError
-  # SPARQL grammar loaded when gem available
-end
-
-begin
-  require 'faraday'
-rescue LoadError
-  # Faraday loaded when gem available
-end
-
-require 'cgi'
+require 'sparql/grammar'
 require 'set'
-
-begin
-  require 'active_support/core_ext/object/blank'
-rescue LoadError
-  class Object
-    def blank?
-      respond_to?(:empty?) ? !!empty? : !self
-    end
-  end
-end
 
 module SparqlHelper
   ALLOWED_SPARQL_MIME_TYPES = Set.new([
     'application/sparql-results+json',
     'application/sparql-results+xml',
-    'application/sparql-results+thrift',
     'application/json',
     'application/ld+json',
     'application/xml',
@@ -51,7 +28,11 @@ module SparqlHelper
 
     media_type = raw_content_type.to_s.split(';').first.to_s.strip.downcase
     if ALLOWED_SPARQL_MIME_TYPES.include?(media_type)
-      raw_content_type
+      if raw_content_type.to_s =~ /charset=/i
+        raw_content_type.to_s.gsub(/charset=[^;\s]+/i, 'charset=utf-8')
+      else
+        "#{media_type}; charset=utf-8"
+      end
     else
       'text/plain; charset=utf-8'
     end
@@ -71,10 +52,6 @@ module SparqlHelper
         str.dup.force_encoding('ISO-8859-1').encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
       end
     end
-  end
-
-  def encode_param(string)
-    CGI.escape(string.to_s) if string
   end
   def change_from_clause(query, graph)
     validate_sparql_query(query)
@@ -114,14 +91,6 @@ module SparqlHelper
   end
 
   def ontology_sparql_query(query, graph = '')
-    unless is_allowed_query?(query)
-      return Faraday::Response.new(
-        status: 403,
-        body: 'INSERT Queries not permitted',
-        response_headers: { 'content-type' => 'text/plain; charset=utf-8' }
-      )
-    end
-
     query = change_from_clause(query, graph)
     sparql_query(query)
   rescue StandardError => e
@@ -155,7 +124,13 @@ module SparqlHelper
         conn.options.timeout = 10
       end
       response = conn.get("#{endpoint}?query=#{encode_param(query)}")
-      body = normalize_body_encoding(response.body)
+      raw_content_type = response.headers ? (response.headers['content-type'] || response.headers['Content-Type']) : nil
+      media_type = raw_content_type.to_s.split(';').first.to_s.strip.downcase
+      body = if raw_content_type.blank? || ALLOWED_SPARQL_MIME_TYPES.include?(media_type)
+               normalize_body_encoding(response.body)
+             else
+               response.body
+             end
       if response.respond_to?(:env) && response.env
         response.env.body = body
         response
@@ -265,12 +240,7 @@ module SparqlHelper
   end
 
   def validate_sparql_query(query)
-    if defined?(SPARQL::Grammar)
-      SPARQL::Grammar.parse(query)
-    else
-      raise StandardError, 'Failed to parse query: unclosed brace' if query.to_s.count('{') != query.to_s.count('}')
-      raise StandardError, 'Failed to parse query: empty query' if query.to_s.strip.empty?
-    end
+    SPARQL::Grammar.parse(query)
   rescue StandardError => e
     raise StandardError, "Failed to parse query: #{e.message}"
   end

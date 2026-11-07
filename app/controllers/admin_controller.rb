@@ -28,13 +28,12 @@ class AdminController < ApplicationController
 
     response = helpers.ontology_sparql_query(params[:query], graph)
 
-    if response.respond_to?(:body)
-      raw_content_type = response.headers['content-type'] || response.headers['Content-Type'] if response.respond_to?(:headers) && response.headers
-      content_type = respond_to?(:validate_sparql_content_type) ? validate_sparql_content_type(raw_content_type) : helpers.validate_sparql_content_type(raw_content_type)
-      status = response.respond_to?(:status) ? response.status : :ok
-      render plain: response.body, status: status, content_type: content_type
+    if response.is_a?(Faraday::Response) && response.status
+      raw_content_type = response.headers ? (response.headers['content-type'] || response.headers['Content-Type']) : nil
+      content_type = helpers.validate_sparql_content_type(raw_content_type)
+      render plain: response.body, status: response.status, content_type: content_type
     else
-      render plain: response.to_s, status: :ok, content_type: 'text/plain; charset=utf-8'
+      render plain: 'SPARQL query failed', status: :bad_gateway, content_type: 'text/plain; charset=utf-8'
     end
   end
 
