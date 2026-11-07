@@ -83,7 +83,7 @@ class TreeLinkComponent < ViewComponent::Base
       pref_label_lang = pref_label_lang.to_s.upcase
       tooltip = pref_label_lang.eql?("@NONE") ? "" : pref_label_lang
 
-      pref_label_html = "<span class='obsolete_class'>#{pref_label_html}</span>".html_safe if child.obsolete?
+      pref_label_html = content_tag(:span, pref_label_html, class: 'obsolete_class') if child.obsolete?
     end
 
     [pref_label_html, tooltip]
