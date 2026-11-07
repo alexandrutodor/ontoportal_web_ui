@@ -33,7 +33,9 @@ class RecommenderController < ApplicationController
           highlighted: false,
         }
         @results.push(row)
-        @results.max_by { |element| element[:final_score] }[:highlighted] = true
+      end
+      if (winner_index = recommendations.each_with_index.max_by { |rec, _idx| rec.evaluationScore.to_f }&.last)
+        @results[winner_index][:highlighted] = true
       end
     end
   end
