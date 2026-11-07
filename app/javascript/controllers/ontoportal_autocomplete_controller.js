@@ -32,38 +32,70 @@ export default class extends Controller {
     }
 
     #formatItem(row) {
-        let specials = /[.*+?|()\[\]{}\\]/g;
-        let keywords = this.element.value.trim().replace(specials, "\\$&").split(' ').join('|');
-        let regex = new RegExp('(' + keywords + ')', 'gi');
-        let matchType = "";
-        if (typeof row[2] !== "undefined" && row[2] !== "") {
-            matchType = " <span style='font-size:9px;color:blue;'>(" + row[2] + ")</span>";
-        }
+        if (!row || row[0] == null) return "";
 
-        if (row[0].match(regex) == null) {
-            let contents = row[6].split("\t");
+        let specials = /[.*+?^${}()|[\]\\]/g;
+        let rawVal = (this.element && this.element.value) ? this.element.value.trim() : "";
+        let keywords = rawVal ? rawVal.replace(specials, "\\$&").split(/\s+/).filter(Boolean).join('|') : "";
+        let regex = keywords ? new RegExp('(' + keywords + ')', 'gi') : null;
+
+        let label = String(row[0]);
+
+        if (regex && label.match(regex) == null && row[6]) {
+            let contents = String(row[6]).split("\t");
             let synonym = contents[0] || "";
-            synonym = synonym.split(";");
-            if (synonym.length !== 0) {
-                let matchSynonym = jQuery.grep(synonym, function (e) {
-                    return e.match(regex) != null;
+            if (synonym) {
+                let synonyms = synonym.split(";");
+                let matchSynonym = jQuery.grep(synonyms, function (e) {
+                    return regex ? e.match(regex) != null : false;
                 });
-                row[0] = row[0] + " (synonym: " + matchSynonym.join(" ") + ")";
+                if (matchSynonym.length !== 0) {
+                    label = label + " (synonym: " + matchSynonym.join(" ") + ")";
+                }
             }
         }
-        // Cleanup obsolete class tag before markup for search keywords.
-        let obsolete_prefix = "";
-        let obsolete_suffix = "";
 
-        if (row[0].indexOf("[obsolete]") !== -1) {
-            row[0] = row[0].replace("[obsolete]", "");
-            obsolete_prefix = "<span class='obsolete_class' title='obsolete class'>";
-            obsolete_suffix = "</span>";
+        // Cleanup obsolete class tag before markup for search keywords.
+        let isObsolete = false;
+        if (label.indexOf("[obsolete]") !== -1) {
+            label = label.replace("[obsolete]", "");
+            isObsolete = true;
         }
 
-        // Markup the search keywords.
-        let row0_markup = row[0].replace(regex, "<b><span style='color:#006600;'>$1</span></b>");
-        return obsolete_prefix + row0_markup + matchType + obsolete_suffix;
+        let wrapper = document.createElement("span");
+        if (isObsolete) {
+            wrapper.className = "obsolete_class";
+            wrapper.title = "obsolete class";
+        }
+
+        if (!regex) {
+            wrapper.appendChild(document.createTextNode(label));
+        } else {
+            let parts = label.split(regex);
+            for (let i = 0; i < parts.length; i++) {
+                if (!parts[i]) continue;
+                if (i % 2 === 1) {
+                    let b = document.createElement("b");
+                    let span = document.createElement("span");
+                    span.setAttribute("style", "color:#006600;");
+                    span.textContent = parts[i];
+                    b.appendChild(span);
+                    wrapper.appendChild(b);
+                } else {
+                    wrapper.appendChild(document.createTextNode(parts[i]));
+                }
+            }
+        }
+
+        if (typeof row[2] !== "undefined" && row[2] !== null && String(row[2]) !== "") {
+            wrapper.appendChild(document.createTextNode(" "));
+            let typeSpan = document.createElement("span");
+            typeSpan.setAttribute("style", "font-size:9px;color:blue;");
+            typeSpan.textContent = "(" + String(row[2]) + ")";
+            wrapper.appendChild(typeSpan);
+        }
+
+        return isObsolete ? wrapper.outerHTML : wrapper.innerHTML;
     }
 
 

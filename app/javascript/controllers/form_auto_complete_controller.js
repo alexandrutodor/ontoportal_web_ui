@@ -62,13 +62,16 @@ export default class extends Controller {
     }
 
     formatItem(row) {
+        if (!row || row[0] == null) return "";
 
         const input = this.element;
-        const specials = /[.*+?|()\[\]{}\\]/g;
-        const keywords = jQuery(input).val().replace(specials, "\\$&").split(' ').join('|');
-        const regex = new RegExp('(' + keywords + ')', 'gi');
+        const specials = /[.*+?^${}()|[\]\\]/g;
+        const rawVal = jQuery(input).val() ? jQuery(input).val().trim() : "";
+        const keywords = rawVal ? rawVal.replace(specials, "\\$&").split(/\s+/).filter(Boolean).join('|') : "";
+        const regex = keywords ? new RegExp('(' + keywords + ')', 'gi') : null;
         let result = "";
         const ontology_id = this.ontologyIdValue;
+        const isAll = (ontology_id === "all" || ontology_id === "");
         let class_name_width = "350px";
 
         const BP_include_definitions = this.includeDefinitionValue;
@@ -76,37 +79,95 @@ export default class extends Controller {
         // Set wider class name column
         if (BP_include_definitions) {
             class_name_width = "150px";
-        } else if (ontology_id === "all") {
+        } else if (isAll) {
             class_name_width = "320px";
         }
 
-        // Results
-        const result_type = row[2];
-        const result_class = row[0];
+        const decodeDef = (raw) => {
+            if (raw == null) return "";
+            const str = String(raw).replace(/\+/g, " ");
+            try {
+                return decodeURIComponent(str);
+            } catch {
+                return str;
+            }
+        };
+
+        const buildClassDiv = () => {
+            const classDiv = document.createElement("div");
+            classDiv.className = "result_class";
+            classDiv.style.width = class_name_width;
+            const text = String(row[0]);
+            if (!regex) {
+                classDiv.appendChild(document.createTextNode(text));
+            } else {
+                const parts = text.split(regex);
+                for (let i = 0; i < parts.length; i++) {
+                    if (!parts[i]) continue;
+                    if (i % 2 === 1) {
+                        const b = document.createElement("b");
+                        const span = document.createElement("span");
+                        span.className = "result_class_highlight";
+                        span.textContent = parts[i];
+                        b.appendChild(span);
+                        classDiv.appendChild(b);
+                    } else {
+                        classDiv.appendChild(document.createTextNode(parts[i]));
+                    }
+                }
+            }
+            return classDiv.outerHTML;
+        };
+
+        const result_type = (row[2] != null) ? String(row[2]) : "";
 
         // row[7] is the ontology_id, only included when searching multiple ontologies
-        if (ontology_id !== "all") {
+        if (!isAll) {
             const result_def = row[7];
 
             if (BP_include_definitions) {
-                result += "<div class='result_definition'>" + this.#truncateText(decodeURIComponent(result_def.replace(/\+/g, " ")), 75) + "</div>"
+                const defDiv = document.createElement("div");
+                defDiv.className = "result_definition";
+                defDiv.innerHTML = this.#truncateText(decodeDef(result_def), 75);
+                result += defDiv.outerHTML;
             }
 
-            result += "<div class='result_class' style='width: " + class_name_width + ";'>" + result_class.replace(regex, "<b><span class='result_class_highlight'>$1</span></b>") + "</div>";
+            result += buildClassDiv();
 
-            result += "<div class='result_type' style='overflow: hidden;'>" + result_type + "</div>";
+            const typeDiv = document.createElement("div");
+            typeDiv.className = "result_type";
+            typeDiv.style.overflow = "hidden";
+            typeDiv.textContent = result_type;
+            result += typeDiv.outerHTML;
         } else {
             // Results
-            const result_ont = row[7];
+            const result_ont = (row[7] != null) ? String(row[7]) : "";
             const result_def = row[9];
 
-            result += "<div class='result_class' style='width: " + class_name_width + ";'>" + result_class.replace(regex, "<b><span class='result_class_highlight'>$1</span></b>") + "</div>"
+            result += buildClassDiv();
 
             if (BP_include_definitions) {
-                result += "<div class='result_definition'>" + this.#truncateText(decodeURIComponent(result_def.replace(/\+/g, " ")), 75) + "</div>"
+                const defDiv = document.createElement("div");
+                defDiv.className = "result_definition";
+                defDiv.innerHTML = this.#truncateText(decodeDef(result_def), 75);
+                result += defDiv.outerHTML;
             }
 
-            result += "<div>" + " <div class='result_type'>" + result_type + "</div><div class='result_ontology' style='overflow: hidden;'>" + this.#truncateText(result_ont, 35) + "</div></div>";
+            const ontWrapper = document.createElement("div");
+            ontWrapper.appendChild(document.createTextNode(" "));
+
+            const typeDiv = document.createElement("div");
+            typeDiv.className = "result_type";
+            typeDiv.textContent = result_type;
+            ontWrapper.appendChild(typeDiv);
+
+            const ontDiv = document.createElement("div");
+            ontDiv.className = "result_ontology";
+            ontDiv.style.overflow = "hidden";
+            ontDiv.innerHTML = this.#truncateText(result_ont, 35);
+            ontWrapper.appendChild(ontDiv);
+
+            result += ontWrapper.outerHTML;
         }
         return result;
     }
@@ -140,32 +201,38 @@ export default class extends Controller {
 
 
     #truncateText(text, max_length) {
-        if (typeof max_length === 'undefined' || max_length == "") {
+        if (text == null) return "";
+        let str = String(text);
+
+        if (typeof max_length === 'undefined' || max_length === "") {
             max_length = 70;
         }
 
-        var more = '...';
+        const more = '...';
 
-        var content_length = $.trim(text).length;
-        if (content_length <= max_length)
-            return text;  // bail early if not overlong
+        if (jQuery.trim(str).length <= max_length) {
+            const div = document.createElement("div");
+            div.textContent = str;
+            return div.innerHTML;
+        }
 
-        var actual_max_length = max_length - more.length;
-        var truncated_node = jQuery("<div>");
-        var full_node = jQuery("<div>").html(text).hide();
+        str = str.replace(/^ /, '');
 
-        text = text.replace(/^ /, '');  // node had trailing whitespace.
+        const container = document.createElement("div");
+        container.appendChild(document.createTextNode(str.slice(0, max_length)));
 
-        var text_short = text.slice(0, max_length);
+        const expandSpan = document.createElement("span");
+        expandSpan.className = "expand_icon";
+        const b = document.createElement("b");
+        b.textContent = more;
+        expandSpan.appendChild(b);
+        container.appendChild(expandSpan);
 
-        // Ensure HTML entities are encoded
-        // http://debuggable.com/posts/encode-html-entities-with-jquery:480f4dd6-13cc-4ce9-8071-4710cbdd56cb
-        text_short = $('<div/>').text(text_short).html();
+        const longSpan = document.createElement("span");
+        longSpan.className = "long_text";
+        longSpan.textContent = str.slice(max_length);
+        container.appendChild(longSpan);
 
-        var other_text = text.slice(max_length, text.length);
-
-        text_short += "<span class='expand_icon'><b>"+more+"</b></span>";
-        text_short += "<span class='long_text'>" + other_text + "</span>";
-        return text_short;
+        return container.innerHTML;
     }
 }
