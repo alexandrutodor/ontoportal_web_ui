@@ -468,9 +468,11 @@ class ApplicationController < ActionController::Base
       render html: frame_content, status: 404
     elsif request.xhr?
       render plain: message || t('application.error_load'), status: 404
-    else
+    elsif request.format&.html? || request.format == '*/*'
       @error_message = message || t('application.not_found_message')
-      render 'errors/not_found', status: 404
+      render 'errors/not_found', status: 404, formats: [:html]
+    else
+      render plain: message || t('application.not_found_message'), status: 404
     end
   end
 end

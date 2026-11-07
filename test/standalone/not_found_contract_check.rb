@@ -107,6 +107,20 @@ require 'properties_helper'
 require 'properties_controller'
 require 'mapping_statistics'
 require 'mappings_controller'
+require 'modal_helper'
+require 'application_helper'
+require 'fair_score_helper'
+require 'instances_helper'
+require 'schemes_helper'
+require 'collections_helper'
+require 'submission_updater'
+require 'ontology_updater'
+require 'sparql_helper'
+require 'federation_helper'
+require 'submission_filter'
+require 'ontology_content_serializer'
+require 'uri_redirection'
+require 'ontologies_controller'
 
 ActionView::Base.include MultiLanguagesHelper
 
@@ -123,9 +137,9 @@ ActionController::Base.include RouteHelperStubs
 ActionView::Base.include RouteHelperStubs
 
 # Setup view paths for actual template rendering
-[ApplicationController, ConceptsController, PropertiesController, MappingsController].each do |ctrl|
+[ApplicationController, ConceptsController, PropertiesController, MappingsController, OntologiesController].each do |ctrl|
   ctrl.prepend_view_path(File.join(worktree_root, 'app/views'))
-  ctrl.skip_before_action :set_locale, :domain_ontology_set, :init_trial_license, raise: false
+  ctrl.skip_before_action :set_locale, :domain_ontology_set, :init_trial_license, :authorize_and_redirect, :submission_metadata, :set_federated_portals, :authorize_read_only, :authorize_ontology_admin, raise: false
   ctrl.layout false
 end
 
@@ -266,6 +280,45 @@ class NotFoundContractCheck < Minitest::Test
     refute_includes res.body, '<script>'
   end
 
+  def test_direct_negotiated_formats_matrix_renders_plain_404_without_missing_template
+    formats = {
+      'application/json' => 'json',
+      'application/xml' => 'xml',
+      'text/csv' => 'csv',
+      'text/turtle' => 'turtle',
+      'application/rdf+xml' => 'rdf_xml',
+      'application/n-triples' => 'n_triples'
+    }
+
+    formats.each do |mime, label|
+      res = dispatch_action(DirectNotFoundController, :missing_custom, headers: { 'Accept' => mime })
+      assert_equal 404, res.status, "Expected 404 for #{label} (#{mime})"
+      assert_equal 'text/plain; charset=utf-8', res.content_type, "Expected text/plain content type for #{label} error"
+      assert_equal 'Specific entity missing', res.body, "Expected explicit error message in plain body for #{label}"
+
+      # Verify default fallback message across negotiated formats
+      res_def = dispatch_action(DirectNotFoundController, :missing_default, headers: { 'Accept' => mime })
+      assert_equal 404, res_def.status
+      assert_equal 'text/plain; charset=utf-8', res_def.content_type
+      assert_equal 'Not Found', res_def.body
+    end
+  end
+
+  def test_direct_wildcard_and_html_accept_render_html_haml_view_and_404
+    [
+      {},
+      { 'Accept' => 'text/html' },
+      { 'Accept' => '*/*' },
+      { 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' }
+    ].each do |headers|
+      res = dispatch_action(DirectNotFoundController, :missing_custom, headers: headers)
+      assert_equal 404, res.status
+      assert_includes res.content_type, 'text/html'
+      assert_includes res.body, 'Specific entity missing'
+      assert_includes res.body, 'error-page'
+    end
+  end
+
   # ===========================================================================
   # 2. Missing Resource Dispatch Matrix (Ontology, Class, Property, Stale Mapping)
   # ===========================================================================
@@ -290,6 +343,77 @@ class NotFoundContractCheck < Minitest::Test
                                   headers: { 'Turbo-Frame' => 'concept_show' })
       assert_equal 404, res_turbo.status
       assert_equal '<turbo-frame id="concept_show">Ontology ABSENT not found</turbo-frame>', res_turbo.body
+
+      # Negotiated formats on ConceptsController: JSON, CSV, Turtle
+      ['application/json', 'text/csv', 'text/turtle'].each do |mime|
+        res_fmt = dispatch_action(ConceptsController, :show,
+                                  params: { ontology: 'ABSENT', id: 'http://test/c1' },
+                                  headers: { 'Accept' => mime })
+        assert_equal 404, res_fmt.status
+        assert_equal 'text/plain; charset=utf-8', res_fmt.content_type
+        assert_equal 'Ontology ABSENT not found', res_fmt.body
+      end
+    end
+  end
+
+  def test_ontologies_show_missing_ontology_negotiated_matrix_halts_without_downstream_calls
+    counter = @counter
+    LinkedData::Client::Models::Ontology.stub(:find_by_acronym, ->(_a) { [] }) do
+      # Full page HTML
+      res_html = dispatch_action(OntologiesController, :show, params: { id: 'ABSENT_ONT' }, headers: { 'Accept' => 'text/html' })
+      assert_equal 404, res_html.status
+      assert_includes res_html.content_type, 'text/html'
+      assert_includes res_html.body, 'Ontology ABSENT_ONT not found'
+      assert_includes res_html.body, 'error-page'
+
+      # Browser wildcard
+      res_wild = dispatch_action(OntologiesController, :show, params: { id: 'ABSENT_ONT' }, headers: { 'Accept' => '*/*' })
+      assert_equal 404, res_wild.status
+      assert_includes res_wild.content_type, 'text/html'
+      assert_includes res_wild.body, 'Ontology ABSENT_ONT not found'
+
+      # Plain XHR
+      res_xhr = dispatch_action(OntologiesController, :show,
+                                params: { id: 'ABSENT_ONT' },
+                                headers: { 'X-Requested-With' => 'XMLHttpRequest' })
+      assert_equal 404, res_xhr.status
+      assert_equal 'text/plain; charset=utf-8', res_xhr.content_type
+      assert_equal 'Ontology ABSENT_ONT not found', res_xhr.body
+
+      # Turbo Frame
+      res_turbo = dispatch_action(OntologiesController, :show,
+                                  params: { id: 'ABSENT_ONT' },
+                                  headers: { 'Turbo-Frame' => 'ontology_header' })
+      assert_equal 404, res_turbo.status
+      assert_includes res_turbo.content_type, 'text/html'
+      assert_equal '<turbo-frame id="ontology_header">Ontology ABSENT_ONT not found</turbo-frame>', res_turbo.body
+
+      # Negotiated matrix: JSON, XML, CSV, Turtle, RDF/XML, N-Triples
+      negotiated = {
+        'application/json' => 'json',
+        'application/xml' => 'xml',
+        'text/csv' => 'csv',
+        'text/turtle' => 'turtle',
+        'application/rdf+xml' => 'rdf_xml',
+        'application/n-triples' => 'n_triples'
+      }
+
+      negotiated.each do |mime, label|
+        res = dispatch_action(OntologiesController, :show, params: { id: 'ABSENT_ONT' }, headers: { 'Accept' => mime })
+        assert_equal 404, res.status, "OntologiesController#show must return 404 for missing ontology with #{label} Accept"
+        assert_equal 'text/plain; charset=utf-8', res.content_type, "Response must be text/plain for #{label} error, not mislabeled"
+        assert_equal 'Ontology ABSENT_ONT not found', res.body
+      end
+
+      # URL format parameters: .json, .xml, .csv
+      ['json', 'xml', 'csv'].each do |fmt|
+        res = dispatch_action(OntologiesController, :show, params: { id: 'ABSENT_ONT', format: fmt })
+        assert_equal 404, res.status, "OntologiesController#show must return 404 for missing ontology with format=#{fmt}"
+        assert_equal 'text/plain; charset=utf-8', res.content_type
+        assert_equal 'Ontology ABSENT_ONT not found', res.body
+      end
+
+      assert_equal 0, counter.explore_latest_submission_calls, 'Downstream calls must not execute on missing ontology'
     end
   end
 
@@ -356,6 +480,14 @@ class NotFoundContractCheck < Minitest::Test
                                   headers: { 'Turbo-Frame' => 'concept_details' })
       assert_equal 404, res_turbo.status
       assert_equal '<turbo-frame id="concept_details">Concept http://test/missing_detail not found</turbo-frame>', res_turbo.body
+
+      # JSON format
+      res_json = dispatch_action(ConceptsController, :details,
+                                 params: { ontology: 'TEST_ONT', conceptid: 'http://test/missing_detail' },
+                                 headers: { 'Accept' => 'application/json' })
+      assert_equal 404, res_json.status
+      assert_equal 'text/plain; charset=utf-8', res_json.content_type
+      assert_equal 'Concept http://test/missing_detail not found', res_json.body
     end
   end
 
@@ -393,6 +525,14 @@ class NotFoundContractCheck < Minitest::Test
                                  params: { ontology: 'PROP_ONT', id: 'missing_p1' })
       assert_equal 404, res_page.status
       assert_includes res_page.body, 'Not Found'
+
+      # Negotiated JSON
+      res_json = dispatch_action(PropertiesController, :show,
+                                 params: { ontology: 'PROP_ONT', id: 'missing_p1' },
+                                 headers: { 'Accept' => 'application/json' })
+      assert_equal 404, res_json.status
+      assert_equal 'text/plain; charset=utf-8', res_json.content_type
+      assert_equal 'Not Found', res_json.body
     end
   end
 
@@ -416,6 +556,14 @@ class NotFoundContractCheck < Minitest::Test
                                   headers: { 'Turbo-Frame' => 'mapping_detail' })
       assert_equal 404, res_turbo.status
       assert_equal '<turbo-frame id="mapping_detail">Mapping stale_map_99 not found</turbo-frame>', res_turbo.body
+
+      # Negotiated JSON
+      res_json = dispatch_action(MappingsController, :show,
+                                 params: { id: 'stale_map_99' },
+                                 headers: { 'Accept' => 'application/json' })
+      assert_equal 404, res_json.status
+      assert_equal 'text/plain; charset=utf-8', res_json.content_type
+      assert_equal 'Mapping stale_map_99 not found', res_json.body
     end
   end
 
