@@ -345,7 +345,20 @@ class UrlPolicyRegressionTest < Minitest::Test
     assert_includes resolved_unicode, 'formula=A%2BB'
     assert_includes resolved_unicode, "apikey=#{MOCK_TOKEN}"
 
-    # 6. Unwrapping outer redirect encoding only when necessary
+    # 6. Mixed fixture: existing percent-escapes + raw Unicode in query must not double-encode existing escapes
+    mixed_url = "#{SYNTHETIC_API_URL}/download?q=A%26B%3DC&label=Größe"
+    resolved_mixed = SafeUrlPolicy.resolve_login_redirect(mixed_url, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
+    assert_includes resolved_mixed, 'q=A%26B%3DC'
+    refute_includes resolved_mixed, 'q=A%2526B%253DC'
+    assert_includes resolved_mixed, 'label=Gr%C3%B6%C3%9Fe'
+    assert_includes resolved_mixed, "apikey=#{MOCK_TOKEN}"
+
+    parsed_mixed = URI.parse(resolved_mixed)
+    params_mixed = URI.decode_www_form(parsed_mixed.query)
+    assert_equal 'A&B=C', params_mixed.assoc('q')[1]
+    assert_equal 'Größe', params_mixed.assoc('label')[1]
+
+    # 7. Unwrapping outer redirect encoding only when necessary
     wrapped = CGI.escape(url_iri)
     resolved_wrapped = SafeUrlPolicy.resolve_login_redirect(wrapped, user: MOCK_TOKEN, service_urls: INVALID_SERVICE_URLS)
     assert_equal "#{SYNTHETIC_API_URL}/download?iri=http%3A%2F%2Fexample.org%2FC%23Term&label=A%2BB%26C%3DD&apikey=#{MOCK_TOKEN}", resolved_wrapped

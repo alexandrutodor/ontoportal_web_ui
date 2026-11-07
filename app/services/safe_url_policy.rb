@@ -219,7 +219,7 @@ module SafeUrlPolicy
     return nil if str.empty?
     return nil if str.match?(DANGEROUS_CHARS)
 
-    str = URI::DEFAULT_PARSER.escape(str) unless str.ascii_only?
+    str = str.b.gsub(/[^[:ascii:]]/) { |b| sprintf('%%%02X', b.ord) } unless str.ascii_only?
     URI.parse(str)
   rescue URI::InvalidURIError, ArgumentError
     nil
