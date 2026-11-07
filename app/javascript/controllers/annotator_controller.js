@@ -20,7 +20,17 @@ export default class extends Controller {
           if(textAfter.length>1){
             textAfter = this.#first_three_words(textAfter) + ' ...'
           }
-          context.innerHTML = textBefore + '<span class="highlighted-annotation"> ' + highlightedText + ' </span>' + textAfter;
+          context.textContent = '';
+          if (textBefore) {
+            context.appendChild(document.createTextNode(textBefore));
+          }
+          const span = document.createElement('span');
+          span.className = 'highlighted-annotation';
+          span.textContent = ' ' + highlightedText + ' ';
+          context.appendChild(span);
+          if (textAfter) {
+            context.appendChild(document.createTextNode(textAfter));
+          }
         }
     }
     #last_two_words(text){
