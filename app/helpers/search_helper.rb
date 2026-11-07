@@ -37,15 +37,15 @@ module SearchHelper
                                                                                         selected: selected, submission: submission))
       ]
     else
-      render inline: paginated_list_component(id: container_id,
-                                                      results: @results,
-                                                      next_page_url: next_page_link,
-                                                      child_url: child_url.include?('?') ? "#{child_url}&lang=#{lang}" : "#{child_url}?lang=#{lang}",
-                                                      child_param: child_param,
-                                                      child_turbo_frame: child_turbo_frame,
-                                                      open_in_modal: show_count,
-                                                      selected: selected,
-                                                      auto_click: auto_click, submission: submission)
+      paginated_list_component(id: container_id,
+                               results: @results,
+                               next_page_url: next_page_link,
+                               child_url: child_url.include?('?') ? "#{child_url}&lang=#{lang}" : "#{child_url}?lang=#{lang}",
+                               child_param: child_param,
+                               child_turbo_frame: child_turbo_frame,
+                               open_in_modal: show_count,
+                               selected: selected,
+                               auto_click: auto_click, submission: submission)
     end
   end
 end
