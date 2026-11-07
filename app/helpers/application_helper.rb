@@ -370,14 +370,20 @@ module ApplicationHelper
         key_string = value[:key].to_s
         next if key_string.include?('metadata')
 
-        modified_key = prefix_property_url(key_string, key)
+        base_label = value[:label] || key
+        modified_key = prefix_property_url(key_string, base_label)
 
-        if modified_key
-          modified_properties[modified_key] = value
-        else
-          modified_properties[link_last_part(key_string)] = value
-        end
+        display_label = if modified_key
+                          modified_key
+                        elsif base_label.to_s.strip.empty? || base_label.to_s == key_string
+                          link_last_part(key_string)
+                        else
+                          base_label.to_s
+                        end
 
+        value_with_label = value.merge(label: display_label)
+        target_key = modified_properties.key?(display_label) ? "#{display_label}__#{key_string}" : display_label
+        modified_properties[target_key] = value_with_label
       end
     end
 

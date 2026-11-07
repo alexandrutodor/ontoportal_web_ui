@@ -8,6 +8,10 @@ class ConceptDetailsComponent < ViewComponent::Base
   renders_one :header, TableComponent
   renders_many :sections, TableRowComponent
 
+  PROPERTY_LABEL_CACHE_ENV_KEY = 'ontoportal.property_labels_cache'
+  PROPERTY_LABEL_MISS_ENV_KEY = 'ontoportal.property_labels_miss_count'
+  MAX_PROPERTY_LABEL_MISSES_PER_REQUEST = 20
+
   attr_reader :concept_properties
 
   def initialize(id:, acronym:, concept_id: nil, properties: nil, top_keys: [], bottom_keys: [], exclude_keys: [])
@@ -37,7 +41,8 @@ class ConceptDetailsComponent < ViewComponent::Base
   def row_hash_properties(properties_set, ontology_acronym, &block)
     out = []
     properties_set&.each do |key, data|
-      next if exclude_relation?(key) || !data[:values]
+      display_label = (data.is_a?(Hash) && data[:label]) || key
+      next if exclude_relation?(key) || exclude_relation?(display_label) || !data[:values]
 
       values = data[:values]
       url = data[:key]
@@ -55,7 +60,7 @@ class ConceptDetailsComponent < ViewComponent::Base
       end
 
       out << [
-        { th: content_tag(:span, remove_owl_notation(key), title: url, 'data-controller': 'tooltip') },
+        { th: content_tag(:span, remove_owl_notation(display_label), title: url, 'data-controller': 'tooltip') },
         { td: list_items_component(max_items: 5) { |r| ajax_links.map { |val| r.container { val.html_safe } } } }
       ]
     end
@@ -64,7 +69,9 @@ class ConceptDetailsComponent < ViewComponent::Base
 
   def properties_set_by_keys(keys, concept_properties, exclude_keys = [])
     concept_properties&.select do |k, v|
-      (keys.include?(k) || !keys.select { |key| v[:key].to_s.include?(key) }.empty?) && !exclude_keys.include?(k) &&
+      label = (v.is_a?(Hash) && v[:label]) || k
+      (keys.include?(k) || keys.include?(label) || !keys.select { |key| v[:key].to_s.include?(key) }.empty?) &&
+        !exclude_keys.include?(k) && !exclude_keys.include?(label) &&
         exclude_keys.select { |key| v[:key].to_s.include?(key) }.empty?
     end
   end
@@ -87,51 +94,17 @@ class ConceptDetailsComponent < ViewComponent::Base
   end
 
   def concept_properties2hash(properties)
-    # NOTE: example properties
-    #
-    # properties
-    #=> #<struct
-    #  http://www.w3.org/2000/01/rdf-schema#label=
-    #    [#<struct
-    #      object="Etiological thing",
-    #      string="Etiological thing",
-    #      links=nil,
-    #      context=nil>],
-    #  http://stagedata.bioontology.org/metadata/def/prefLabel=
-    #    [#<struct
-    #      object="Etiological thing",
-    #      string="Etiological thing",
-    #      datatype="http://www.w3.org/2001/XMLSchema#string",
-    #      links=nil,
-    #      context=nil>],
-    #  http://www.w3.org/2000/01/rdf-schema#comment=
-    #    [#<struct  object="AD444", string="AD444", links=nil, context=nil>],
-    #  http://scai.fraunhofer.de/NDDUO#Synonym=
-    #    [#<struct  object="Etiology", string="Etiology", links=nil, context=nil>],
-    #  http://www.w3.org/2000/01/rdf-schema#subClassOf=
-    #    ["http://www.w3.org/2002/07/owl#Thing"],
-    #  http://www.w3.org/1999/02/22-rdf-syntax-ns#type=
-    #    ["http://www.w3.org/2002/07/owl#Class"],
-    #  links=nil,
-    #  context=nil>
     properties_data = {}
-    keys = properties.members # keys is an array of symbols
+    keys = properties.members
     keys.each do |key|
       next if properties[key].nil? # ignore :context and :links when nil.
 
-      # Shorten the key into a simple label
       k = key.to_s if key.kind_of?(Symbol)
-      k ||= key
-      label = key
-      if k.start_with?("http")
-        label = LinkedData::Client::HTTP.get("/ontologies/#{@ontology.acronym}/properties/#{CGI.escape(k)}/label").label rescue ""
-        if label.nil? || label.empty?
-          k = k.gsub(/.*#/, '') # greedy regex replace everything up to last '#'
-          k = k.gsub(/.*\//, '') # greedy regex replace everything up to last '/'
-          # That might take care of nearly everything to be shortened.
-          label = k
-        end
-      end
+      k ||= key.to_s
+
+      resolved_label = resolve_property_label(k)
+      label = resolved_label.presence || local_name_from_iri(k)
+
       begin
         # Try to simplify the property values, when they are a struct.
         if properties[key].is_a?(OpenStruct)
@@ -143,10 +116,101 @@ class ConceptDetailsComponent < ViewComponent::Base
         # Each value is probably a simple datatype already.
         values = properties[key]
       end
-      data = { :key => key, :values => values }
-      properties_data[label] = data
+      data = { :key => key, :values => values, :label => label }
+      prop_key = properties_data.key?(label) ? "#{label}__#{key}" : label
+      properties_data[prop_key] = data
     end
-    return properties_data
+    properties_data
+  end
+
+  # shortcut: bounded per-request lookup misses (20) with local-name fallback; upgrade when ontologies_api provides a bulk property-label endpoint.
+  def resolve_property_label(iri)
+    return nil unless iri.to_s.start_with?('http')
+    return nil if @acronym.to_s.strip.empty?
+    return nil unless defined?(LinkedData::Client::HTTP)
+
+    origin = api_origin.to_s
+    cache_key = [origin, @acronym.to_s, iri.to_s]
+    cache = property_labels_cache
+
+    if cache.key?(cache_key)
+      return cache[cache_key]
+    end
+
+    if property_label_miss_count >= MAX_PROPERTY_LABEL_MISSES_PER_REQUEST
+      cache[cache_key] = nil
+      return nil
+    end
+
+    path = "/ontologies/#{@acronym}/properties/#{CGI.escape(iri.to_s)}/label"
+    begin
+      response = LinkedData::Client::HTTP.get(path)
+      label = if response.respond_to?(:label)
+                response.label
+              elsif response.is_a?(Hash)
+                response['label'] || response[:label]
+              end
+      if label.present? && label.is_a?(String) && !label.strip.empty?
+        cache[cache_key] = label.strip
+      else
+        increment_property_label_miss_count!
+        cache[cache_key] = nil
+      end
+    rescue Exception => e
+      raise if fatal_exception?(e)
+      increment_property_label_miss_count!
+      cache[cache_key] = nil
+    end
+
+    cache[cache_key]
+  end
+
+  def request_env
+    req = Thread.current[:request]
+    req.env if req.respond_to?(:env) && req.env.is_a?(Hash)
+  end
+
+  def property_labels_cache
+    if (env = request_env)
+      env[PROPERTY_LABEL_CACHE_ENV_KEY] ||= {}
+    else
+      @instance_property_labels_cache ||= {}
+    end
+  end
+
+  def property_label_miss_count
+    if (env = request_env)
+      env[PROPERTY_LABEL_MISS_ENV_KEY] ||= 0
+    else
+      @instance_property_label_miss_count ||= 0
+    end
+  end
+
+  def increment_property_label_miss_count!
+    if (env = request_env)
+      env[PROPERTY_LABEL_MISS_ENV_KEY] = (env[PROPERTY_LABEL_MISS_ENV_KEY] || 0) + 1
+    else
+      @instance_property_label_miss_count = (@instance_property_label_miss_count || 0) + 1
+    end
+  end
+
+  def api_origin
+    (defined?(LinkedData::Client) && LinkedData::Client.respond_to?(:settings) && LinkedData::Client.settings&.rest_url) ||
+      (defined?($REST_URL) && $REST_URL) ||
+      ''
+  end
+
+  def fatal_exception?(exception)
+    exception.is_a?(SystemExit) ||
+      exception.is_a?(Interrupt) ||
+      exception.is_a?(SignalException) ||
+      exception.is_a?(NoMemoryError) ||
+      (defined?(fatal) && exception.is_a?(fatal))
+  end
+
+  def local_name_from_iri(iri)
+    k = iri.to_s.gsub(/.*#/, '').gsub(/.*\//, '')
+    k.empty? ? iri.to_s : k
   end
 
   def exclude_relation?(relation_to_check, ontology = nil)

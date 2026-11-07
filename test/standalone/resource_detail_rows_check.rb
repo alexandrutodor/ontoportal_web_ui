@@ -53,10 +53,20 @@ require 'multi_languages_helper'
 require 'ontologies_helper'
 require 'application_helper'
 
-# Minimal doubling for external presentation helpers
+# Minimal doubling for external presentation helpers and active SDK HTTP boundary
 module ApplicationHelper
   def ajax_link_chip(id, ajax_src:, target: nil)
     %(<a class="ajax-chip" href="#{ajax_src}" data-target="#{target}">#{id}</a>).html_safe
+  end
+end
+
+module LinkedData
+  module Client
+    module HTTP
+      def self.get(_path)
+        nil
+      end
+    end
   end
 end
 
