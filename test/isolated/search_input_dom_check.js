@@ -199,25 +199,25 @@ async function runTests() {
     headless: true
   });
 
-  const context = await browser.newContext({
-    javaScriptEnabled: true
-  });
+  try {
+    const context = await browser.newContext({
+      javaScriptEnabled: true
+    });
 
-  const page = await context.newPage();
-
-  // Intercept all external network traffic: zero network requests outside fixture
-  let externalRequestsBlocked = 0;
-  await page.route('**', (route) => {
-    const url = route.request().url();
-    if (url.startsWith('http://localhost') || url.startsWith('data:') || url.startsWith('about:')) {
-      route.continue();
-    } else {
-      externalRequestsBlocked++;
+    // Independently track browser request events and deny all routable requests
+    const recordedRequests = [];
+    let blockedRequests = 0;
+    context.on('request', (request) => {
+      recordedRequests.push(request.url());
+    });
+    await context.route('**', (route) => {
+      blockedRequests++;
       route.abort();
-    }
-  });
+    });
 
-  // Track any unexpected script injection / alert execution
+    const page = await context.newPage();
+
+    // Track any unexpected script injection / alert execution
   await page.addInitScript(() => {
     window.__xssTriggered = [];
     window.__mockAjaxResponse = null;
@@ -582,14 +582,15 @@ async function runTests() {
   }
 
   // -------------------------------------------------------------
-  // Test 7: Zero external network requests made
+  // Test 7: Zero network requests made during tested rendering
   // -------------------------------------------------------------
   record('Zero external / non-fixture requests initiated during browser execution',
-    externalRequestsBlocked === 0,
-    `Blocked requests: ${externalRequestsBlocked}`
+    recordedRequests.length === 0 && blockedRequests === 0,
+    `Recorded requests: ${recordedRequests.length}, blocked: ${blockedRequests}`
   );
-
-  await browser.close();
+  } finally {
+    await browser.close();
+  }
 
   console.log('[4/4] Test summary:');
   console.log(`      Total:  ${testResults.total}`);
