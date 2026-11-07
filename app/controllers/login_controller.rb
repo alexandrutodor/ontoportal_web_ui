@@ -75,7 +75,7 @@ class LoginController < ApplicationController
       return
     end
 
-    if request.get?
+    unless request.post?
       @target_username = params[:login_as]
       render "login/login_as_confirm"
       return
@@ -95,7 +95,7 @@ class LoginController < ApplicationController
 
   # logs out a user
   def destroy
-    if request.get?
+    unless request.post? || request.delete?
       if session[:user].nil?
         redirect_to "/"
       else
@@ -138,7 +138,7 @@ class LoginController < ApplicationController
   end
 
   def reset_password
-    if request.get?
+    unless request.post?
       username = params[:un].to_s.strip
       email = params[:em].to_s.strip
       token = params[:tk].to_s.strip

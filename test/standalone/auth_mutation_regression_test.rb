@@ -219,6 +219,10 @@ class RequestDouble
     @method == "GET"
   end
 
+  def head?
+    @method == "HEAD"
+  end
+
   def post?
     @method == "POST"
   end
@@ -324,25 +328,29 @@ class RouteSetDouble
 
   def match_request(verb, path)
     clean_path = (path.length > 1 && path.end_with?("/")) ? path.chomp("/") : path
-    routes.each do |r|
-      next unless r.verb == verb.upcase
-      pattern = r.path_spec.dup
-      pattern = pattern.sub("(/:action(/:id))", "(?:/:action(?:/:id)?)?")
-      constraints = r.constraints || {}
-      pattern = pattern.gsub(/:([a-zA-Z0-9_]+)/) do |_m|
-        param = $1.to_sym
-        if constraints[param]
-          c = constraints[param].is_a?(Regexp) ? constraints[param].source : constraints[param].to_s
-          "(?<#{param}>#{c})"
-        else
-          "(?<#{param}>[^\\/]+)"
+    candidate_verbs = verb.upcase == "HEAD" ? ["HEAD", "GET"] : [verb.upcase]
+
+    candidate_verbs.each do |candidate_verb|
+      routes.each do |r|
+        next unless r.verb == candidate_verb
+        pattern = r.path_spec.dup
+        pattern = pattern.sub("(/:action(/:id))", "(?:/:action(?:/:id)?)?")
+        constraints = r.constraints || {}
+        pattern = pattern.gsub(/:([a-zA-Z0-9_]+)/) do |_m|
+          param = $1.to_sym
+          if constraints[param]
+            c = constraints[param].is_a?(Regexp) ? constraints[param].source : constraints[param].to_s
+            "(?<#{param}>#{c})"
+          else
+            "(?<#{param}>[^\\/]+)"
+          end
         end
-      end
-      regex = Regexp.new("\\A#{pattern}\\z")
-      if (m = regex.match(clean_path))
-        ctrl = r.controller.empty? ? (m.names.include?("controller") ? m[:controller] : "") : r.controller
-        act = r.action.empty? ? (m.names.include?("action") ? m[:action] : "index") : r.action
-        return { controller: ctrl, action: act, path_spec: r.path_spec, params: m.named_captures }
+        regex = Regexp.new("\\A#{pattern}\\z")
+        if (m = regex.match(clean_path))
+          ctrl = r.controller.empty? ? (m.names.include?("controller") ? m[:controller] : "") : r.controller
+          act = r.action.empty? ? (m.names.include?("action") ? m[:action] : "index") : r.action
+          return { controller: ctrl, action: act, path_spec: r.path_spec, params: m.named_captures }
+        end
       end
     end
     nil
@@ -483,6 +491,11 @@ class AuthMutationRegressionTest < Minitest::Test
     assert_equal "login", get_res[:controller]
     assert_equal "destroy", get_res[:action]
 
+    head_res = @routes.match_request("HEAD", "/logout")
+    assert head_res, "HEAD /logout must route via GET fallback"
+    assert_equal "login", head_res[:controller]
+    assert_equal "destroy", head_res[:action]
+
     post_res = @routes.match_request("POST", "/logout")
     assert post_res, "POST /logout must route"
     assert_equal "login", post_res[:controller]
@@ -504,6 +517,12 @@ class AuthMutationRegressionTest < Minitest::Test
     assert_equal "login_as", get_res[:action]
     assert_equal "target_user", get_res[:params]["login_as"]
 
+    head_res = @routes.match_request("HEAD", "/login_as/target_user")
+    assert head_res, "HEAD /login_as/:login_as must route via GET fallback"
+    assert_equal "login", head_res[:controller]
+    assert_equal "login_as", head_res[:action]
+    assert_equal "target_user", head_res[:params]["login_as"]
+
     post_res = @routes.match_request("POST", "/login_as/target_user")
     assert post_res, "POST /login_as/:login_as must route"
     assert_equal "login", post_res[:controller]
@@ -522,6 +541,11 @@ class AuthMutationRegressionTest < Minitest::Test
     assert get_res, "GET /reset_password must route"
     assert_equal "login", get_res[:controller]
     assert_equal "reset_password", get_res[:action]
+
+    head_res = @routes.match_request("HEAD", "/reset_password")
+    assert head_res, "HEAD /reset_password must route via GET fallback"
+    assert_equal "login", head_res[:controller]
+    assert_equal "reset_password", head_res[:action]
 
     post_res = @routes.match_request("POST", "/reset_password")
     assert post_res, "POST /reset_password must route"
@@ -575,6 +599,40 @@ class AuthMutationRegressionTest < Minitest::Test
 
     assert_nil @controller.session[:user], "Session user remains nil"
     assert_equal "/", @controller.redirected_to, "Unauthenticated GET /logout safely redirects to root"
+    assert_nil @controller.rendered, "No confirmation rendered for unauthenticated visitor"
+  end
+
+  def test_head_logout_with_authenticated_user_does_not_mutate_session
+    @controller.session[:user] = @regular_user
+    @controller.request = RequestDouble.new(method: "HEAD", url: "http://test.matportal.org/logout", referer: "/account")
+
+    @controller.destroy
+
+    assert_equal @regular_user, @controller.session[:user], "HEAD /logout must NOT clear user session"
+    assert_equal "login/logout_confirm", @controller.rendered, "HEAD /logout must render safe confirmation view"
+    assert_nil @controller.redirected_to, "HEAD /logout must not redirect immediately on authenticated session"
+  end
+
+  def test_head_logout_with_admin_impersonating_does_not_revert_session
+    @controller.session[:user] = @target_user
+    @controller.session[:admin_user] = @admin_user
+    @controller.request = RequestDouble.new(method: "HEAD", url: "http://test.matportal.org/logout")
+
+    @controller.destroy
+
+    assert_equal @target_user, @controller.session[:user], "HEAD /logout must NOT revert impersonated user"
+    assert_equal @admin_user, @controller.session[:admin_user], "HEAD /logout must NOT clear admin_user"
+    assert_equal "login/logout_confirm", @controller.rendered, "HEAD /logout must render safe confirmation view"
+  end
+
+  def test_head_logout_unauthenticated_safely_redirects
+    @controller.session[:user] = nil
+    @controller.request = RequestDouble.new(method: "HEAD", url: "http://test.matportal.org/logout")
+
+    @controller.destroy
+
+    assert_nil @controller.session[:user], "Session user remains nil"
+    assert_equal "/", @controller.redirected_to, "Unauthenticated HEAD /logout safely redirects to root"
     assert_nil @controller.rendered, "No confirmation rendered for unauthenticated visitor"
   end
 
@@ -641,6 +699,20 @@ class AuthMutationRegressionTest < Minitest::Test
     assert_empty LinkedData::Client::Models::User.find_by_username_calls, "No backend lookup must occur on GET"
   end
 
+  def test_head_login_as_by_admin_displays_confirmation_without_mutating_session_or_api
+    @controller.session[:user] = @admin_user
+    @controller.params[:login_as] = "target_user"
+    @controller.request = RequestDouble.new(method: "HEAD", url: "http://test.matportal.org/login_as/target_user")
+
+    @controller.login_as
+
+    assert_equal "login/login_as_confirm", @controller.rendered, "HEAD /login_as must render confirmation view"
+    assert_equal "target_user", @controller.instance_variable_get(:@target_username)
+    assert_equal @admin_user, @controller.session[:user], "Session user must NOT change on HEAD"
+    assert_nil @controller.session[:admin_user], "admin_user must NOT be set on HEAD"
+    assert_empty LinkedData::Client::Models::User.find_by_username_calls, "Zero impersonation lookup calls must occur on HEAD"
+  end
+
   def test_post_login_as_by_admin_performs_impersonation
     @controller.session[:user] = @admin_user
     @controller.params[:login_as] = "target_user"
@@ -693,6 +765,21 @@ class AuthMutationRegressionTest < Minitest::Test
     assert_equal "target@example.org", @controller.instance_variable_get(:@email)
     assert_equal token_val, @controller.instance_variable_get(:@token), "Exact token preserved without alteration"
     assert_nil @controller.session[:user], "User must NOT be logged in on GET"
+  end
+
+  def test_head_reset_password_valid_shape_renders_confirmation_without_consuming_token
+    token_val = "SECRET_RESET_TOKEN_!@#$%^"
+    @controller.params = { un: "target_user", em: "target@example.org", tk: token_val }
+    @controller.request = RequestDouble.new(method: "HEAD", url: "http://test.matportal.org/reset_password")
+
+    @controller.reset_password
+
+    assert_empty LinkedData::Client::HTTP.post_calls, "Zero consuming reset calls on HEAD (token must not be consumed)"
+    assert_equal "login/reset_password", @controller.rendered, "Must render confirmation form view on HEAD"
+    assert_equal "target_user", @controller.instance_variable_get(:@username)
+    assert_equal "target@example.org", @controller.instance_variable_get(:@email)
+    assert_equal token_val, @controller.instance_variable_get(:@token), "Exact token preserved without alteration"
+    assert_nil @controller.session[:user], "User must NOT be logged in on HEAD"
   end
 
   def test_post_reset_password_consumes_token_and_authenticates_on_success
@@ -777,6 +864,14 @@ class AuthMutationRegressionTest < Minitest::Test
     content = File.read(File.expand_path('../../app/views/users/index.html.haml', __dir__))
     assert_includes content, "button_to t('users.index.login_as'), login_as_path(user.username), method: :post",
                     "Users index login_as caller must use button_to with POST method"
+  end
+
+  def test_login_as_confirm_template_cancel_link_targets_users_path
+    content = File.read(File.expand_path('../../app/views/login/login_as_confirm.html.haml', __dir__))
+    assert_includes content, "link_to t('login.cancel'), users_path",
+                    "Login as confirm Cancel link must target users_path"
+    refute_includes content, "/admin/users",
+                    "Login as confirm Cancel link must not use undeclared /admin/users"
   end
 
   # --- 6. Request / CSRF Token Fixture ---

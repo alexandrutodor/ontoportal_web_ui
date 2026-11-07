@@ -10,4 +10,4 @@
       = t('login.login_as_confirm_prompt', username: @target_username)
     .d-flex.justify-content-between.align-items-center.mt-4
       = button_to t('login.login_as_button'), login_as_path(@target_username), method: :post, class: "lost-password-button", form: { data: { turbo_frame: '_top' } }
-      = link_to t('login.cancel'), "/admin/users", class: "btn btn-outline-secondary"
+      = link_to t('login.cancel'), users_path, class: "btn btn-outline-secondary"
