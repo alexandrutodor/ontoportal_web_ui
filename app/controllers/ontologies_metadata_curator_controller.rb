@@ -2,6 +2,7 @@ class OntologiesMetadataCuratorController < ApplicationController
   include TurboHelper, SubmissionsHelper, ActionView::Helpers::FormHelper
   include SubmissionUpdater
   layout :determine_layout
+  prepend_before_action :authorize_admin, only: [:result, :edit, :update]
   before_action :submission_metadata, only: [:result, :edit, :update, :show_metadata_by_ontology]
 
   def result
