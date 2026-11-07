@@ -984,6 +984,13 @@ en:
     new_term_instructions_saved: New term request instructions for %{acronym} saved
     problem_of_creating_new_term: 'Problem creating a new term %{endpoint}: %{class}
       - %{message}'
+  ontology_content_serializer:
+    bad_gateway: Bad Gateway
+    forbidden: Forbidden
+    gateway_timeout: Gateway Timeout
+    generic_error: Upstream Service Error
+    not_found: Not Found
+    payload_too_large: Payload Too Large
   ontologies:
     access_rights_information: Additional license and access rights information
     admin:

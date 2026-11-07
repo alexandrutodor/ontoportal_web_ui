@@ -1015,6 +1015,13 @@ fr:
       enregistrées
     problem_of_creating_new_term: 'Problème de création d''un nouveau terme %{endpoint}
       : %{class} - %{message}'
+  ontology_content_serializer:
+    bad_gateway: Passerelle incorrecte
+    forbidden: Accès refusé
+    gateway_timeout: Délai d'attente de la passerelle dépassé
+    generic_error: Erreur du service amont
+    not_found: Introuvable
+    payload_too_large: Charge utile trop volumineuse
   ontologies:
     access_rights_information: Informations supplémentaires sur la licence et les
       droits d'accès

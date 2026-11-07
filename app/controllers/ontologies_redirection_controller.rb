@@ -23,8 +23,12 @@ class OntologiesRedirectionController < ApplicationController
                 redirect_to link_by_type(resource_id, params[:acronym], type)
             end
         else
-            content, serializer_content_type = serialize_content(ontology_acronym: params[:acronym], concept_id: resource_id, format: request_accept_header)
-            render plain: content, content_type: serializer_content_type
+            result = serialize_content(ontology_acronym: params[:acronym], concept_id: resource_id, format: request_accept_header)
+            if result.success?
+                render plain: result.content, content_type: result.content_type, status: result.status
+            else
+                render plain: (result.error || "Upstream Service Error"), content_type: 'text/plain', status: result.status
+            end
         end
     end
     

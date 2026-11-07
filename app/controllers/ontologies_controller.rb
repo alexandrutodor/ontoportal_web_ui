@@ -230,11 +230,19 @@ class OntologiesController < ApplicationController
   end
 
   def content_serializer
-    @result, _ = serialize_content(ontology_acronym: params[:acronym],
-                      concept_id: params[:id],
-                      format: params[:output_format])
+    result = serialize_content(ontology_acronym: params[:acronym],
+                               concept_id: params[:id],
+                               format: params[:output_format])
 
-    render 'ontologies/content_serializer', layout: nil
+    if result.success?
+      @result = result.content
+      @error = nil
+      render 'ontologies/content_serializer', layout: nil, status: result.status
+    else
+      @result = nil
+      @error = result.error || "Upstream Service Error"
+      render 'ontologies/content_serializer', layout: nil, status: result.status
+    end
   end
 
   # GET /ontologies/ACRONYM
