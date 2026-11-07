@@ -114,14 +114,14 @@ end
 
 cls_complex = build_mock_class(
   id: 'http://example.org/test#Complex\\Cat"1"',
-  pref_label: 'Complex | "Cat" \\ \n 🌍 ~!~',
+  pref_label: "Complex | \"Cat\" \\ \n 🌍 ~!~",
   synonyms: ['Syn | 1', 'Syn "2"'],
   definition: ['Def | 1', 'Def ~!~ 2']
 )
 
 cls_legacy = build_mock_class(
   id: 'http://example.org/test#Cat',
-  pref_label: 'Cat Concept',
+  pref_label: "Cat \"Concept\" \\ \nLegacy",
   synonyms: ['Syn1', 'Syn2'],
   definition: ['Def']
 )

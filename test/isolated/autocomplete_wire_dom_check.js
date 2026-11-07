@@ -28,18 +28,18 @@ const AUDIT_OUTPUT_PATH = path.join(REPO_ROOT, '.remediation/autocomplete_wire_r
 
 const CHROME_PATH = process.env.CHROME_BIN || '/usr/bin/google-chrome';
 
-// Ensure native producer responses exist; export them via frozen Ruby 3.1.7 if missing
-function loadNativeProducerOutputs() {
-  if (!fs.existsSync(FIXTURE_JSON_PATH)) {
-    fs.mkdirSync(path.dirname(FIXTURE_JSON_PATH), { recursive: true });
-    const cmd = `docker run --rm --network none -v "${REPO_ROOT}":/app:ro -w /app -e GEM_PATH=/usr/local/bundle/ruby/3.1.0 onto-q02-proof:af254f34 ruby test/standalone/export_native_producer_fixtures.rb`;
-    const stdout = execSync(cmd, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
-    fs.writeFileSync(FIXTURE_JSON_PATH, stdout, 'utf8');
-  }
-  return JSON.parse(fs.readFileSync(FIXTURE_JSON_PATH, 'utf8'));
-}
+const EXPECTED_COMPLEX_LABEL = 'Complex | "Cat" \\ \n 🌍 ~!~';
+const EXPECTED_COMPLEX_ID = 'http://example.org/test#Complex\\Cat"1"';
+const EXPECTED_LEGACY_LABEL = 'Cat "Concept" \\ \nLegacy';
 
-const NATIVE_PRODUCER_OUTPUTS = loadNativeProducerOutputs();
+// Regenerate native producer responses every browser run via frozen Ruby 3.1.7 container
+function loadNativeProducerOutputs() {
+  fs.mkdirSync(path.dirname(FIXTURE_JSON_PATH), { recursive: true });
+  const cmd = `docker run --rm --network none -v "${REPO_ROOT}":/app:ro -w /app -e GEM_PATH=/usr/local/bundle/ruby/3.1.0 onto-q02-proof:af254f34 ruby test/standalone/export_native_producer_fixtures.rb`;
+  const stdout = execSync(cmd, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+  fs.writeFileSync(FIXTURE_JSON_PATH, stdout, 'utf8');
+  return JSON.parse(stdout);
+}
 
 // Rebind dynamic jQuery JSONP callback prefix in genuinely native-produced body without reserializing data
 function rebindNativeJsonp(fixture, callbackName) {
@@ -71,16 +71,20 @@ async function buildControllerBundle() {
         const FormAutoCompleteController = require('../../app/javascript/controllers/form_auto_complete_controller.js').default;
 
         const application = Application.start();
+        window.__stimulusErrors = [];
+        const origHandleError = application.handleError.bind(application);
+        application.handleError = function(error, message, detail) {
+          window.__stimulusErrors.push({
+            message: message || (error && error.message) || String(error),
+            error: error ? (error.stack || error.message || String(error)) : null,
+            detail: detail || null
+          });
+          origHandleError(error, message, detail);
+        };
+
         application.register('ontoportal-autocomplete', OntoportalAutocompleteController);
         application.register('form-auto-complete', FormAutoCompleteController);
         window.StimulusApp = application;
-
-        window.__stimulusErrors = [];
-        window.addEventListener('error', (e) => {
-          if (e.message && e.message.includes('Stimulus')) {
-            window.__stimulusErrors.push(e.message);
-          }
-        });
       `,
       resolveDir: __dirname,
       sourcefile: 'wire_entrypoint.js'
@@ -177,6 +181,9 @@ const ALLOWED_PATHS = new Set([
 ]);
 
 async function runWireCheck() {
+  console.log('[0/4] Exporting fresh native producer responses via frozen Ruby 3.1.7 container...');
+  const NATIVE_PRODUCER_OUTPUTS = loadNativeProducerOutputs();
+
   const testResults = {
     total: 0,
     passed: 0,
@@ -444,6 +451,7 @@ async function runWireCheck() {
                 firstExtraCount: firstExtra ? firstExtra.length : 0,
                 firstExtraConceptId: firstExtra ? firstExtra[0] : null,
                 firstExtraAcronym: firstExtra ? firstExtra[2] : null,
+                firstExtraTargetValue: firstExtra ? firstExtra[4] : null,
                 secondHasObsolete,
                 secondText,
                 inputValueAfterSelect: input.value,
@@ -466,9 +474,10 @@ async function runWireCheck() {
         t1ResponseParam === 'rows' &&
         t1CallbackParam === null &&
         test1.liCount === 2 &&
-        test1.firstSelectValue === 'Complex | "Cat" \\ \\n 🌍 ~!~' &&
+        test1.firstSelectValue === EXPECTED_COMPLEX_LABEL &&
         test1.firstExtraCount === 7 && // Exactly 8 columns total (1 selectValue + 7 extra fields)
-        test1.firstExtraConceptId === 'http://example.org/test#Complex\\Cat"1"' &&
+        test1.firstExtraConceptId === EXPECTED_COMPLEX_ID &&
+        test1.firstExtraTargetValue === EXPECTED_COMPLEX_LABEL &&
         test1.firstExtraAcronym === 'TEST' &&
         test1.secondHasObsolete &&
         test1.eventFired) {
@@ -529,6 +538,7 @@ async function runWireCheck() {
               selectValue: li.selectValue,
               extraLength: li.extra ? li.extra.length : 0,
               conceptId: li.extra ? li.extra[0] : null,
+              targetValue: li.extra ? li.extra[4] : null,
               encodedDefinition: li.extra ? li.extra[6] : null
             });
           }
@@ -540,8 +550,10 @@ async function runWireCheck() {
     const t2Url = t2Request ? new URL(t2Request.url) : null;
 
     if (t2Url && t2Url.searchParams.get('response') === 'rows' &&
+        test2.selectValue === EXPECTED_COMPLEX_LABEL &&
         test2.extraLength === 7 && // 8 columns total: selectValue (col 0) + 7 extra fields
-        test2.conceptId === 'http://example.org/test#Complex\\Cat"1"' &&
+        test2.conceptId === EXPECTED_COMPLEX_ID &&
+        test2.targetValue === EXPECTED_COMPLEX_LABEL &&
         test2.encodedDefinition === 'Def+%7C+1.+Def+~%21~+2') {
       recordPass('Single ontology rows wire protocol returns exactly 8 columns (7 extra) with CGI-encoded definition', test2);
     } else {
@@ -750,6 +762,7 @@ async function runWireCheck() {
                 optsResponse: autocompleter.getOptions().response,
                 requestDataLiCount: lis.length,
                 firstSelectValue: firstLi.selectValue,
+                firstExtraTargetValue: firstLi.extra ? firstLi.extra[4] : null,
                 findValueSelectValue: findLi ? findLi.selectValue : null
               });
             };
@@ -767,7 +780,8 @@ async function runWireCheck() {
         t5JsonpReq !== undefined &&
         t5FindReq !== undefined &&
         test5.requestDataLiCount === 2 &&
-        test5.firstSelectValue === 'Cat Concept' &&
+        test5.firstSelectValue === EXPECTED_LEGACY_LABEL &&
+        test5.firstExtraTargetValue === EXPECTED_LEGACY_LABEL &&
         test5.findValueSelectValue === 'OldCat [obsolete]') {
       recordPass('Bare/public plugin defaults to legacy: requestData uses JSONP and findValue uses raw text', {
         optsResponse: test5.optsResponse,
@@ -821,10 +835,12 @@ async function runWireCheck() {
           if (lis.length >= 2) {
             settled = true;
             cleanup();
+            const firstLi = lis.get(0);
             resolve({
               optsResponse: autocompleter.getOptions().response,
               liCount: lis.length,
-              firstSelectValue: lis.get(0).selectValue
+              firstSelectValue: firstLi.selectValue,
+              firstExtraTargetValue: firstLi.extra ? firstLi.extra[4] : null
             });
           }
         }, 50);
@@ -837,7 +853,8 @@ async function runWireCheck() {
     if (typeof test6.optsResponse === 'undefined' &&
         t6JsonpReq !== undefined &&
         test6.liCount === 2 &&
-        test6.firstSelectValue === 'Cat Concept') {
+        test6.firstSelectValue === EXPECTED_LEGACY_LABEL &&
+        test6.firstExtraTargetValue === EXPECTED_LEGACY_LABEL) {
       recordPass('First-party wrapper retains cross-origin legacy behavior (no rows opt-in, sends JSONP) for external URLs', {
         optsResponse: test6.optsResponse,
         requestUrl: t6JsonpReq.url
@@ -978,6 +995,7 @@ async function runWireCheck() {
     const outsideCount = testResults.outsideRequests.length;
     const unexpectedCount = testResults.unexpectedRequests.length;
     const stimErrors = await page.evaluate(() => window.__stimulusErrors || []);
+    testResults.stimulusErrors = stimErrors;
 
     if (testResults.navigationRequests >= 1 &&
         testResults.widgetFixtureRequests > 0 &&
