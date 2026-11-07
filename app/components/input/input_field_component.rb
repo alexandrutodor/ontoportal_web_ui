@@ -33,6 +33,22 @@ class Input::InputFieldComponent < ViewComponent::Base
     def label?
         !@label&.empty?
     end
+
+    def control_id
+        @id.presence || (@name.present? ? sanitize_to_id(@name) : nil)
+    end
+
+    def error_id
+        "#{control_id}_error" if error? && control_id.present?
+    end
+
+    def help_id
+        "#{control_id}_help" if help? && control_id.present?
+    end
+
+    def aria_describedby
+        [error_id, help_id].compact.join(' ').presence
+    end
 end
 
 

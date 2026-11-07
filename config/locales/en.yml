@@ -403,6 +403,7 @@ en:
     preferred_name: Preferred name
     type: Type
   components:
+    remove_row: "Remove row"
     add_another_object: "Add another %{object_name}"
     raw_data: Raw data
     class: "class"
@@ -792,6 +793,7 @@ en:
       agents : Agents
       sparql_editor: SPARQL Editor
       explore: Explore
+      toggle_navigation: "Toggle navigation"
     notices:
       at: at
       slice: Slice

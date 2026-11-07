@@ -1,5 +1,5 @@
 .dropdown-container
-  .dropdown-title-bar{"data-toggle" => "collapse", "data-target" => "##{@id}"}
+  %button.dropdown-title-bar.btn.p-0.border-0.bg-transparent.text-left.w-100{type: "button", "data-toggle" => "collapse", "data-target" => "##{@id}", "aria-expanded" => (@is_open ? "true" : "false"), "aria-controls" => @id}
     - if title?
       = title
     - else

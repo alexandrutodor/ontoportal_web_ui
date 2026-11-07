@@ -413,6 +413,7 @@ fr:
     preferred_name: Nom préféré
     type: Type
   components:
+    remove_row: "Supprimer la ligne"
     add_another_object: "Ajouter un autre %{object_name}"
     raw_data: Données brutes
     class: "classe"
@@ -816,6 +817,7 @@ fr:
       agents : Agents
       sparql_editor: Editeur SPARQL
       explore: Explorer
+      toggle_navigation: "Basculer la navigation"
     notices:
       at: à
       slice: Slice
