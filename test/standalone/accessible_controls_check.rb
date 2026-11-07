@@ -141,6 +141,10 @@ class AccessibleControlsCheck < Minitest::Test
     html_block = c_block.render_in(view) { '<div>nested content</div>' }
     assert_match(/<div class=['"]text-input-label['"]>\s*Wrapped Field\s*<\/div>/, html_block)
     refute_match(/<label[^>]*text-input-label/, html_block)
+
+    # Case 4: unlabeled repeated rows get no derived id (avoids duplicate ids)
+    html_rows = 2.times.map { Input::InputFieldComponent.new(name: 'config[items][]').render_in(view) }.join
+    refute_match(/<input[^>]*\sid=/, html_rows)
   end
 
   def test_text_input_forwards_id_derived_and_supplied

@@ -34,16 +34,23 @@ class Input::InputFieldComponent < ViewComponent::Base
         !@label&.empty?
     end
 
+    # Derive an id only for a rendered label; unlabeled repeated rows would otherwise share ids.
     def control_id
-        @id.presence || (@name.present? ? sanitize_to_id(@name) : nil)
+        @id.presence || (label? ? derived_id : nil)
+    end
+
+    def derived_id
+        sanitize_to_id(@name) if @name.present?
     end
 
     def error_id
-        "#{control_id}_error" if error? && control_id.present?
+        base = control_id || derived_id
+        "#{base}_error" if error? && base.present?
     end
 
     def help_id
-        "#{control_id}_help" if help? && control_id.present?
+        base = control_id || derived_id
+        "#{base}_help" if help? && base.present?
     end
 
     def aria_describedby
