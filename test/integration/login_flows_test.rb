@@ -19,7 +19,6 @@ class LoginFlowsTest < ActionDispatch::IntegrationTest
     delete_user(@created_user) if @created_user
     delete_user(@user_bob)
     delete_user(@user_john)
-    TestResourceOwnership.reset! if defined?(TestResourceOwnership) && TestResourceOwnership.empty?
   end
 
   test 'go to sign up page, save, and see account details' do
