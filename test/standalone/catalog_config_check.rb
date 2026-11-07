@@ -40,6 +40,7 @@ $LOAD_PATH.unshift(sdk_lib) if Dir.exist?(sdk_lib) && !$LOAD_PATH.include?(sdk_l
 
 worktree_root = File.expand_path('../..', __dir__)
 $LOAD_PATH.unshift(File.join(worktree_root, 'app/helpers'))
+$LOAD_PATH.unshift(File.join(worktree_root, 'app/components'))
 $LOAD_PATH.unshift(File.join(worktree_root, 'app/controllers/concerns'))
 $LOAD_PATH.unshift(File.join(worktree_root, 'app/controllers'))
 
@@ -51,6 +52,7 @@ require 'turbo-rails'
 require 'haml'
 require 'haml/template/options'
 require 'haml/plugin'
+require 'view_component'
 require 'ontologies_api_client'
 
 # Turbo stream and frame setup
@@ -79,6 +81,7 @@ LinkedData::Client.config do |config|
 end
 
 module Flipper
+  def self.enabled?(*); false; end
   module UI
     def self.app(_); ->(_env) { [200, {}, ['ok']] }; end
   end
@@ -166,9 +169,17 @@ class TurboFrameComponent
   end
 end
 
-class NestedAgentSearchInputComponent
+class AgentSearchInputComponent
   def initialize(**opts); @opts = opts; end
-  def render_in(_); "<div class=\"nested-agent\">#{@opts[:label]}</div>".html_safe; end
+  def render_in(_); '<div class="agent-search-input"></div>'.html_safe; end
+end
+
+class ChipButtonComponent
+  def initialize(text: nil, **opts); @text = text; @opts = opts; end
+  def render_in(vc, &b)
+    content = @text || (block_given? ? vc.capture(&b) : '')
+    "<span class=\"chip\">#{content}</span>".html_safe
+  end
 end
 
 class SampleQueriesEditComponent
@@ -178,9 +189,15 @@ end
 
 class NestedFormInputsComponent
   def initialize(**); end
-  def template(&b); end
+  def header(&b); @header = b.call if block_given?; end
+  def template(&b); @template = b.call if block_given?; end
+  def empty_state(&b); @empty_state = b.call if block_given?; end
   def row(&b); @rows ||= []; @rows << b.call if block_given?; end
-  def render_in(_); "<div class=\"nested-form\">#{(@rows || []).join}</div>".html_safe; end
+  def render_in(vc, &b)
+    @rows = []
+    vc.capture(self, &b) if block_given?
+    "<div class=\"nested-form\">#{@header}#{@empty_state}#{(@rows || []).join}</div>".html_safe
+  end
 end
 
 # Require controllers and helpers
@@ -194,9 +211,12 @@ require 'multi_languages_helper'
 require 'modal_helper'
 require 'inputs_helper'
 require 'application_helper'
+require 'agent_helper'
 require 'application_controller'
 require 'admin/catalog_configuration_helper'
 require 'admin/catalog_configuration_controller'
+require 'nested_agent_search_input_component'
+NestedAgentSearchInputComponent.compile
 
 # Wire helpers to controller and view
 ActionController::Base.include Rails.application.routes.url_helpers
@@ -207,10 +227,13 @@ ActionView::Base.include Turbo::Streams::ActionHelper if defined?(Turbo::Streams
 ActionView::Base.include ActionView::Helpers::TranslationHelper
 ActionView::Base.include ActionView::Helpers::TagHelper
 ActionView::Base.include ActionView::Helpers::FormHelper
+ActionView::Base.include ActionView::Helpers::FormTagHelper
+ActionView::Base.include ActionView::Helpers::UrlHelper
 ActionView::Base.include InputsHelper
 ActionView::Base.include ComponentsHelper
 ActionView::Base.include Admin::CatalogConfigurationHelper
 ActionView::Base.include MultiLanguagesHelper
+ActionView::Base.include AgentHelper
 
 module ViewDoubles
   def rounded_button_component(*); '<button>btn</button>'.html_safe; end
@@ -219,8 +242,18 @@ module ViewDoubles
   def selected_section?(*); false; end
   def ontologies_selector(**opts); "<select name=\"#{opts[:name]}\"></select>".html_safe; end
   def agent_search_input(*); '<input type="text" />'.html_safe; end
+  def current_user_admin?; true; end
+  def current_user; nil; end
+  def inline_svg_tag(*); '<svg></svg>'.html_safe; end
+  def agents_enabled?; false; end
+  def onts_for_select; []; end
 end
 ActionView::Base.include ViewDoubles
+
+module ApplicationHelper
+  def ontologies_selector(**opts); "<select name=\"#{opts[:name]}\"></select>".html_safe; end
+  def onts_for_select; []; end
+end
 
 ActionController::Base.allow_forgery_protection = false
 ActionController::Base.logger = Logger.new(nil)
@@ -362,6 +395,27 @@ class CatalogConfigCheck < Minitest::Test
     assert ctrl.flash.now[:alert].present?
   end
 
+  def test_load_catalog_data_rejects_parsed_sdk_error_and_preserves_session
+    # When API returns 4xx with { errors: [...] }, SDK parses it to OpenStruct
+    LinkedData::Client::HTTP.singleton_class.send(:define_method, :get) do |_url, params|
+      if params && params[:include] && params[:include].include?('creator')
+        []
+      else
+        OpenStruct.new(errors: ['Catalog unavailable'])
+      end
+    end
+
+    session_before = { title: 'Known title', acronym: 'KT' }
+    ctrl, _req, res = dispatch(:show, session: { catalog_data: session_before })
+
+    assert_equal 200, res.status
+    assert_equal 'Known title', ctrl.instance_variable_get(:@catalog_data)[:title]
+    assert_equal session_before, ctrl.session[:catalog_data],
+                 'Parsed SDK error response must not overwrite session[:catalog_data]'
+    assert ctrl.flash.now[:alert].present?, 'Alert flash must be set when SDK returns parsed error'
+    assert_includes ctrl.flash.now[:alert], 'Problem retrieving catalog data'
+  end
+
   # ===========================================================================
   # 5. Absent Taxonomy Handling
   # ===========================================================================
@@ -402,20 +456,49 @@ class CatalogConfigCheck < Minitest::Test
   # ===========================================================================
 
   def test_failed_patch_400_preserves_submitted_inputs_in_html_and_turbo
-    LinkedData::Client::HTTP.singleton_class.send(:define_method, :get) do |_url, _params|
-      []
+    # Provide mock metadata for show rendering
+    attr_metadata_mock = {
+      'title' => OpenStruct.new(attribute: 'title', enforce: ['string']),
+      'keyword' => OpenStruct.new(attribute: 'keyword', enforce: ['list']),
+      'status' => OpenStruct.new(attribute: 'status', enforce: ['boolean']),
+      'themeTaxonomy' => OpenStruct.new(attribute: 'themeTaxonomy', enforce: ['list']),
+      'creator' => OpenStruct.new(attribute: 'creator', enforce: ['Agent']),
+      'rightsHolder' => OpenStruct.new(attribute: 'rightsHolder', enforce: ['Agent', 'no_list'])
+    }
+
+    LinkedData::Client::HTTP.singleton_class.send(:define_method, :get) do |url, _params|
+      if url.include?('catalog_metadata')
+        attr_metadata_mock.values
+      else
+        []
+      end
     end
     LinkedData::Client::HTTP.singleton_class.send(:define_method, :patch) do |_url, _body|
       OpenStruct.new(status: 400, body: JSON.dump({ error: 'Acronym format invalid' }))
     end
 
+    cached_agent_1 = OpenStruct.new(id: 'http://example.com/Agents/1', name: 'Alice', agentType: 'person', usages: [])
+    cached_agent_2 = OpenStruct.new(id: 'http://example.com/Agents/2', name: 'Org', agentType: 'organization', usages: [])
+    prior_session = {
+      acronym: 'PRIOR_ACR',
+      title: 'Prior Title',
+      creator: [cached_agent_1],
+      rightsHolder: cached_agent_2
+    }
+
     submitted_config = {
       title: 'Submitted Title',
       keyword: ['scalar_val', 'second_val'],
       status: 'true',
-      themeTaxonomy: ['', 'MESH', 'GO']
+      themeTaxonomy: ['', 'MESH', 'GO'],
+      creator: {
+        '0' => { 'id' => 'http://example.com/Agents/1' },
+        '1' => { 'id' => 'http://example.com/Agents/999' }
+      },
+      rightsHolder: {
+        '0' => { 'id' => 'http://example.com/Agents/2' }
+      }
     }
-    prior_session = { acronym: 'PRIOR_ACR', title: 'Prior Title' }
 
     # Test HTML format
     ctrl_html, _req_html, res_html = dispatch(
@@ -423,7 +506,7 @@ class CatalogConfigCheck < Minitest::Test
       method: :patch,
       params: { config: submitted_config },
       headers: { 'Accept' => 'text/html' },
-      session: { catalog_data: prior_session }
+      session: { catalog_data: prior_session, catalog_metadata: attr_metadata_mock }
     )
     assert_equal 422, res_html.status, 'Failed HTML update must return status 422'
     assert_nil res_html.headers['Location'], 'Failed HTML update must not redirect'
@@ -431,10 +514,29 @@ class CatalogConfigCheck < Minitest::Test
     assert_equal ['scalar_val', 'second_val'], ctrl_html.instance_variable_get(:@catalog_data)[:keyword]
     assert_equal true, ctrl_html.instance_variable_get(:@catalog_data)[:status]
     assert_equal ['MESH', 'GO'], ctrl_html.instance_variable_get(:@catalog_data)[:themeTaxonomy]
+
+    # Verify agent preservation in controller data
+    creators = ctrl_html.instance_variable_get(:@catalog_data)[:creator]
+    assert_kind_of Array, creators
+    assert_equal 2, creators.size
+    assert_equal 'http://example.com/Agents/1', creators[0].id
+    assert_equal 'Alice', creators[0].name
+    assert_equal 'http://example.com/Agents/999', creators[1].id
+    assert_equal 'http://example.com/Agents/2', ctrl_html.instance_variable_get(:@catalog_data)[:rightsHolder].id
+
     assert_equal prior_session, ctrl_html.session[:catalog_data],
                  'Session catalog data must remain unpolluted by rejected update'
-    assert_includes ctrl_html.flash.now[:alert], 'Acronym format invalid'
+    assert_includes ctrl_html.flash.now[:alert], 'HTTP 400'
+    refute_includes ctrl_html.flash.now[:alert], 'Acronym format invalid', 'Raw response body must not leak into flash'
+
+    # Verify rendered HTML contains submitted fields and nested agent inputs without rendering crash
     assert res_html.body.include?('Submitted Title'), 'Rendered HTML form must retain submitted title'
+    assert res_html.body.include?('name="config[creator][0][id]"'), 'Rendered HTML must retain first creator hidden input'
+    assert res_html.body.include?('value="http://example.com/Agents/1"'), 'Rendered HTML must retain first creator ID'
+    assert res_html.body.include?('name="config[creator][1][id]"'), 'Rendered HTML must retain second creator hidden input'
+    assert res_html.body.include?('value="http://example.com/Agents/999"'), 'Rendered HTML must retain unresolved creator ID'
+    assert res_html.body.include?('name="config[rightsHolder][0][id]"'), 'Rendered HTML must retain rightsHolder hidden input'
+    assert res_html.body.include?('value="http://example.com/Agents/2"'), 'Rendered HTML must retain rightsHolder ID'
 
     # Test Turbo Stream format
     ctrl_turbo, _req_turbo, res_turbo = dispatch(
@@ -442,13 +544,17 @@ class CatalogConfigCheck < Minitest::Test
       method: :patch,
       params: { config: submitted_config },
       headers: { 'Accept' => 'text/vnd.turbo-stream.html' },
-      session: { catalog_data: prior_session }
+      session: { catalog_data: prior_session, catalog_metadata: attr_metadata_mock }
     )
     assert_equal 422, res_turbo.status, 'Failed Turbo update must return status 422'
     assert res_turbo.body.include?('target="catalog-config"'), 'Turbo stream must target catalog-config'
     assert res_turbo.body.include?('action="replace"'), 'Turbo stream must replace catalog-config'
     assert res_turbo.body.include?('Submitted Title'), 'Turbo stream must contain submitted title'
-    assert_includes ctrl_turbo.flash.now[:alert], 'Acronym format invalid'
+    assert res_turbo.body.include?('name="config[creator][0][id]"')
+    assert res_turbo.body.include?('value="http://example.com/Agents/1"')
+    assert res_turbo.body.include?('name="config[creator][1][id]"')
+    assert res_turbo.body.include?('value="http://example.com/Agents/999"')
+    assert_includes ctrl_turbo.flash.now[:alert], 'HTTP 400'
   end
 
   # ===========================================================================
@@ -473,8 +579,48 @@ class CatalogConfigCheck < Minitest::Test
     assert_equal 422, res.status
     alert_msg = ctrl.flash.now[:alert]
     refute_includes alert_msg, 'secret', 'Raw credentials/internals must not leak into visible error'
-    assert_includes alert_msg, 'Problem updating the configuration'
+    assert_includes alert_msg, 'HTTP 500'
     assert_equal 'Attempted Write', ctrl.instance_variable_get(:@catalog_data)[:title]
+  end
+
+  def test_failed_patch_400_sanitizes_credentials_in_json_and_plain_body
+    LinkedData::Client::HTTP.singleton_class.send(:define_method, :get) do |_url, _params|
+      []
+    end
+
+    # Case A: JSON body with credential sentinel
+    LinkedData::Client::HTTP.singleton_class.send(:define_method, :patch) do |_url, _body|
+      OpenStruct.new(status: 400, body: JSON.dump({ error: 'api_key=SENTINEL_JSON_SECRET', token: 'SECRET_TOKEN' }))
+    end
+
+    ctrl_json, _req_json, res_json = dispatch(
+      :update,
+      method: :patch,
+      params: { config: { title: 'Test Write' } },
+      headers: { 'Accept' => 'text/html' }
+    )
+    assert_equal 422, res_json.status
+    alert_json = ctrl_json.flash.now[:alert]
+    refute_includes alert_json, 'SENTINEL_JSON_SECRET', 'Upstream JSON error sentinel must not leak into flash'
+    refute_includes alert_json, 'api_key', 'Credential param names must not leak into flash'
+    assert_includes alert_json, 'HTTP 400'
+
+    # Case B: Plain text body with credential sentinel
+    LinkedData::Client::HTTP.singleton_class.send(:define_method, :patch) do |_url, _body|
+      OpenStruct.new(status: 400, body: 'api_key=SENTINEL_PLAIN_SECRET rejected by gateway')
+    end
+
+    ctrl_plain, _req_plain, res_plain = dispatch(
+      :update,
+      method: :patch,
+      params: { config: { title: 'Test Write 2' } },
+      headers: { 'Accept' => 'text/html' }
+    )
+    assert_equal 422, res_plain.status
+    alert_plain = ctrl_plain.flash.now[:alert]
+    refute_includes alert_plain, 'SENTINEL_PLAIN_SECRET', 'Upstream plain error sentinel must not leak into flash'
+    refute_includes alert_plain, 'api_key'
+    assert_includes alert_plain, 'HTTP 400'
   end
 
   # ===========================================================================
@@ -548,5 +694,29 @@ class CatalogConfigCheck < Minitest::Test
     assert_equal 200, res_turbo.status
     assert res_turbo.body.include?('target="catalog-config"')
     assert res_turbo.body.include?('action="replace"')
+  end
+
+  # ===========================================================================
+  # 11. Absent and Empty Config Validation (R4)
+  # ===========================================================================
+
+  def test_absent_and_empty_config_rejected_without_patch
+    patch_called = false
+    LinkedData::Client::HTTP.singleton_class.send(:define_method, :patch) do |_url, _body|
+      patch_called = true
+      OpenStruct.new(status: 200, body: '{}')
+    end
+
+    # Case A: Absent config parameter
+    assert_raises(ActionController::ParameterMissing) do
+      dispatch(:update, method: :patch, params: {})
+    end
+    refute patch_called, 'PATCH must not be called when config is absent'
+
+    # Case B: Empty config parameter
+    assert_raises(ActionController::ParameterMissing) do
+      dispatch(:update, method: :patch, params: { config: {} })
+    end
+    refute patch_called, 'PATCH must not be called when config is empty'
   end
 end

@@ -185,9 +185,7 @@ class Admin::CatalogConfigurationController < ApplicationController
   end
 
   def sanitize_config_params
-    return {} unless params[:config].present?
-
-    config = (params[:config].respond_to?(:permit!) ? params.require(:config).permit!.to_h : params[:config]).to_h
+    config = params.require(:config).permit!.to_h
 
     list_included_attributes.each do |key|
       config[key] = sanitize_attribute_value(config[key.to_s])
@@ -215,17 +213,34 @@ class Admin::CatalogConfigurationController < ApplicationController
   end
 
   def extract_hash_from_sdk(obj)
-    return {} if obj.nil?
+    return {} if obj.nil? || obj == {} || obj == []
 
-    if obj.is_a?(Hash)
-      obj
-    elsif obj.respond_to?(:to_hash) && !obj.is_a?(OpenStruct)
-      obj.to_hash || {}
-    elsif obj.respond_to?(:to_h)
-      obj.to_h || {}
-    else
-      {}
+    if obj.respond_to?(:errors) && obj.errors.present?
+      raise StandardError, "SDK response contains errors: #{obj.errors}"
     end
+    if obj.respond_to?(:error) && obj.error.present?
+      raise StandardError, "SDK response contains error: #{obj.error}"
+    end
+
+    hash = if obj.is_a?(Hash)
+             obj
+           elsif obj.respond_to?(:to_hash) && !obj.is_a?(OpenStruct)
+             obj.to_hash
+           elsif obj.respond_to?(:to_h)
+             begin
+               obj.to_h
+             rescue StandardError
+               nil
+             end
+           end
+
+    raise StandardError, "Unsupported SDK response shape: #{obj.class}" unless hash.is_a?(Hash)
+
+    if hash[:errors].present? || hash['errors'].present? || hash[:error].present? || hash['error'].present?
+      raise StandardError, "SDK response contains errors: #{hash[:errors] || hash['errors'] || hash[:error] || hash['error']}"
+    end
+
+    hash
   end
 
   def build_editable_catalog_data(submitted_params)
@@ -235,33 +250,65 @@ class Admin::CatalogConfigurationController < ApplicationController
     submitted = submitted_params.respond_to?(:to_unsafe_h) ? submitted_params.to_unsafe_h : submitted_params.to_h
     retained = known.dup
 
+    cached_agents = {}
+    agents_list.each do |agent_key|
+      Array(known[agent_key.to_sym] || known[agent_key.to_s]).each do |ag|
+        if ag.respond_to?(:id) && ag.id.present?
+          cached_agents[ag.id.to_s] = ag
+        elsif ag.is_a?(Hash) && (ag['id'] || ag[:id]).present?
+          cached_agents[(ag['id'] || ag[:id]).to_s] = ag
+        end
+      end
+    end
+
     submitted.each do |k, v|
       sym_key = k.to_sym
-      retained[sym_key] = case v
-                          when 'true' then true
-                          when 'false' then false
-                          when Array then v.reject(&:blank?)
-                          else v
-                          end
+      if agents_list.include?(k.to_s)
+        raw_ids = case v
+                  when Hash, ActionController::Parameters
+                    vh = v.respond_to?(:to_unsafe_h) ? v.to_unsafe_h : v.to_h
+                    if vh['id'] || vh[:id]
+                      [vh['id'] || vh[:id]]
+                    else
+                      vh.values.filter_map { |item| item.is_a?(Hash) ? (item['id'] || item[:id]) : nil }
+                    end
+                  when Array
+                    v.filter_map { |item| item.is_a?(Hash) ? (item['id'] || item[:id]) : item }
+                  when String
+                    [v]
+                  else
+                    []
+                  end
+        raw_ids = raw_ids.map(&:to_s).reject(&:blank?)
+
+        restored_agents = raw_ids.map do |id|
+          cached_agents[id] || OpenStruct.new(id: id)
+        end
+
+        retained[sym_key] = if sym_key == :rightsHolder
+                              restored_agents.first
+                            else
+                              restored_agents
+                            end
+      else
+        retained[sym_key] = case v
+                            when 'true' then true
+                            when 'false' then false
+                            when Array then v.reject(&:blank?)
+                            else v
+                            end
+      end
     end
     retained
   end
 
   def extract_update_error(response)
-    if response.respond_to?(:body) && response.body.present?
-      body = response.body.to_s
-      begin
-        parsed = JSON.parse(body)
-        if parsed.is_a?(Hash)
-          err = parsed['error'] || parsed['message'] || parsed['errors']
-          return err.to_s if err.present?
-        end
-      rescue JSON::ParserError
-        return body.strip if body.length <= 120 && !body.include?("\n")
-      end
-    end
     status = response.respond_to?(:status) ? response.status : nil
-    status ? "HTTP #{status}" : t('admin.catalog_configuration.update_unknown_error', default: 'Remote service rejected update')
+    if status.present? && status.to_i > 0
+      "HTTP #{status.to_i}"
+    else
+      t('admin.catalog_configuration.update_unknown_error', default: 'Remote service rejected update')
+    end
   end
 
   def sanitize_attribute_value(raw_value)
