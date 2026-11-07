@@ -41,6 +41,7 @@ class SearchController < ApplicationController
       render :plain => t('search.no_search_class_provided')
       return
     end
+    query = params[:q].to_s.strip
     check_params_query(params)
     check_params_ontologies(params)  # Filter on ontology_id
     if params["id"]&.eql?('All')
@@ -60,7 +61,7 @@ class SearchController < ApplicationController
       # record_type = format_record_type(result[:recordType], result[:obsolete])
       record_type = ""
 
-      label = search_concept_label(result.prefLabel)
+      label = search_concept_label(result.prefLabel, query)
       target_value = label
 
       case params[:target]

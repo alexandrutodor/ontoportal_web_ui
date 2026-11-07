@@ -65,21 +65,30 @@ module SearchAggregator
     sort_results_by_string_similarity(query, search_results)
   end
 
-  def search_concept_label(label)
+  def search_concept_label(label, query = @search_query)
     label = language_hash(label)
+    label = language_hash(label) if label.is_a?(OpenStruct)
 
     if label.is_a?(Hash)
-      label = label.values.flatten
-      label = label.select do |pref_lab|
-        pref_lab.downcase.include?(@search_query.downcase) || @search_query.downcase.include?(pref_lab.downcase)
-      end.first || label.first
+      candidates = label.values.flatten.compact
+      q = query.to_s.strip.downcase
+
+      label = if q.empty?
+        candidates.find { |l| !l.to_s.strip.empty? } || candidates.first
+      else
+        candidates.find do |pref_lab|
+          lab = pref_lab.to_s.strip.downcase
+          next false if lab.empty?
+          lab.include?(q) || q.include?(lab)
+        end || candidates.find { |l| !l.to_s.strip.empty? } || candidates.first
+      end
     end
 
     label
   end
 
   def search_result_elem(class_object, ontology_id, title)
-    label = search_concept_label(class_object.prefLabel)
+    label = search_concept_label(class_object.prefLabel, @search_query)
     request_lang = helpers.request_lang&.eql?("ALL") ? '' : "&language=#{helpers.request_lang}"
     ontology_acronym = link_last_part(ontology_id)
     result = {
