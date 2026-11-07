@@ -1,5 +1,58 @@
 require 'sparql/grammar'
+require 'set'
+
 module SparqlHelper
+  ALLOWED_SPARQL_MIME_TYPES = Set.new([
+    'application/sparql-results+json',
+    'application/sparql-results+xml',
+    'application/json',
+    'application/ld+json',
+    'application/xml',
+    'text/xml',
+    'application/rdf+xml',
+    'text/turtle',
+    'application/x-turtle',
+    'text/n3',
+    'application/n-triples',
+    'text/plain',
+    'text/csv',
+    'text/tab-separated-values',
+    'text/tsv',
+    'text/boolean',
+    'application/trig',
+    'application/n-quads'
+  ]).freeze
+
+  def validate_sparql_content_type(raw_content_type)
+    return 'text/plain; charset=utf-8' if raw_content_type.blank?
+
+    media_type = raw_content_type.to_s.split(';').first.to_s.strip.downcase
+    if ALLOWED_SPARQL_MIME_TYPES.include?(media_type)
+      if raw_content_type.to_s =~ /charset=/i
+        raw_content_type.to_s.gsub(/charset=[^;\s]+/i, 'charset=utf-8')
+      else
+        "#{media_type}; charset=utf-8"
+      end
+    else
+      'text/plain; charset=utf-8'
+    end
+  end
+
+  def normalize_body_encoding(body)
+    return '' if body.nil?
+
+    str = body.to_s
+    if str.encoding == Encoding::UTF_8 && str.valid_encoding?
+      str
+    else
+      utf8_str = str.dup.force_encoding(Encoding::UTF_8)
+      if utf8_str.valid_encoding?
+        utf8_str
+      else
+        str.dup.force_encoding('ISO-8859-1').encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
+      end
+    end
+  end
   def change_from_clause(query, graph)
     validate_sparql_query(query)
     query = remove_sparql_comments(query)
@@ -40,13 +93,30 @@ module SparqlHelper
   def ontology_sparql_query(query, graph = '')
     query = change_from_clause(query, graph)
     sparql_query(query)
-  rescue StandardError
-    'Failed to parse query'
+  rescue StandardError => e
+    Faraday::Response.new(
+      status: 400,
+      body: 'Failed to parse query',
+      response_headers: { 'content-type' => 'text/plain; charset=utf-8' }
+    )
   end
 
   def sparql_query(query)
-    return 'No SPARQL endpoint configured' if $SPARQL_URL.blank?
-    return 'INSERT Queries not permitted' unless is_allowed_query?(query)
+    if $SPARQL_URL.blank?
+      return Faraday::Response.new(
+        status: 503,
+        body: 'No SPARQL endpoint configured',
+        response_headers: { 'content-type' => 'text/plain; charset=utf-8' }
+      )
+    end
+
+    unless is_allowed_query?(query)
+      return Faraday::Response.new(
+        status: 403,
+        body: 'INSERT Queries not permitted',
+        response_headers: { 'content-type' => 'text/plain; charset=utf-8' }
+      )
+    end
 
     endpoint = $SPARQL_URL.gsub('test', 'sparql')
     begin
@@ -54,9 +124,29 @@ module SparqlHelper
         conn.options.timeout = 10
       end
       response = conn.get("#{endpoint}?query=#{encode_param(query)}")
-      response.body.force_encoding('ISO-8859-1').encode('UTF-8')
-    rescue StandardError
-      'Query timeout'
+      raw_content_type = response.headers ? (response.headers['content-type'] || response.headers['Content-Type']) : nil
+      media_type = raw_content_type.to_s.split(';').first.to_s.strip.downcase
+      body = if raw_content_type.blank? || ALLOWED_SPARQL_MIME_TYPES.include?(media_type)
+               normalize_body_encoding(response.body)
+             else
+               response.body
+             end
+      if response.respond_to?(:env) && response.env
+        response.env.body = body
+        response
+      else
+        Faraday::Response.new(
+          status: response.status,
+          body: body,
+          response_headers: response.headers
+        )
+      end
+    rescue StandardError => e
+      Faraday::Response.new(
+        status: 504,
+        body: 'Query timeout',
+        response_headers: { 'content-type' => 'text/plain; charset=utf-8' }
+      )
     end
   end
 
