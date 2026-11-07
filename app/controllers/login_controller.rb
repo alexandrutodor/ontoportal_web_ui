@@ -4,16 +4,16 @@ class LoginController < ApplicationController
 
   def index
     # Sets the redirect properties
-    if params[:redirect]
-      # Get the original, encoded redirect
-      uri = URI.parse(request.url)
-      orig_params = Hash[uri.query.split("&").map {|e| e.split("=",2)}].symbolize_keys
-      @redirect_url = orig_params[:redirect]
-    else
-      referer = request.referer
-      path = URI(referer).path rescue "/" if referer
-      @redirect_url = referer
-    end
+    raw_target = if params[:redirect]
+                   # Get the original, encoded redirect
+                   uri = URI.parse(request.url) rescue nil
+                   orig_params = uri&.query ? Hash[uri.query.split("&").map {|e| e.split("=",2)}].symbolize_keys : {}
+                   orig_params[:redirect] || params[:redirect]
+                 else
+                   request.referer
+                 end
+
+    @redirect_url = SafeUrlPolicy.sanitize_redirect_param(raw_target, fallback: nil, allowed_hosts: [request.host])
     session[:redirect] = @redirect_url
   end
 
@@ -30,20 +30,22 @@ class LoginController < ApplicationController
     @errors << t("login.invalid_account_combination") if username.nil?
 
     if @errors.any?
-      @redirect_url = params[:redirect]
+      raw_target = params[:redirect].presence || session[:redirect].presence
+      @redirect_url = SafeUrlPolicy.sanitize_redirect_param(raw_target, fallback: nil, allowed_hosts: [request.host])
       return render :action => 'index'
     end
 
     logged_in_user = LinkedData::Client::Models::User.authenticate(username, params[:user][:password])
     if logged_in_user && !logged_in_user.errors
       login(logged_in_user)
-      raw_redirect = params[:redirect] || session[:redirect]
-      redirect = raw_redirect ? CGI.unescape(raw_redirect) : "/"
-      redirect = append_apikey_if_rest_url(redirect, logged_in_user)
-      redirect_to redirect, allow_other_host: true
+      raw_redirect = params[:redirect].presence || session[:redirect].presence
+      session.delete(:redirect)
+      redirect = SafeUrlPolicy.resolve_login_redirect(raw_redirect, user: logged_in_user, allowed_hosts: [request.host])
+      redirect_to redirect, allow_other_host: SafeUrlPolicy.permitted_service_url?(redirect)
     else
       @errors << t('login.invalid_account_combination')
-      @redirect_url = params[:redirect] || session[:redirect]
+      raw_target = params[:redirect].presence || session[:redirect].presence
+      @redirect_url = SafeUrlPolicy.sanitize_redirect_param(raw_target, fallback: nil, allowed_hosts: [request.host])
       render :action => 'index'
     end
   end
@@ -56,14 +58,10 @@ class LoginController < ApplicationController
     logged_in_user = LinkedData::Client::HTTP.post("#{LinkedData::Client.settings.rest_url}/users/authenticate", { access_token: auth_code , token_provider: token_provider})
     if logged_in_user && !logged_in_user.errors
       login(logged_in_user)
-      redirect = "/"
-
-      if session[:redirect]
-        redirect = CGI.unescape(session[:redirect])
-      end
-
-      redirect = append_apikey_if_rest_url(redirect, logged_in_user)
-      redirect_to redirect, allow_other_host: true
+      raw_redirect = session[:redirect]
+      session.delete(:redirect)
+      redirect = SafeUrlPolicy.resolve_login_redirect(raw_redirect, user: logged_in_user, allowed_hosts: [request.host])
+      redirect_to redirect, allow_other_host: SafeUrlPolicy.permitted_service_url?(redirect)
     else
       @errors =  [t('login.authentication_failed', provider: params[:provider])]
       render :action => 'index'
@@ -144,25 +142,7 @@ class LoginController < ApplicationController
   private
 
   def append_apikey_if_rest_url(redirect_url, user)
-    return redirect_url if redirect_url.blank?
-
-    rest_url = LinkedData::Client.settings.rest_url
-    fairness_url = $FAIRNESS_URL
-    # Basic check to see if the URL is a REST API URL or Fairness URL
-    if redirect_url.include?(rest_url) || (fairness_url.present? && redirect_url.include?(fairness_url))
-      uri = URI.parse(redirect_url) rescue nil
-      return redirect_url unless uri
-      
-      params = URI.decode_www_form(uri.query || "")
-      # Remove existing apikey if any, then add the user's apikey
-      params.reject! { |k, v| k == "apikey" }
-      params << ["apikey", user.apikey]
-      uri.query = URI.encode_www_form(params)
-      redirect_url = uri.to_s
-    end
-    redirect_url
-  rescue
-    redirect_url
+    SafeUrlPolicy.append_apikey_if_permitted(redirect_url, user)
   end
 
   def login(user)

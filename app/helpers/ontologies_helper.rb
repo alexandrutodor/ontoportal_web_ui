@@ -617,8 +617,8 @@ module OntologiesHelper
   end
 
   def new_element_link(title, link)
-    if session[:user].nil?
-      link = "/login?redirect=#{link}"
+    if session[:user].nil? && !link.to_s.start_with?('/login')
+      link = "/login?redirect=#{escape(link)}"
     end
 
     link_to(link, title: title, class: "mx-1") do
@@ -696,7 +696,7 @@ module OntologiesHelper
     return if read_only_enabled?
 
     href = if session[:user].nil?
-             "/login?redirect=#{new_ontology_path}"
+             "/login?redirect=#{escape(new_ontology_path)}"
            else
              new_ontology_path
            end

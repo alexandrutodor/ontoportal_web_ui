@@ -527,19 +527,10 @@ module ApplicationHelper
   private
 
   def append_apikey_if_rest_url(link, user = current_user)
-    return link if link.blank? 
-    rest_url = LinkedData::Client.settings.rest_url
-    fairness_url = $FAIRNESS_URL
-    if link.include?(rest_url) || (fairness_url.present? && link.include?(fairness_url))
-      uri = URI.parse(link) rescue nil
-      return link unless uri
-      params = URI.decode_www_form(uri.query || "")
-      params.reject! { |k, v| k == "apikey" }
-      params << ["apikey", get_apikey]
-      uri.query = URI.encode_www_form(params)
-      link = uri.to_s
-    end
-    link
+    return link if link.blank?
+
+    key = user&.apikey || get_apikey
+    SafeUrlPolicy.append_apikey_if_permitted(link, key)
   end
 
 end
