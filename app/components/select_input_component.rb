@@ -35,7 +35,9 @@ class SelectInputComponent < ViewComponent::Base
                          'select-input-open-add-value': open_to_add_values,
                          'select-input-required-value': required,
                        })
-    if @is_language || data[:'select-input-is-language-value'] || data['select-input-is-language-value']
+    data.delete(:'select-input-is-language-value')
+    data.delete('select-input-is-language-value')
+    if @is_language == true
       data['select-input-is-language-value'] = true
     end
     data[:controller] = "#{data[:controller]} select-input"

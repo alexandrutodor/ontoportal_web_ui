@@ -30,8 +30,7 @@ function generateNativeRubyFixtures() {
 require "action_view"
 require "rails"
 require "haml"
-require "haml/rails_template"
-ActionView::Template.register_template_handler(:haml, Haml::RailsTemplate.new)
+require "haml/template"
 require "view_component"
 require "iso-639"
 require "json"
@@ -147,24 +146,69 @@ required_comp = SelectInputComponent.new(
 )
 required_html = required_comp.render_in(view_context)
 
+# 8. Ordinary select with raw data marker string "false"
+data_str_false_comp = SelectInputComponent.new(
+  id: "data_str_false_select",
+  name: "data_str_false_select",
+  values: [["<b data-probe=\\"data-str-false\\">Data String False Option</b>", "dsf"]],
+  is_language: false,
+  data: { "select-input-is-language-value" => "false" }
+)
+data_str_false_html = data_str_false_comp.render_in(view_context)
+
+# 9. Ordinary select with raw data marker string "true"
+data_str_true_comp = SelectInputComponent.new(
+  id: "data_str_true_select",
+  name: "data_str_true_select",
+  values: [["<b data-probe=\\"data-str-true\\">Data String True Option</b>", "dst"]],
+  is_language: false,
+  data: { "select-input-is-language-value" => "true" }
+)
+data_str_true_html = data_str_true_comp.render_in(view_context)
+
+# 10. Ordinary select with raw data marker symbol true
+data_sym_true_comp = SelectInputComponent.new(
+  id: "data_sym_true_select",
+  name: "data_sym_true_select",
+  values: [["<b data-probe=\\"data-sym-true\\">Data Symbol True Option</b>", "dsyt"]],
+  is_language: false,
+  data: { :'select-input-is-language-value' => true }
+)
+data_sym_true_html = data_sym_true_comp.render_in(view_context)
+
+# 11. Ordinary select with explicit non-boolean 'false' constructor
+nonbool_false_comp = SelectInputComponent.new(
+  id: "nonbool_false_select",
+  name: "nonbool_false_select",
+  values: [["<img src=x onerror=probe data-probe=\\"nonbool-false\\">Nonbool False Option", "nbf"]],
+  is_language: "false"
+)
+nonbool_false_html = nonbool_false_comp.render_in(view_context)
+
 puts JSON.generate({
+  ruby_version: RUBY_VERSION,
   lang_html: lang_html,
   plain_html: plain_html,
   display_val_html: display_val_html,
   open_add_html: open_add_html,
   multi_html: multi_html,
   unsearchable_html: unsearchable_html,
-  required_html: required_html
+  required_html: required_html,
+  data_str_false_html: data_str_false_html,
+  data_str_true_html: data_str_true_html,
+  data_sym_true_html: data_sym_true_html,
+  nonbool_false_html: nonbool_false_html
 })
 `;
 
-  const output = execFileSync('ruby', ['-e', rubyCode], {
-    cwd: ROOT_DIR,
-    env: {
-      ...process.env,
-      LC_ALL: 'C.UTF-8',
-      GEM_PATH: '/home/ranma/ontoportal/ontoportal_web_ui/vendor/bundle/ruby/3.3.0'
-    },
+  const output = execFileSync('docker', [
+    'run', '--rm', '--network', 'none',
+    '-v', `${ROOT_DIR}:/app:ro`,
+    '-w', '/app',
+    '-e', 'GEM_PATH=/usr/local/bundle/ruby/3.1.0',
+    'onto-q02-proof:af254f34',
+    'ruby', '-e', rubyCode
+  ], {
     encoding: 'utf8'
   });
 
@@ -233,6 +277,22 @@ function buildHtmlPage(fixtures) {
 
   <div id="container-required">
     ${fixtures.required_html}
+  </div>
+
+  <div id="container-data-str-false">
+    ${fixtures.data_str_false_html}
+  </div>
+
+  <div id="container-data-str-true">
+    ${fixtures.data_str_true_html}
+  </div>
+
+  <div id="container-data-sym-true">
+    ${fixtures.data_sym_true_html}
+  </div>
+
+  <div id="container-nonbool-false">
+    ${fixtures.nonbool_false_html}
   </div>
 </body>
 </html>`;
@@ -305,6 +365,16 @@ async function runDomCheck() {
     console.log('[4/4] Running isolated DOM security, escaping, and trust verification tests...');
 
     // -------------------------------------------------------------
+    // Test 0: Target Ruby runtime verification
+    // -------------------------------------------------------------
+    {
+      record('Target Ruby 3.1.7 runtime used for native component execution in onto-q02-proof',
+        fixtures.ruby_version === '3.1.7',
+        `ruby_version: ${fixtures.ruby_version}`
+      );
+    }
+
+    // -------------------------------------------------------------
     // Test 1: Native Ruby LanguageSelectorComponent markup and marker
     // -------------------------------------------------------------
     {
@@ -314,6 +384,26 @@ async function runDomCheck() {
       record('LanguageSelector explicitly outputs server-controlled is-language marker',
         hasLanguageMarker && plainHasNoMarker,
         `hasLanguageMarker: ${hasLanguageMarker}, plainHasNoMarker: ${plainHasNoMarker}`
+      );
+    }
+
+    // -------------------------------------------------------------
+    // Test 1b: Server-rendered marker checks for raw data and non-boolean constructors
+    // -------------------------------------------------------------
+    {
+      const strFalseNoMarker = !fixtures.data_str_false_html.includes('data-select-input-is-language-value');
+      const strTrueNoMarker = !fixtures.data_str_true_html.includes('data-select-input-is-language-value');
+      const symTrueNoMarker = !fixtures.data_sym_true_html.includes('data-select-input-is-language-value');
+      const nonboolFalseNoMarker = !fixtures.nonbool_false_html.includes('data-select-input-is-language-value');
+
+      record('Ordinary selects with raw data string false/true or symbol true do not emit rich language marker',
+        strFalseNoMarker && strTrueNoMarker && symTrueNoMarker,
+        `strFalseNoMarker: ${strFalseNoMarker}, strTrueNoMarker: ${strTrueNoMarker}, symTrueNoMarker: ${symTrueNoMarker}`
+      );
+
+      record('Select with explicit non-boolean string false constructor does not opt in and omits language marker',
+        nonboolFalseNoMarker,
+        `nonboolFalseNoMarker: ${nonboolFalseNoMarker}`
       );
     }
 
@@ -349,6 +439,73 @@ async function runDomCheck() {
       record('Plain option preserves exact raw textContent including $100, quotes, ampersands, Unicode, and newlines',
         res.textContent.trim() === rawSpecial.trim(),
         `textContent: ${res.textContent}`
+      );
+    }
+
+    // -------------------------------------------------------------
+    // Test 2b: Raw data marker strings/symbols and non-boolean constructors remain plain in browser DOM
+    // -------------------------------------------------------------
+    {
+      const negativeDomRes = await page.evaluate(() => {
+        const checkSelect = (selectId, optionVal) => {
+          const sel = document.getElementById(selectId);
+          const ctrl = window.StimulusApp.getControllerForElementAndIdentifier(sel, 'select-input');
+          const ts = ctrl.select;
+          const optEl = ts.render('option', ts.options[optionVal]);
+          ts.addItem(optionVal);
+          const itemEl = sel.parentElement.querySelector(`.item[data-value="${optionVal}"]`);
+          return {
+            isLanguageValue: ctrl.isLanguageValue,
+            markerAttr: sel.getAttribute('data-select-input-is-language-value'),
+            optBoldCount: optEl.querySelectorAll('b').length,
+            optImgCount: optEl.querySelectorAll('img').length,
+            optEscaped: optEl.innerHTML.includes('&lt;b') || optEl.innerHTML.includes('&lt;img'),
+            optText: optEl.textContent.trim(),
+            itemBoldCount: itemEl ? itemEl.querySelectorAll('b').length : 0,
+            itemImgCount: itemEl ? itemEl.querySelectorAll('img').length : 0,
+            itemEscaped: itemEl ? (itemEl.innerHTML.includes('&lt;b') || itemEl.innerHTML.includes('&lt;img')) : false,
+            itemText: itemEl ? itemEl.textContent.trim() : null
+          };
+        };
+
+        return {
+          strFalse: checkSelect('select_data_str_false_select', 'dsf'),
+          strTrue: checkSelect('select_data_str_true_select', 'dst'),
+          symTrue: checkSelect('select_data_sym_true_select', 'dsyt'),
+          nonboolFalse: checkSelect('select_nonbool_false_select', 'nbf')
+        };
+      });
+
+      record('Raw data marker string false select: marker absent/false and literal option/item text without b node',
+        !negativeDomRes.strFalse.isLanguageValue && !negativeDomRes.strFalse.markerAttr &&
+        negativeDomRes.strFalse.optBoldCount === 0 && negativeDomRes.strFalse.itemBoldCount === 0 &&
+        negativeDomRes.strFalse.optEscaped && negativeDomRes.strFalse.itemEscaped &&
+        negativeDomRes.strFalse.optText.includes('Data String False Option'),
+        `markerAttr: ${negativeDomRes.strFalse.markerAttr}, optBold: ${negativeDomRes.strFalse.optBoldCount}`
+      );
+
+      record('Raw data marker string true select: raw marker cleared/absent and literal option/item text without b node',
+        !negativeDomRes.strTrue.isLanguageValue && !negativeDomRes.strTrue.markerAttr &&
+        negativeDomRes.strTrue.optBoldCount === 0 && negativeDomRes.strTrue.itemBoldCount === 0 &&
+        negativeDomRes.strTrue.optEscaped && negativeDomRes.strTrue.itemEscaped &&
+        negativeDomRes.strTrue.optText.includes('Data String True Option'),
+        `markerAttr: ${negativeDomRes.strTrue.markerAttr}, optBold: ${negativeDomRes.strTrue.optBoldCount}`
+      );
+
+      record('Raw data marker symbol true select: raw marker cleared/absent and literal option/item text without b node',
+        !negativeDomRes.symTrue.isLanguageValue && !negativeDomRes.symTrue.markerAttr &&
+        negativeDomRes.symTrue.optBoldCount === 0 && negativeDomRes.symTrue.itemBoldCount === 0 &&
+        negativeDomRes.symTrue.optEscaped && negativeDomRes.symTrue.itemEscaped &&
+        negativeDomRes.symTrue.optText.includes('Data Symbol True Option'),
+        `markerAttr: ${negativeDomRes.symTrue.markerAttr}, optBold: ${negativeDomRes.symTrue.optBoldCount}`
+      );
+
+      record('Explicit non-boolean string false constructor: marker absent/false and literal option/item text without img node',
+        !negativeDomRes.nonboolFalse.isLanguageValue && !negativeDomRes.nonboolFalse.markerAttr &&
+        negativeDomRes.nonboolFalse.optImgCount === 0 && negativeDomRes.nonboolFalse.itemImgCount === 0 &&
+        negativeDomRes.nonboolFalse.optEscaped && negativeDomRes.nonboolFalse.itemEscaped &&
+        negativeDomRes.nonboolFalse.optText.includes('Nonbool False Option'),
+        `markerAttr: ${negativeDomRes.nonboolFalse.markerAttr}, optImg: ${negativeDomRes.nonboolFalse.optImgCount}`
       );
     }
 
