@@ -112,7 +112,7 @@ class AnnotatorController < ApplicationController
         if annotation.annotations.empty?
           row = {
             class: annotation_class_info(annotation.annotatedClass),
-            ontology: annotation_ontology_info(annotation.annotatedClass.links),
+            ontology: annotation_ontology_info(annotation.annotatedClass.links["ontology"]),
             context: "",
             type: 'direct'
           }
@@ -212,7 +212,8 @@ class AnnotatorController < ApplicationController
   end
   def annotation_ontology_info(ontology_url)
     {
-      text: @ontologies[ontology_url].name,
+      # Annotations can come from ontologies outside the visible list; show the acronym then.
+      text: @ontologies[ontology_url]&.name || ontology_url.to_s.split('/').last,
       link: url_to_endpoint(ontology_url)
     }
   end

@@ -357,4 +357,28 @@ class AnnotatorTextPreservationCheck < Minitest::Test
     assert_equal 'UNVERIFIED', unverified_contract[:annotator_backend_utf8_acceptance]
     assert_includes unverified_contract[:annotator_offset_unit], 'UNVERIFIED'
   end
+
+  # Direct matches without context annotations, and annotations from an ontology that is not in the
+  # visible list, must render a result row instead of failing the whole page.
+  def test_direct_match_and_unlisted_ontology_render_rows
+    cls = lambda do |acr, id|
+      OpenStruct.new(prefLabel: "Label #{id}", links: { 'self' => "http://example.org/ontologies/#{acr}/classes/#{id}",
+                                                       'ontology' => "http://example.org/ontologies/#{acr}" })
+    end
+    annotations = [
+      OpenStruct.new(annotatedClass: cls.call('TEST', 'C1'), annotations: [], hierarchy: [], mappings: []),
+      OpenStruct.new(annotatedClass: cls.call('HIDDEN', 'C2'), hierarchy: [], mappings: [],
+                     annotations: [OpenStruct.new(from: 1, to: 4, matchType: 'PREF', text: 'word')])
+    ]
+    LinkedData::Client::HTTP.singleton_class.send(:define_method, :get) do |uri, params = {}, options = {}|
+      uri.to_s.include?('/annotator') ? annotations : []
+    end
+
+    _ctrl, _req, res, data = dispatch_index('some text')
+    assert_equal 200, res.status
+    rows = data[:results]
+    assert_equal 2, rows.size
+    assert_equal 'Test Ontology', rows[0][:ontology][:text]
+    assert_equal 'HIDDEN', rows[1][:ontology][:text]
+  end
 end
