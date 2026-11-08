@@ -184,7 +184,8 @@ class AnnotatorController < ApplicationController
           results: @results,
           raw_annotations: annotations,
           subdomain_filter: @subdomain_filter,
-          text: params[:text]
+          text: params[:text],
+          source_portal: portal_name
         )
       end
     end

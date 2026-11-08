@@ -39,28 +39,8 @@ class RecommenderController < ApplicationController
       end
 
       if (respond_to?(:run_records_enabled?, true) && run_records_enabled?) && @results.present?
-        effective_ontologies = if at_slice?
-                                 slice_acronyms = (@subdomain_filter[:ontologies] || []).map { |id| link_last_part(id) } rescue []
-                                 if params[:ontologies].present?
-                                   selected = params[:ontologies].is_a?(Array) ? params[:ontologies] : params[:ontologies].to_s.split(',')
-                                   selected.select { |o| slice_acronyms.include?(o) }.join(',')
-                                 else
-                                   slice_acronyms.join(',')
-                                 end
-                               else
-                                 params[:ontologies].is_a?(Array) ? params[:ontologies].join(',') : params[:ontologies]
-                               end
-
-        effective_params = {
-          input_type: params[:input_type].presence || '1',
-          output_type: params[:output_type].presence || '1',
-          wc: params[:wc].presence || '0.55',
-          wa: params[:wa].presence || '0.15',
-          wd: params[:wd].presence || '0.15',
-          ws: params[:ws].presence || '0.15',
-          max_elements_set: params[:max_elements_set].presence || '3',
-          ontologies: effective_ontologies
-        }
+        # The recommender posts params unchanged (no slice filtering, no UI defaults).
+        effective_params = params.permit(:input_type, :output_type, :wc, :wa, :wd, :ws, :max_elements_set, :ontologies, ontologies: []).to_h.symbolize_keys
 
         @run_record = ScientificRunRecord.build_recommender_record(
           params: params,
@@ -68,7 +48,8 @@ class RecommenderController < ApplicationController
           results: @results,
           raw_recommendations: recommendations,
           subdomain_filter: @subdomain_filter,
-          input: params[:input]
+          input: params[:input],
+          source_portal: portal_name
         )
       end
     end

@@ -20,7 +20,7 @@ class ScientificRunRecord
   attr_reader :tool, :schema_version, :timestamp, :source_portal, :service_version,
               :selected_settings, :effective_settings, :input_info, :captured_result
 
-  def initialize(tool:, selected_settings:, effective_settings:, input_text:, captured_result:, source_portal: 'matportal', timestamp: nil)
+  def initialize(tool:, selected_settings:, effective_settings:, input_text:, captured_result:, source_portal: UNKNOWN, timestamp: nil)
     @tool = tool.to_s
     @schema_version = SCHEMA_VERSION
     @timestamp = timestamp || Time.now.utc.iso8601
@@ -32,7 +32,7 @@ class ScientificRunRecord
     @captured_result = captured_result || {}
   end
 
-  def self.build_annotator_record(tool:, params:, effective_params:, results:, raw_annotations: nil, subdomain_filter: nil, text: '')
+  def self.build_annotator_record(tool:, params:, effective_params:, results:, raw_annotations: nil, subdomain_filter: nil, text: '', source_portal: UNKNOWN)
     selected = {
       ontologies: normalize_ontologies(params[:ontologies]),
       whole_word_only: boolean_param(params[:whole_word_only]),
@@ -57,10 +57,10 @@ class ScientificRunRecord
       expand_mappings: boolean_param(effective_params[:expand_mappings]),
       exclude_numbers: boolean_param(effective_params[:exclude_numbers]),
       exclude_synonyms: boolean_param(effective_params[:exclude_synonyms]),
-      class_hierarchy_max_level: effective_params[:class_hierarchy_max_level].presence || 'None',
-      score: effective_params[:score].presence || 'none',
-      score_threshold: effective_params[:score_threshold].present? ? effective_params[:score_threshold].to_f : 0.0,
-      confidence_threshold: effective_params[:confidence_threshold].present? ? effective_params[:confidence_threshold].to_f : 0.0,
+      class_hierarchy_max_level: effective_params[:class_hierarchy_max_level].presence || UNKNOWN,
+      score: effective_params[:score].presence || UNKNOWN,
+      score_threshold: effective_params[:score_threshold].present? ? effective_params[:score_threshold].to_f : UNKNOWN,
+      confidence_threshold: effective_params[:confidence_threshold].present? ? effective_params[:confidence_threshold].to_f : UNKNOWN,
       fast_context: boolean_param(effective_params[:fast_context]),
       lemmatize: boolean_param(effective_params[:lemmatize]),
       semantic_types: normalize_list(effective_params[:semantic_types]),
@@ -74,11 +74,12 @@ class ScientificRunRecord
       selected_settings: selected,
       effective_settings: effective,
       input_text: text.to_s,
-      captured_result: captured
+      captured_result: captured,
+      source_portal: source_portal
     )
   end
 
-  def self.build_recommender_record(params:, effective_params:, results:, raw_recommendations: nil, subdomain_filter: nil, input: '')
+  def self.build_recommender_record(params:, effective_params:, results:, raw_recommendations: nil, subdomain_filter: nil, input: '', source_portal: UNKNOWN)
     selected = {
       input_type: params[:input_type].presence || '1',
       output_type: params[:output_type].presence || '1',
@@ -91,13 +92,13 @@ class ScientificRunRecord
     }
 
     effective = {
-      input_type: effective_params[:input_type].presence || '1',
-      output_type: effective_params[:output_type].presence || '1',
-      wc: effective_params[:wc].present? ? effective_params[:wc].to_f : 0.55,
-      wa: effective_params[:wa].present? ? effective_params[:wa].to_f : 0.15,
-      wd: effective_params[:wd].present? ? effective_params[:wd].to_f : 0.15,
-      ws: effective_params[:ws].present? ? effective_params[:ws].to_f : 0.15,
-      max_elements_set: effective_params[:max_elements_set].present? ? effective_params[:max_elements_set].to_i : 3,
+      input_type: effective_params[:input_type].presence || UNKNOWN,
+      output_type: effective_params[:output_type].presence || UNKNOWN,
+      wc: effective_params[:wc].present? ? effective_params[:wc].to_f : UNKNOWN,
+      wa: effective_params[:wa].present? ? effective_params[:wa].to_f : UNKNOWN,
+      wd: effective_params[:wd].present? ? effective_params[:wd].to_f : UNKNOWN,
+      ws: effective_params[:ws].present? ? effective_params[:ws].to_f : UNKNOWN,
+      max_elements_set: effective_params[:max_elements_set].present? ? effective_params[:max_elements_set].to_i : UNKNOWN,
       ontologies: normalize_ontologies(effective_params[:ontologies])
     }
 
@@ -108,7 +109,8 @@ class ScientificRunRecord
       selected_settings: selected,
       effective_settings: effective,
       input_text: input.to_s,
-      captured_result: captured
+      captured_result: captured,
+      source_portal: source_portal
     )
   end
 
@@ -327,11 +329,11 @@ class ScientificRunRecord
         service_version: UNKNOWN,
         highlighted: row[:highlighted] == true,
         scores: {
-          final_score: row[:final_score].present? ? row[:final_score].to_f : 0.0,
-          coverage_score: row[:coverage_score].present? ? row[:coverage_score].to_f : 0.0,
-          acceptance_score: row[:acceptance_score].present? ? row[:acceptance_score].to_f : 0.0,
-          detail_score: row[:details_score].present? ? row[:details_score].to_f : 0.0,
-          specialization_score: row[:specialization_score].present? ? row[:specialization_score].to_f : 0.0
+          final_score: row[:final_score].present? ? row[:final_score].to_f : nil,
+          coverage_score: row[:coverage_score].present? ? row[:coverage_score].to_f : nil,
+          acceptance_score: row[:acceptance_score].present? ? row[:acceptance_score].to_f : nil,
+          detail_score: row[:details_score].present? ? row[:details_score].to_f : nil,
+          specialization_score: row[:specialization_score].present? ? row[:specialization_score].to_f : nil
         },
         annotations_count: Array(row[:annotations]).length,
         annotations: Array(row[:annotations]).map { |a| { text: a[:text], class_id: a[:link] } }

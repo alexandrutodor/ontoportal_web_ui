@@ -354,11 +354,15 @@ class ScientificRunRecordCheck < Minitest::Test
 
     # Selected vs Effective
     assert_equal 'ONT1,OUTSIDE_ONT', record.selected_settings[:ontologies]
-    assert_equal 'ONT1', record.effective_settings[:ontologies], 'recommender effective ontologies must be slice-filtered'
+    # The controller posts params unchanged: effective = what the API received, unsent = unknown.
+    sent = recorded_http_calls.find { |c| c[:method] == :post }[:params]
+    assert_equal sent[:ontologies], record.effective_settings[:ontologies]
+    assert_equal 'ONT1,OUTSIDE_ONT', record.effective_settings[:ontologies], 'no slice filtering is applied by the recommender controller'
     assert_in_delta 0.60, record.effective_settings[:wc], 0.001
     assert_in_delta 0.20, record.effective_settings[:wa], 0.001
-    assert_in_delta 0.15, record.effective_settings[:wd], 0.001, 'effective wd must fill default 0.15'
-    assert_in_delta 0.15, record.effective_settings[:ws], 0.001, 'effective ws must fill default 0.15'
+    assert_equal 'unknown', record.effective_settings[:wd], 'unsent weight is an unknown service default'
+    assert_equal 'unknown', record.effective_settings[:ws], 'unsent weight is an unknown service default'
+    refute_equal 'matportal', record.source_portal
 
     # Scores must be typed Floats
     captured = record.captured_result
