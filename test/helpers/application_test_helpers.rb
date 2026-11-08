@@ -905,6 +905,8 @@ module ApplicationTestHelpers
         else
           a.to_s
         end
+        # Agent.find takes the bare id; affiliations are registered by full URI, which makes find raise.
+        agent_id = agent_id&.split('/')&.last
 
         result = begin
           if TestResourceOwnership.outcome_unknown?(:agent, a)

@@ -22,9 +22,10 @@ class LoginFlowsTest < ApplicationSystemTestCase
     click_on 'Register'
 
     new_user = OpenStruct.new(@user_john.to_h)
-    unique_suffix = "#{Process.pid}_#{Time.now.to_i}"
-    new_user.username = "test_john_#{unique_suffix}"
-    new_user.email = "test_john_#{unique_suffix}@example.com"
+    # Unique per run and within the app's 20-character username rule.
+    unique_suffix = SecureRandom.hex(6)
+    new_user.username = "john#{unique_suffix}"
+    new_user.email = "john#{unique_suffix}@example.com"
     @created_user = new_user
 
     fill_in 'user_firstName', with: new_user.firstName

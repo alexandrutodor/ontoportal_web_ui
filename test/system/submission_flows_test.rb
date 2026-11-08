@@ -9,6 +9,12 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
     @new_ontology = fixtures(:ontologies)[:ontology1]
     @new_submission = fixtures(:submissions)[:submission1]
     teardown
+    # webmock/minitest's teardown also runs WebMock.reset!, which drops the external-service stubs.
+    ExternalPortalStubHelper.stub_isolated_external_services
+    if (pull_location = ENV['ISOLATED_PULL_LOCATION'].presence)
+      # An isolated API cannot fetch remote files; pull the ontology from a file server on its network.
+      fixtures(:submissions).each_pair { |_, sub| sub.pullLocation = pull_location if sub.pullLocation }
+    end
     @groups = create_groups
     @categories = create_categories
     @user_bob = create_user(@user_bob)

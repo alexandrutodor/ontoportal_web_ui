@@ -9,6 +9,7 @@ class FederationTest < ApplicationSystemTestCase
   end
 
   test "perform federated search in search page and make sure federation is working" do
+    skip 'needs the real federated portals; isolated runs have no outside network' if TestTargetGuard.isolated_marker?
 
     visit "#{@search_path}?q=#{@query}"
     results_count_no_federation = find('.search-page-number-of-results').text.scan(/\d+/).first.to_i
@@ -26,6 +27,7 @@ class FederationTest < ApplicationSystemTestCase
 
 
   test "perform federated browse and make sure federation is working" do
+    skip 'needs the real federated portals; isolated runs have no outside network' if TestTargetGuard.isolated_marker?
     ###### Federation non activated
     visit "#{@ontologies_path}"
     wait_for_browse_loaded

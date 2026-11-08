@@ -32,7 +32,7 @@ class ActiveSupport::TestCase
   setup do
     TestTargetGuard.enforce_isolated_test_target!
     FlipperSetup.test_configure!
-    ExternalPortalStubHelper.stub_configured_external_portal_health_checks
+    ExternalPortalStubHelper.stub_isolated_external_services
   end
 end
 

@@ -48,6 +48,38 @@ module ExternalPortalStubHelper
     urls
   end
 
+  # Isolated runs have no outside network. Answer the app's background probes the way an
+  # unreachable service would, so the app's own failure handling runs; WebMock's refusal is not a
+  # StandardError and would otherwise escape it. A global stub survives WebMock.reset! (teardown can
+  # race with late Turbo frame requests) and runs after local stubs, so portal health stubs win.
+  def self.stub_isolated_external_services
+    unless @isolated_services_stubbed
+      WebMock.globally_stub_request(:after_local_stubs) do |request|
+        next if WebMock.net_connect_allowed?(request.uri)
+
+        if request.method == :head || external_portal_request?(request.uri)
+          { exception: Errno::ECONNREFUSED }
+        elsif request.method == :post && foops_request?(request.uri)
+          { status: 503, body: '' }
+        end
+      end
+      @isolated_services_stubbed = true
+    end
+    stub_configured_external_portal_health_checks
+  end
+
+  # Federated portals are unreachable in isolated runs, like a portal that is down.
+  def self.external_portal_request?(uri)
+    configured_external_portal_urls.any? { |url| (portal = URI.parse(url)).host == uri.host && portal.port == uri.port }
+  end
+
+  def self.foops_request?(uri)
+    return false unless defined?($FOOPS_URL) && $FOOPS_URL.present?
+
+    foops = URI.parse($FOOPS_URL)
+    uri.host == foops.host && uri.path == foops.path
+  end
+
   def stub_configured_external_portal_health_checks(status: 200)
     ExternalPortalStubHelper.stub_configured_external_portal_health_checks(status: status)
   end

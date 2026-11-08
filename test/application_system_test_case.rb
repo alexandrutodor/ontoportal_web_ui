@@ -13,6 +13,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   setup do
     TestTargetGuard.configure_webmock!
+    # API client responses are cached in memcached; earlier tests' deleted resources must not reappear.
+    Rails.cache.clear
+    # Remote Selenium uploads typed text that names an existing path; a single typed "." is the working directory.
+    page.driver.browser.file_detector = ->(args) { path = args.first.to_s; path if File.file?(path) }
   end
 
   driven_by :selenium, using: ENV['CI'].present? ? :headless_chrome : :chrome, screen_size: [1400, 1400], options: {
