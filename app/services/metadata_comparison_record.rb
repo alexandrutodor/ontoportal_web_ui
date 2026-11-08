@@ -198,6 +198,7 @@ class MetadataComparisonRecord
         build_unavailable_row(row_key, acr, sub_id, nil, "Ontology #{acr} not found or inaccessible")
       else
         ont_uri = ontology_uri(ontology, acr)
+        @unknowns << "Ontology URI of #{acr} unknown" if ontology && ont_uri.nil?
         submission = fetch_submission(ontology, sub_id)
 
         if submission.nil?
@@ -211,15 +212,7 @@ class MetadataComparisonRecord
   end
 
   def normalize_selections
-    if @raw_submission_ids.empty? && @ontology_acronym.present?
-      # If no explicit submission id is provided, fetch latest for the default ontology
-      ont = fetch_ontology(@ontology_acronym)
-      latest = ont&.explore&.latest_submission(include: 'submissionId') rescue nil
-      if latest&.submissionId.present?
-        return [{ ontology_acronym: @ontology_acronym, submission_id: latest.submissionId.to_s }]
-      end
-    end
-
+    # Only explicitly selected submissions are captured; there is no fallback to the latest one.
     @raw_submission_ids.map do |item|
       if item.include?('#')
         parts = item.split('#')
@@ -258,7 +251,7 @@ class MetadataComparisonRecord
     elsif ontology.respond_to?(:links) && ontology.links.is_a?(Hash) && ontology.links['self'].present?
       ontology.links['self']
     else
-      "http://data.example.org/ontologies/#{acronym}"
+      nil # unknown: the API returned no ontology URI
     end
   end
 
@@ -268,7 +261,7 @@ class MetadataComparisonRecord
     elsif submission.respond_to?(:links) && submission.links.is_a?(Hash) && submission.links['self'].present?
       submission.links['self']
     else
-      "#{ont_uri}/submissions/#{submission_id}"
+      nil # unknown: the API returned no submission URI
     end
   end
 
@@ -298,6 +291,7 @@ class MetadataComparisonRecord
 
   def build_available_row(row_key, acr, sub_id, ontology, ont_uri, submission)
     sub_uri = submission_uri(submission, ont_uri, sub_id)
+    @unknowns << "Submission URI of #{acr} #{sub_id} unknown" if sub_uri.nil?
     raw_version = extract_attribute_value(submission, 'version')
     version_id = (raw_version.present? && raw_version.to_s.downcase != 'unknown') ? raw_version.to_s : nil
     @unknowns << "Submission #{sub_id} upstream version unknown" if version_id.nil?

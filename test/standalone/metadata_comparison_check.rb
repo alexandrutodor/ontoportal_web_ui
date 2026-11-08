@@ -339,6 +339,12 @@ class MetadataComparisonCheck < Minitest::Test
     assert_nil rec_missing['submission_uri'], 'Unavailable submission must have nil URI'
   end
 
+  def test_03b_no_explicit_selection_captures_nothing
+    Flipper.metadata_comparison_enabled_override = true
+    record = MetadataComparisonRecord.build({ ontology: 'ONT', properties: %w[acronym] })
+    assert_empty record.records, 'without explicit submission ids nothing is captured (no latest fallback)'
+  end
+
   # ===========================================================================
   # 4. Ontology vs Submission Level Labels and Notes
   # ===========================================================================
