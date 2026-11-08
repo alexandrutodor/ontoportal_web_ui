@@ -108,8 +108,8 @@ class HomeController < ApplicationController
 
     # We're using a hidden form field to trigger for error checking
     # If sim_submit is nil, we know the form hasn't been submitted and we should
-    # bypass form processing.
-    if params[:sim_submit].nil?
+    # bypass form processing. Only the POSTed form sends feedback; a GET link never does.
+    if params[:sim_submit].nil? || !request.post?
       render 'home/feedback/feedback', layout: feedback_layout
       return
     end

@@ -124,7 +124,7 @@ Rails = MockRails unless defined?(Rails)
 
 # Test harness class for actual controller methods
 class TestControllerHarness
-  attr_accessor :session, :params, :errors, :flash, :verify_recaptcha_result
+  attr_accessor :session, :params, :errors, :flash, :verify_recaptcha_result, :post_request
 
   def initialize
     @session = {}
@@ -143,12 +143,18 @@ class TestControllerHarness
   end
 
   def render(*args); end
+  # Feedback cases model the submitted (POSTed) form unless post_request is false.
+  def request = Struct.new(:post?).new(@post_request != false)
   def redirect_to_home(*args); end
 end
 
 # Minimal stub for Notifier to prevent mail sending
 module MockNotifier
+  @sent = 0
+  class << self; attr_reader :sent; end
+
   def self.feedback(*args)
+    @sent += 1
     self
   end
 
@@ -401,6 +407,16 @@ harness.params = valid_fb_params
 harness.verify_recaptcha_result = false
 harness.feedback
 assert(harness.errors.empty?, 'HomeController#feedback: authenticated-feedback exemption (logged-in user exempt even when enabled)')
+
+# 3i: GET with a complete feedback query string renders the form and sends nothing (ONTO-T-B02)
+ENV['USE_RECAPTCHA'] = 'false'
+harness.session[:user] = nil
+harness.params = valid_fb_params
+harness.post_request = false
+sent_before = Notifier.sent
+harness.feedback
+harness.post_request = true
+assert(Notifier.sent == sent_before, 'HomeController#feedback: GET never sends feedback, even with sim_submit and valid fields')
 
 ENV.delete('USE_RECAPTCHA')
 
