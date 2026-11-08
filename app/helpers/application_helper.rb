@@ -45,6 +45,12 @@ module ApplicationHelper
     defined?(Flipper) && Flipper.enabled?('QueryRecipes', user)
   end
 
+  def run_records_enabled?
+    return false unless defined?(Flipper) && Flipper.respond_to?(:enabled?)
+    user = current_user rescue (session[:user] rescue nil)
+    Flipper.enabled?('RunRecords', user)
+  end
+
   def sparql_enabled?
     user = current_user rescue nil
     Flipper.enabled?('SPARQL', user) && $SPARQL_ENDPOINT_URL

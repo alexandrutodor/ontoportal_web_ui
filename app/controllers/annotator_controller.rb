@@ -10,6 +10,15 @@ class AnnotatorController < ApplicationController
   NCBO_ANNOTATOR_PLUS_URI = $NCBO_ANNOTATOR_URL
 
   before_action :initialize_options, only: [:index, :annotator_plus, :ncbo_annotator_plus]
+  helper_method :annotator_tool_name
+
+  def annotator_tool_name
+    case action_name
+    when 'annotator_plus' then 'annotatorplus'
+    when 'ncbo_annotator_plus' then 'ncbo_annotatorplus'
+    else 'annotator'
+    end
+  end
   def index
     set_annotator_info('/annotator', 'Annotator', ANNOTATOR_URI)
   end
@@ -86,7 +95,7 @@ class AnnotatorController < ApplicationController
       if at_slice?
         slice_ontologies_acronyms = @subdomain_filter[:ontologies].map{ |id| link_last_part(id)}
         if api_params[:ontologies]
-          selected_ontolgies = api_params[:ontologies].split(',')
+          selected_ontolgies = api_params[:ontologies].is_a?(Array) ? api_params[:ontologies] : api_params[:ontologies].to_s.split(',')
           filtred_ontologies = selected_ontolgies.select{ |ontology| slice_ontologies_acronyms.include?(ontology) }
         else
           filtred_ontologies = slice_ontologies_acronyms
@@ -167,6 +176,17 @@ class AnnotatorController < ApplicationController
         end
       end
       @advanced_options_open = !empty_advanced_options
+      if (respond_to?(:run_records_enabled?, true) && run_records_enabled?) && @results.present?
+        @run_record = ScientificRunRecord.build_annotator_record(
+          tool: annotator_tool_name,
+          params: params,
+          effective_params: api_params,
+          results: @results,
+          raw_annotations: annotations,
+          subdomain_filter: @subdomain_filter,
+          text: params[:text]
+        )
+      end
     end
   end
 

@@ -37,6 +37,40 @@ class RecommenderController < ApplicationController
       if (winner_index = recommendations.each_with_index.max_by { |rec, _idx| rec.evaluationScore.to_f }&.last)
         @results[winner_index][:highlighted] = true
       end
+
+      if (respond_to?(:run_records_enabled?, true) && run_records_enabled?) && @results.present?
+        effective_ontologies = if at_slice?
+                                 slice_acronyms = (@subdomain_filter[:ontologies] || []).map { |id| link_last_part(id) } rescue []
+                                 if params[:ontologies].present?
+                                   selected = params[:ontologies].is_a?(Array) ? params[:ontologies] : params[:ontologies].to_s.split(',')
+                                   selected.select { |o| slice_acronyms.include?(o) }.join(',')
+                                 else
+                                   slice_acronyms.join(',')
+                                 end
+                               else
+                                 params[:ontologies].is_a?(Array) ? params[:ontologies].join(',') : params[:ontologies]
+                               end
+
+        effective_params = {
+          input_type: params[:input_type].presence || '1',
+          output_type: params[:output_type].presence || '1',
+          wc: params[:wc].presence || '0.55',
+          wa: params[:wa].presence || '0.15',
+          wd: params[:wd].presence || '0.15',
+          ws: params[:ws].presence || '0.15',
+          max_elements_set: params[:max_elements_set].presence || '3',
+          ontologies: effective_ontologies
+        }
+
+        @run_record = ScientificRunRecord.build_recommender_record(
+          params: params,
+          effective_params: effective_params,
+          results: @results,
+          raw_recommendations: recommendations,
+          subdomain_filter: @subdomain_filter,
+          input: params[:input]
+        )
+      end
     end
   end
 

@@ -1924,3 +1924,18 @@ fr:
     edit_sample_queries: Éditer les requêtes d'exemple
     sample_queries_saved: Requêtes d'exemple enregistrées.
     sample_queries_save_error: Les requêtes d'exemple n'ont pas pu être enregistrées. Vos modifications sont toujours dans l'éditeur, vous pouvez réessayer.
+  scientific_run_record:
+    download: "Télécharger l'enregistrement d'exécution"
+    import: "Importer un enregistrement d'exécution"
+    title: "Enregistrement d'exécution scientifique"
+    include_input_text: "Inclure le texte d'entrée"
+    include_results: "Inclure les résultats capturés"
+    settings_only_note: "Un enregistrement avec paramètres uniquement nécessite le texte d'origine pour être réexécuté."
+    input_matched: "Le texte d'entrée correspond à l'empreinte SHA-256 enregistrée."
+    input_mismatch: "Le texte d'entrée ne correspond pas à l'empreinte enregistrée."
+    loaded_for_inspection: "Enregistrement chargé pour inspection. Cliquez sur Exécuter pour lancer."
+    invalid_json: "Enregistrement invalide : le fichier n'est pas un JSON valide."
+    unsupported_tool: "Outil non supporté : l'outil '%{tool}' ne correspond pas à '%{expected}'."
+    unsupported_schema: "Version de schéma non supportée : %{version}."
+    credentials_rejected: "Rejeté : l'enregistrement contient des identifiants ou champs d'authentification."
+    foreign_url_rejected: "Rejeté : l'enregistrement contient des URL de service externes."

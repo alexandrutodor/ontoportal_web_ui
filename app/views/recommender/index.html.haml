@@ -72,6 +72,9 @@
 
         .recommender-page-button#get_recommendations_button{class: is_input ?  "" : "d-none", 'data-recommender-target': 'button'}
           = render Buttons::RegularButtonComponent.new(id:'recommender', value: t('recommender.get_recommendations'), variant: "primary", type: 'submit')
+          - if run_records_enabled? && (@results.nil? || @results.empty?)
+            .d-inline-block.ml-2
+              = render ScientificRunRecordComponent.new(tool: 'recommender', run_record: nil, mode: :import_only, form_selector: 'form')
 
         .recommender-page-button{class: is_input ? "d-none" : "", 'data-action': 'click->recommender#edit', id: 'recommender-edit-button'}
           = render Buttons::RegularButtonComponent.new(id:'edit-recommender', value: t('recommender.edit'), variant: "primary") do |btn|
@@ -123,3 +126,6 @@
             = render Buttons::RegularButtonComponent.new(id:'recommender_go_annotator', value: t('recommender.call_annotator'), variant: "secondary", href: "/annotator?text=#{CGI.escape(params[:input].to_s)}&ontologies=#{CGI.escape(params[:ontologies].to_s)}", size: "slim", target: '_blank', state: "regular") do |btn|
               - btn.icon_right do
                 = inline_svg_tag "arrow-right-outlined.svg"
+          - if run_records_enabled?
+            .run-record-button
+              = render ScientificRunRecordComponent.new(tool: 'recommender', run_record: @run_record, mode: :actions, form_selector: 'form')

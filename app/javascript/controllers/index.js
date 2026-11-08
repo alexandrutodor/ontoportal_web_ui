@@ -132,3 +132,6 @@ application.register("mapping-evidence", MappingEvidenceController)
 
 import QueryRecipeController from "./query_recipe_controller.js"
 application.register("query-recipe", QueryRecipeController)
+
+import ScientificRunRecordController from "./scientific_run_record_controller.js"
+application.register("scientific-run-record", ScientificRunRecordController)

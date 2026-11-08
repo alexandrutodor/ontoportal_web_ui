@@ -1868,3 +1868,18 @@ en:
     edit_sample_queries: Edit sample queries
     sample_queries_saved: Sample queries saved.
     sample_queries_save_error: Sample queries could not be saved. Your changes are still in the editor, so you can try again.
+  scientific_run_record:
+    download: Download Run Record
+    import: Import Run Record
+    title: Scientific Run Record
+    include_input_text: Include input text
+    include_results: Include captured results
+    settings_only_note: Settings-only record requires the original input to rerun.
+    input_matched: Input text matches recorded SHA-256 digest.
+    input_mismatch: Input text does not match recorded digest.
+    loaded_for_inspection: Record loaded for inspection. Click Run to execute.
+    invalid_json: "Invalid record: file is not valid JSON."
+    unsupported_tool: "Unsupported tool: record tool '%{tool}' does not match '%{expected}'."
+    unsupported_schema: "Unsupported schema version: %{version}."
+    credentials_rejected: "Rejected: record contains credential or authentication fields."
+    foreign_url_rejected: "Rejected: record contains foreign endpoint URLs."
