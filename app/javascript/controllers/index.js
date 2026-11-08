@@ -135,3 +135,6 @@ application.register("query-recipe", QueryRecipeController)
 
 import ScientificRunRecordController from "./scientific_run_record_controller.js"
 application.register("scientific-run-record", ScientificRunRecordController)
+
+import MetadataComparisonRecordController from "./metadata_comparison_record_controller.js"
+application.register("metadata-comparison-record", MetadataComparisonRecordController)

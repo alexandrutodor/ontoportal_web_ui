@@ -51,6 +51,11 @@ module ApplicationHelper
     Flipper.enabled?('RunRecords', user)
   end
 
+  def metadata_comparison_enabled?
+    user = current_user rescue nil
+    Flipper.enabled?('MetadataComparison', user)
+  end
+
   def sparql_enabled?
     user = current_user rescue nil
     Flipper.enabled?('SPARQL', user) && $SPARQL_ENDPOINT_URL

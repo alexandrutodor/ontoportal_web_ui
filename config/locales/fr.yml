@@ -1,5 +1,23 @@
 ---
 fr:
+  metadata_comparison:
+    title: "Comparaison des métadonnées"
+    compare_metadata: "Comparer les métadonnées"
+    reopen_package: "Rouvrir un paquet enregistré"
+    download_json: "Télécharger le paquet JSON"
+    download_csv: "Télécharger le CSV associé"
+    refresh: "Actualiser la capture"
+    retrieval_timestamp: "Capturé le : %{time}"
+    read_only_notice: "Capture en lecture seule"
+    submission: "Soumission"
+    ontology_level_label: "Niveau ontologie (actuel à la capture)"
+    submission_level_label: "Niveau soumission"
+    status_available: "Disponible"
+    status_unavailable: "Indisponible"
+    state_empty: "Vide"
+    state_unknown: "Inconnu"
+    invalid_package: "Paquet de comparaison invalide"
+    missing_id_error: "La soumission %{id} n'a pas pu être récupérée"
   activerecord:
     errors:
       models:

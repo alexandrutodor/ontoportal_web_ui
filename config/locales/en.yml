@@ -1,5 +1,23 @@
 ---
 en:
+  metadata_comparison:
+    title: "Metadata Comparison"
+    compare_metadata: "Compare Metadata"
+    reopen_package: "Reopen Saved Package"
+    download_json: "Download JSON Package"
+    download_csv: "Download Companion CSV"
+    refresh: "Refresh Capture"
+    retrieval_timestamp: "Captured at: %{time}"
+    read_only_notice: "Read-only capture"
+    submission: "Submission"
+    ontology_level_label: "Ontology level (current at capture)"
+    submission_level_label: "Submission level"
+    status_available: "Available"
+    status_unavailable: "Unavailable"
+    state_empty: "Empty"
+    state_unknown: "Unknown"
+    invalid_package: "Invalid comparison package"
+    missing_id_error: "Submission %{id} could not be retrieved"
   activerecord:
     errors:
       models:
