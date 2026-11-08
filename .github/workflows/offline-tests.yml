@@ -36,3 +36,37 @@ jobs:
 
       - name: Run offline SPARQL helper RSpec
         run: bundle exec rspec spec/helpers/sparql_spec.rb spec/offline_network_boundary_spec.rb
+
+  legacy-rspec:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        ports:
+          - "3306:3306"
+        env:
+          MYSQL_ROOT_PASSWORD: root
+    env:
+      DB_HOST: 127.0.0.1
+      RAILS_ENV: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Install Ruby and gems
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.1.0
+          bundler-cache: true
+
+      - name: Set up config file
+        run: cp config/database.yml.sample config/database.yml
+
+      - name: Set up database schema
+        run: bin/rails db:create db:schema:load
+
+      # spec/lib is excluded: the KGCL change-request feature is unreachable (no create route, GitHub::Client initializer commented out, Zeitwerk cannot load KGCL)
+      - name: Run legacy RSpec
+        run: bundle exec rspec spec/components spec/mailers spec/models spec/services

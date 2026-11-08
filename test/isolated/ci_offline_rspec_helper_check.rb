@@ -68,6 +68,40 @@ extracted_command = run_step['run'].strip
 expected_command = 'bundle exec rspec spec/helpers/sparql_spec.rb spec/offline_network_boundary_spec.rb'
 assert(extracted_command == expected_command, "extracted command matches expected: #{extracted_command}", failures) && (passed_count += 1)
 
+assert(jobs.key?('legacy-rspec'), "offline-tests.yml defines 'legacy-rspec' job", failures) && (passed_count += 1)
+
+legacy_job = jobs['legacy-rspec']
+assert(legacy_job['runs-on'] == 'ubuntu-latest', 'legacy-rspec job runs on ubuntu-latest', failures) && (passed_count += 1)
+assert(legacy_job.dig('services', 'mysql', 'image') == 'mysql:8.0', 'legacy-rspec defines mysql:8.0 service', failures) && (passed_count += 1)
+assert(legacy_job.dig('services', 'mysql', 'env', 'MYSQL_ROOT_PASSWORD') == 'root', 'legacy-rspec configures root mysql password', failures) && (passed_count += 1)
+assert(!legacy_job.to_s.include?('secrets.'), 'legacy-rspec references no secrets', failures) && (passed_count += 1)
+
+legacy_steps = legacy_job['steps'] || []
+legacy_checkout = legacy_steps.find { |s| s['uses']&.start_with?('actions/checkout') }
+assert(legacy_checkout.is_a?(Hash), 'legacy-rspec includes actions/checkout step', failures) && (passed_count += 1)
+assert(legacy_checkout['uses'] == 'actions/checkout@v3', 'legacy-rspec uses actions/checkout@v3', failures) && (passed_count += 1)
+assert(legacy_checkout.dig('with', 'persist-credentials') == false, 'legacy-rspec specifies persist-credentials: false', failures) && (passed_count += 1)
+
+legacy_ruby = legacy_steps.find { |s| s['uses']&.start_with?('ruby/setup-ruby') }
+assert(legacy_ruby.is_a?(Hash), 'legacy-rspec includes ruby/setup-ruby step', failures) && (passed_count += 1)
+assert(legacy_ruby['uses'] == 'ruby/setup-ruby@v1', 'legacy-rspec uses ruby/setup-ruby@v1', failures) && (passed_count += 1)
+assert(legacy_ruby.dig('with', 'ruby-version') == '3.1.0', 'legacy-rspec ruby specifies ruby-version: 3.1.0', failures) && (passed_count += 1)
+assert(legacy_ruby.dig('with', 'bundler-cache') == true, 'legacy-rspec ruby specifies bundler-cache: true', failures) && (passed_count += 1)
+
+legacy_db_config = legacy_steps.find { |s| s['run']&.include?('config/database.yml') }
+assert(legacy_db_config.is_a?(Hash), 'legacy-rspec includes database config setup', failures) && (passed_count += 1)
+
+legacy_db_schema = legacy_steps.find { |s| s['run']&.include?('db:schema:load') }
+assert(legacy_db_schema.is_a?(Hash), 'legacy-rspec includes database schema load', failures) && (passed_count += 1)
+
+legacy_run = legacy_steps.find { |s| s['run']&.start_with?('bundle exec rspec') }
+assert(legacy_run.is_a?(Hash), 'legacy-rspec includes run step', failures) && (passed_count += 1)
+assert(legacy_steps.none? { |s| s['continue-on-error'] == true }, 'legacy-rspec enforces fail-on-error (no continue-on-error)', failures) && (passed_count += 1)
+
+legacy_extracted = legacy_run['run'].strip
+legacy_expected = 'bundle exec rspec spec/components spec/mailers spec/models spec/services'
+assert(legacy_extracted == legacy_expected, "legacy-rspec extracted command matches expected: #{legacy_extracted}", failures) && (passed_count += 1)
+
 puts "\n=== Step 2: Execute Extracted Wired Command in Isolated Container (--network none) ==="
 
 docker_cmd = [
