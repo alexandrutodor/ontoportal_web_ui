@@ -342,8 +342,9 @@ class BulkMetadataGuardCheck < Minitest::Test
     auth_filter_obj = auth_cb.instance_variable_get(:@if)&.first
     auth_actions = auth_filter_obj&.instance_variable_get(:@actions)
 
-    assert_equal Set['result', 'edit', 'update'], auth_actions,
-                 ':authorize_admin must be scoped strictly to [:result, :edit, :update]'
+    # ONTO-AT-OP02 adds the admin-only bulk preview/confirm actions to the same guard.
+    assert_equal Set['result', 'edit', 'update', 'preview', 'confirm'], auth_actions,
+                 ':authorize_admin must be scoped strictly to the bulk actions [:result, :edit, :update, :preview, :confirm]'
     refute_includes auth_actions, 'show_metadata_by_ontology',
                     ':authorize_admin must NOT guard shared GET show_metadata_by_ontology'
     refute_includes auth_actions, 'show_metadata_value',

@@ -2,9 +2,8 @@ class OntologiesMetadataCuratorController < ApplicationController
   include TurboHelper, SubmissionsHelper, ActionView::Helpers::FormHelper
   include SubmissionUpdater
   layout :determine_layout
-  prepend_before_action :authorize_admin, only: [:result, :edit, :update]
+  prepend_before_action :authorize_admin, only: [:result, :edit, :update, :preview, :confirm]
   before_action :ensure_bulk_metadata_preview_enabled, only: [:preview, :confirm]
-  before_action :authorize_admin_for_preview, only: [:preview, :confirm]
   before_action :submission_metadata, only: [:result, :edit, :update, :show_metadata_by_ontology, :preview, :confirm]
 
   def result
@@ -94,13 +93,11 @@ class OntologiesMetadataCuratorController < ApplicationController
     active_submission_data = params['submission'] ? params['submission'][active_sub_key] : nil
 
     if params[:retry_targets].present?
-      retry_targets = Array(params[:retry_targets])
-      if session[:bulk_metadata_review_receipt].is_a?(Array)
-        allowed_retry = session[:bulk_metadata_review_receipt]
-                          .select { |r| (r[:status] || r['status'])&.to_sym == :rejected }
-                          .map { |r| (r[:target] || r['target']).to_s }
-        retry_targets = retry_targets & allowed_retry
-      end
+      # Only known failures from this session's receipt can be retried; no receipt means nothing to retry.
+      allowed_retry = Array(session[:bulk_metadata_review_receipt])
+                        .select { |r| (r[:status] || r['status'])&.to_sym == :rejected }
+                        .map { |r| (r[:target] || r['target']).to_s }
+      retry_targets = Array(params[:retry_targets]) & allowed_retry
       @selected_ontologies.select! { |onto, sub_i| retry_targets.include?("#{onto}##{sub_i}") }
     end
 
@@ -224,7 +221,8 @@ class OntologiesMetadataCuratorController < ApplicationController
             message: t('ontologies_metadata_curator.receipt_success')
           }
         elsif response && response.status != 204
-          err_msg = bulk_update_error_message(response)
+          # A received non-204 is a known rejection, even if its error body cannot be parsed.
+          err_msg = (bulk_update_error_message(response) rescue nil).presence || "HTTP #{response.status}"
           failures << "#{onto}: #{err_msg}"
           receipt << {
             target: target_id,
@@ -255,13 +253,13 @@ class OntologiesMetadataCuratorController < ApplicationController
           message: "#{t('ontologies_metadata_curator.receipt_unknown')}: #{e.message}"
         }
       rescue StandardError => e
-        is_timeout = e.message =~ /timeout|timed out|connreset/i
+        # No response was received, so the write may or may not have happened: re-read before any retry.
         receipt << {
           target: target_id,
           ontology: onto,
           submission_id: sub_i,
           fields: context[:selected_metadata],
-          status: (is_timeout ? :unknown : :rejected),
+          status: :unknown,
           message: e.message
         }
       end
@@ -328,10 +326,6 @@ class OntologiesMetadataCuratorController < ApplicationController
 
   def ensure_bulk_metadata_preview_enabled
     head :not_found unless helpers.bulk_metadata_preview_enabled?
-  end
-
-  def authorize_admin_for_preview
-    authorize_admin
   end
 
   def current_curator_user

@@ -715,4 +715,29 @@ class BulkMetadataPreviewCheck < Minitest::Test
     refute_includes receipt_html, 'id="retry_TEST_3"', 'Unknown outcome must NOT have direct retry checkbox'
     assert_includes receipt_html, 'Fresh preview for failed targets'
   end
+
+  def test_09_retry_without_receipt_and_exception_outcome_is_unknown
+    Flipper.enable('BulkMetadataPreview')
+    $preview_spy.submissions_by_target['TEST1#1'] = OpenStruct.new(submissionId: '1', description: 'Desc 1')
+
+    # A retry request with no review receipt in the session selects nothing.
+    _ctrl, _req, res = dispatch(:preview, user: ADMIN_ACTOR, session_hash: { session_id: 'sess_no_receipt' }, params: {
+      selected_ontologies: ['TEST1#1'], active_ontology: 'TEST1#1', selected_metadata: ['description'],
+      retry_targets: ['TEST1#1'], submission: { 'TEST1_1' => { 'description' => 'x' } }
+    })
+    assert_equal 422, res.status, 'retry without a receipt must not preview any target'
+
+    # An exception without a response is an unknown outcome, never a retryable rejection.
+    ctrl, _req, _res = dispatch(:preview, user: ADMIN_ACTOR, session_hash: { session_id: 'sess_exc' }, params: {
+      selected_ontologies: ['TEST1#1'], active_ontology: 'TEST1#1', selected_metadata: ['description'],
+      submission: { 'TEST1_1' => { 'description' => 'y' } }
+    })
+    token = ctrl.instance_variable_get(:@preview_result)[:preview_token]
+    $preview_spy.raise_on_update_by_ontology['TEST1'] = StandardError.new('connection dropped mid-write')
+    ctrl, _req, _res = dispatch(:confirm, user: ADMIN_ACTOR, session_hash: { session_id: 'sess_exc' }, params: {
+      preview_token: token, confirmed_targets: ['TEST1#1']
+    })
+    row = ctrl.instance_variable_get(:@review_receipt).find { |r| r[:target] == 'TEST1#1' }
+    assert_equal :unknown, row[:status]
+  end
 end
