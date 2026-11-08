@@ -47,6 +47,8 @@ $LOAD_PATH.unshift(File.join(worktree_root, 'app/controllers'))
 require 'rails'
 require 'action_controller'
 require 'active_record'
+require 'action_view' # app helpers include ActionView modules at load time
+Rails.cache = ActiveSupport::Cache::MemoryStore.new # SubscriptionsController#create invalidates cached counts
 
 # Require actual helpers needed by ApplicationController and target controllers
 require 'urls_helper'
@@ -116,6 +118,8 @@ ActionController::Base.include AccountOwnershipRouteHelperStubs
 
 # Finite test double for License model used by ApplicationController#init_trial_license
 class License
+  # Non-MySQL adapter: init_trial_license keeps its plain check-then-create path.
+  def self.connection = Struct.new(:adapter_name).new('NullDB')
   def self.where(*args)
     OpenStruct.new(exists?: true)
   end

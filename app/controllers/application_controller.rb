@@ -419,11 +419,27 @@ class ApplicationController < ActionController::Base
   end
 
   def init_trial_license
-    unless $trial_license_initialized
+    return if $trial_license_initialized
+
+    with_trial_license_lock do
       unless License.where(encrypted_key: 'trial').exists?
         License.create(encrypted_key: 'trial', created_at: Time.current)
       end
       $trial_license_initialized = true
+    end
+  end
+
+  # Processes booting together would each pass the exists? check; serialize it across processes.
+  def with_trial_license_lock
+    conn = License.connection
+    return yield unless conn.adapter_name.match?(/mysql|trilogy/i)
+    # Not acquired within 10s: skip; a later request retries.
+    return unless conn.select_value("SELECT GET_LOCK('ontoportal_trial_license', 10)").to_i == 1
+
+    begin
+      yield
+    ensure
+      conn.select_value("SELECT RELEASE_LOCK('ontoportal_trial_license')")
     end
   end
 

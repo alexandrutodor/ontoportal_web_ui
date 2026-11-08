@@ -49,6 +49,7 @@ $LOAD_PATH.unshift(File.join(worktree_root, 'app/controllers'))
 require 'rails'
 require 'action_controller'
 require 'active_record'
+require 'action_view' # app helpers include ActionView modules at load time
 
 # Require actual helpers needed by ApplicationController
 require 'urls_helper'
@@ -146,6 +147,8 @@ $call_spy = LocalAdminCallSpy.new
 # Finite test double for License model
 class License
   include ActiveModel::Model
+  # Non-MySQL adapter: init_trial_license keeps its plain check-then-create path.
+  def self.connection = Struct.new(:adapter_name).new('NullDB')
   include ActiveModel::Validations
 
   attr_accessor :encrypted_key, :created_at
