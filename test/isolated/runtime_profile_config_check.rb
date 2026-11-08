@@ -57,12 +57,12 @@ assert(prod_depends.dig('cache', 'condition') == 'service_started',
 assert(prod['links']&.include?('db') && prod['links']&.include?('cache'),
        "Production service links db and cache services", failures)
 
-# 7. Preserved volumes (app_ui:/app and assets preserved)
+# 7. Code is served from the image: no volume over /app, compiled assets or node_modules
 prod_volumes = prod['volumes'] || []
-assert(prod_volumes.include?('app_ui:/app'),
-       "Production service preserves 'app_ui:/app' volume", failures)
-assert(prod_volumes.include?('assets:/app/public/assets'),
-       "Production service preserves 'assets:/app/public/assets' volume", failures)
+assert(prod_volumes == ['rails_cache:/app/tmp/cache'],
+       "Production service mounts only the rails_cache volume", failures)
+assert(!(raw_compose['volumes'] || {}).key?('app_ui'),
+       "Compose no longer declares the app_ui code volume", failures)
 
 # 8. Dev and test baseline preservation
 default_app = raw_compose['x-app'] || {}

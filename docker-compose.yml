@@ -89,11 +89,10 @@ services:
         condition: service_healthy
       cache:
         condition: service_started
+    # Code, compiled assets and node_modules come from the image, so replacing the image changes what is served.
+    # Before switching an existing deployment, list its old app_ui volume and move real state out (.remediation/REMOTE-GATES.md).
     volumes:
-      - node:/node_modules
       - rails_cache:/app/tmp/cache
-      - assets:/app/public/assets
-      - app_ui:/app
 
   test:
     <<: *default-app
@@ -126,4 +125,3 @@ volumes:
   rails_cache:
   assets:
   node:
-  app_ui:
