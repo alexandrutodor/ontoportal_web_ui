@@ -1416,6 +1416,38 @@ fr:
     include_all_submissions: Inclure toutes les soumissions
     ontologies: Ontologies
     save: Sauvegarder
+    preview: Prévisualiser les modifications
+    preview_header: Prévisualisation des modifications de métadonnées
+    preview_badge: Vérification avant confirmation
+    preview_notice: 'Les valeurs sont comparées à l''état actuel des soumissions. Décocher une cible l''exclut de la mise à jour. Les modifications externes avant confirmation nécessiteront une nouvelle prévisualisation (revérification au mieux).'
+    confirm_updates: Confirmer les mises à jour
+    cancel_preview: Annuler
+    close: Fermer
+    target: Cible
+    property: Propriété
+    properties: Propriétés
+    current_value: Valeur actuelle
+    proposed_value: Valeur proposée
+    status: Statut
+    status_unchanged: inchangé
+    status_added: ajouté
+    status_replaced: remplacé
+    status_cleared: effacé
+    status_omitted: omis
+    empty_value: (vide)
+    include_target: Inclure
+    invalid_or_expired_preview: Le contexte de prévisualisation est invalide ou a expiré. Veuillez générer une nouvelle prévisualisation.
+    stale_preview_detected: 'Les valeurs actuelles ont changé depuis la prévisualisation pour la cible %{target}. Une nouvelle prévisualisation est requise avant confirmation (revérification au mieux).'
+    no_targets_selected: Aucune cible sélectionnée pour la mise à jour.
+    review_receipt_title: Reçu de révision de mise à jour groupée
+    receipt_badge: Reçu de session
+    receipt_success: Succès
+    receipt_rejected: Rejeté
+    receipt_unknown: Inconnu
+    receipt_unknown_reconcile: Le résultat inconnu nécessite une relecture avant nouvelle tentative
+    retry_col: Réessayer ?
+    details: Détails
+    retry_preview: Nouvelle prévisualisation pour les cibles échouées
     select_ontologies_and_metadata: Sélectionner les ontologies et les propriétés
       de métadonnées
     start_the_bulk_edit: Sélectionnez dans le tableau les soumissions (lignes) et

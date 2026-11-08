@@ -149,6 +149,8 @@ Rails.application.routes.draw do
     post '/result', to: 'ontologies_metadata_curator#result'
     post '/edit', to: 'ontologies_metadata_curator#edit'
     put '/update', to: 'ontologies_metadata_curator#update'
+    post '/preview', to: 'ontologies_metadata_curator#preview'
+    match '/confirm', to: 'ontologies_metadata_curator#confirm', via: [:post, :put]
     get '/:ontology/submissions/:submission_id/attributes/:attribute', to: 'ontologies_metadata_curator#show_metadata_value'
     get '/:ontology/submissions/:submission_id', to: 'ontologies_metadata_curator#show_metadata_by_ontology'
   end

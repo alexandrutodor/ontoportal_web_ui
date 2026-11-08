@@ -1369,6 +1369,38 @@ en:
     include_all_submissions: Include all submissions
     ontologies: Ontologies
     save: Save
+    preview: Preview changes
+    preview_header: Bulk Metadata Changes Preview
+    preview_badge: Review before confirmation
+    preview_notice: 'Values are compared against current submission state. Unchecking a target excludes it from update. External changes before confirmation will require a fresh preview (best-effort recheck).'
+    confirm_updates: Confirm updates
+    cancel_preview: Cancel
+    close: Close
+    target: Target
+    property: Property
+    properties: Properties
+    current_value: Current Value
+    proposed_value: Proposed Value
+    status: Status
+    status_unchanged: unchanged
+    status_added: added
+    status_replaced: replaced
+    status_cleared: cleared
+    status_omitted: omitted
+    empty_value: (empty)
+    include_target: Include
+    invalid_or_expired_preview: The preview context is invalid or expired. Please generate a fresh preview.
+    stale_preview_detected: 'Current values changed since preview for target %{target}. A fresh preview is required before confirmation (best-effort recheck).'
+    no_targets_selected: No targets selected for update.
+    review_receipt_title: Bulk Update Review Receipt
+    receipt_badge: Session Receipt
+    receipt_success: Success
+    receipt_rejected: Rejected
+    receipt_unknown: Unknown
+    receipt_unknown_reconcile: Unknown outcome requires re-read before retry
+    retry_col: Retry?
+    details: Details
+    retry_preview: Fresh preview for failed targets
     select_ontologies_and_metadata: Select ontologies and metadata properties
     start_the_bulk_edit: Select in the table submissions (rows) and metadata properties
       (columns) to start the bulk edit

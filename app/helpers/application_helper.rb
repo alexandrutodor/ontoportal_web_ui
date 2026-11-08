@@ -51,6 +51,13 @@ module ApplicationHelper
     Flipper.enabled?('RunRecords', user)
   end
 
+  def bulk_metadata_preview_enabled?
+    return false unless defined?(Flipper) && Flipper.respond_to?(:enabled?)
+    user = current_user rescue (session[:user] rescue nil)
+    actor = user.respond_to?(:flipper_id) ? user : nil
+    actor ? Flipper.enabled?('BulkMetadataPreview', actor) : Flipper.enabled?('BulkMetadataPreview')
+  end
+
   def metadata_comparison_enabled?
     user = current_user rescue nil
     Flipper.enabled?('MetadataComparison', user)
