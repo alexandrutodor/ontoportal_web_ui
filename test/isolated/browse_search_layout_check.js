@@ -9,7 +9,7 @@
  * overlap each other and cause no horizontal document scrolling. Also exercises typing and
  * selection so the form names and the existing data-action stay usable.
  *
- * Usage: node test/isolated/browse_search_layout_check.js   (CSS_BASE_REV defaults to HEAD~1)
+ * Usage: node test/isolated/browse_search_layout_check.js   (CSS_BASE_REV defaults to the pre-fix commit)
  */
 const { chromium } = require('playwright');
 const assert = require('assert');
@@ -19,7 +19,7 @@ const { execFileSync } = require('child_process');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const CHROME_PATH = process.env.CHROME_BIN || '/usr/bin/google-chrome';
-const BASE = process.env.CSS_BASE_REV || 'HEAD~1';
+const BASE = process.env.CSS_BASE_REV || '94754b92102711ebb961d2bd45eb3dac53bd4287'; // browse.scss before ONTO-AT-S02
 const SCSS = 'app/assets/stylesheets/browse.scss';
 const WIDTHS = [1005, 1006, 1100, 1250, 1251, 1440];
 

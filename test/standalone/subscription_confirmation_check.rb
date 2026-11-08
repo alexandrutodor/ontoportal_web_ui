@@ -57,6 +57,7 @@ module Lookbook; class Engine; end; end unless defined?(Lookbook)
 class ApplicationController
   def self.layout(*); end
   def self.before_action(*); end
+  def self.prepend_before_action(*); end
 
   attr_accessor :session, :params, :flash, :request, :rendered, :redirected_to
 

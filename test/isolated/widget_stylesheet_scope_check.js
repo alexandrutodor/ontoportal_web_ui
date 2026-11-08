@@ -15,7 +15,7 @@ const { execFileSync } = require('child_process');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const CHROME_PATH = process.env.CHROME_BIN || '/usr/bin/google-chrome';
-const BASE = process.env.CSS_BASE_REV || 'HEAD~1';
+const BASE = process.env.CSS_BASE_REV || 'de85c78f07b93b058827e0a2591e2b2195203ea0'; // stylesheets before ONTO-AT-R01
 const read = (f) => fs.readFileSync(path.join(ROOT_DIR, f), 'utf8');
 const old = (f) => execFileSync('git', ['-C', ROOT_DIR, 'show', `${BASE}:${f}`], { encoding: 'utf8' });
 const JQUERY = fs.readFileSync(require.resolve('jquery/dist/jquery.min.js'), 'utf8');

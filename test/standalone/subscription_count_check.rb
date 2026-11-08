@@ -5,6 +5,7 @@
 require 'minitest/autorun'
 require 'ostruct'
 require 'active_support/all'
+require 'action_view' # app helpers include ActionView modules at load time
 
 module Rails
   def self.cache
