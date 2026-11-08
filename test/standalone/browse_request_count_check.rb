@@ -513,4 +513,21 @@ class BrowseRequestCountCheck < Minitest::Test
     puts "Page 2 already avoids facet counting (count_objects runs only on page 1)."
     puts "Full catalog materialization is required for client-side sorting/pagination without API pagination."
   end
+
+  # Records allocations and in-process time per page for the fixed fixture; no targets.
+  def test_09_page_cost_measurements
+    dispatch_browse(page: '1') # warm code paths and the analytics cache
+    costs = %w[1 2].to_h do |page|
+      GC.start
+      before = GC.stat(:total_allocated_objects)
+      t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      collection, = dispatch_browse(page: page)
+      ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0) * 1000).round(1)
+      assert_equal 10, collection.size
+      [page, { allocated_objects: GC.stat(:total_allocated_objects) - before, ms: ms }]
+    end
+    payload = JSON.generate($fixture_ontologies.map(&:to_h)).bytesize + JSON.generate($fixture_submissions.map(&:to_h)).bytesize
+    puts "B18_COSTS #{JSON.generate(ontologies: $fixture_ontologies.size, fixture_payload_bytes: payload, pages: costs)}"
+    assert_operator costs['2'][:allocated_objects], :>, 0
+  end
 end
