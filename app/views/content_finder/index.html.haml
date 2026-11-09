@@ -11,14 +11,16 @@
       #submit_button
         = render Buttons::RegularButtonComponent.new(id:'regular-button', value: "Fetch", variant: "primary", size: "slim", type:"submit")
 
-- if !@result&.empty?
+- if @error
+  %div.alert.alert-danger.mt-3= @error
+- elsif @result && !@result.empty?
   %div.p-2.card.content-finder-result.mb-3
-    - if params[:output_format] != "html"
-      = rdf_highlighter_container(@format, @result)
-    - else
+    - if params[:output_format] == "html" && @format == "ntriples"
       = n_triples_to_table(@result)
+    - else
+      = rdf_highlighter_container(@format, @result)
 
-- else
+- elsif params[:acronym].present? && params[:uri].present?
   = empty_state(text: "Content not found")
 
                     

@@ -15,25 +15,43 @@ class Admin::CatalogConfigurationController < ApplicationController
   def update
     config = sanitize_config_params
     response = update_remote_config(config)
-    if response.status == 200
-      flash.now[:notice] = t('admin.catalog_configuration.configuration_updated_successfully')
-    else
-      flash.now[:alert] = t('admin.catalog_configuration.configuration_update_error', error: response.body)
-    end
 
-    @catalog_data = load_catalog_data
-    session[:catalog_data] = @catalog_data
-    @catalog_metadata = session[:catalog_metadata] || load_catalog_metadata
-    @catalog_groups = attributes_groups
-    
-    respond_to do |format|
-      format.turbo_stream do
-        render turbo_stream: turbo_stream.replace(
-          'catalog-config',
-          render_to_string('admin/catalog_configuration/show')
-        )
+    if response_successful?(response)
+      @catalog_data = load_catalog_data(reload: true)
+      session[:catalog_data] = @catalog_data
+      @catalog_metadata = session[:catalog_metadata] || load_catalog_metadata
+      @catalog_groups = attributes_groups
+
+      respond_to do |format|
+        format.turbo_stream do
+          flash.now[:notice] = t('admin.catalog_configuration.configuration_updated_successfully')
+          render turbo_stream: turbo_stream.replace(
+            'catalog-config',
+            render_to_string('admin/catalog_configuration/show')
+          )
+        end
+        format.html do
+          flash[:notice] = t('admin.catalog_configuration.configuration_updated_successfully')
+          redirect_to admin_catalog_configuration_path
+        end
       end
-      format.html { redirect_to admin_api_configuration_index_path }
+    else
+      @catalog_metadata = session[:catalog_metadata] || load_catalog_metadata
+      @catalog_groups = attributes_groups
+      @catalog_data = build_editable_catalog_data(params[:config])
+      flash.now[:alert] = t('admin.catalog_configuration.configuration_update_error', error: extract_update_error(response))
+
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.replace(
+            'catalog-config',
+            render_to_string('admin/catalog_configuration/show')
+          ), status: :unprocessable_entity
+        end
+        format.html do
+          render :show, status: :unprocessable_entity
+        end
+      end
     end
   end
 
@@ -88,39 +106,42 @@ class Admin::CatalogConfigurationController < ApplicationController
     ].freeze
   end
 
-  def load_catalog_data
-    return @catalog_data if @catalog_data
+  def load_catalog_data(reload: false)
+    return @catalog_data if @catalog_data && !reload
 
     params = build_catalog_params(exclude_agents: true)
-    @catalog_data = LinkedData::Client::HTTP.get(CATALOG_PATH, params).to_hash
+    raw_catalog = LinkedData::Client::HTTP.get(CATALOG_PATH, params)
+    data_hash = extract_hash_from_sdk(raw_catalog)
+
     agent_params = build_catalog_params(agents_only: true)
-    catalog_agents = LinkedData::Client::HTTP.get(CATALOG_PATH, agent_params).to_hash
-    @catalog_data.merge!(catalog_agents.to_hash)
-    @catalog_data = sanitize_catalog_data(@catalog_data)
+    raw_agents = LinkedData::Client::HTTP.get(CATALOG_PATH, agent_params)
+    agents_hash = extract_hash_from_sdk(raw_agents)
+
+    data_hash.merge!(agents_hash)
+    @catalog_data = sanitize_catalog_data(data_hash)
     session[:catalog_data] = @catalog_data
     @catalog_data
   rescue StandardError => e
-    handle_catalog_error(e, 'catalog data')
-    @catalog_data = {}
-    session[:catalog_data] = @catalog_data
-    @catalog_data
+    Rails.logger.error("Failed to load catalog data: #{e.class}")
+    flash.now[:alert] ||= t('admin.catalog_configuration.catalog_load_error', default: 'Problem retrieving catalog data')
+    @catalog_data = session[:catalog_data] || {}
   end
 
-  def load_catalog_metadata
-    return @catalog_metadata if @catalog_metadata
+  def load_catalog_metadata(reload: false)
+    return @catalog_metadata if @catalog_metadata && !reload
 
     catalog_metadata_list = LinkedData::Client::HTTP.get(CATALOG_METADATA_URL, {})
-    filtered_metadata = catalog_metadata_list.select do |metadata| 
-      list_included_attributes.include?(metadata.attribute) 
+    filtered_metadata = Array(catalog_metadata_list).select do |metadata| 
+      metadata.respond_to?(:attribute) && list_included_attributes.include?(metadata.attribute) 
     end
     
     @catalog_metadata = filtered_metadata.index_by(&:attribute)
     session[:catalog_metadata] = @catalog_metadata
     @catalog_metadata
   rescue StandardError => e
-    @catalog_metadata = {}
-    session[:catalog_metadata] = @catalog_metadata
-    @catalog_metadata
+    Rails.logger.error("Failed to load catalog metadata: #{e.class}")
+    flash.now[:alert] ||= t('admin.catalog_configuration.metadata_load_error', default: 'Problem retrieving catalog metadata')
+    @catalog_metadata = session[:catalog_metadata] || {}
   end
 
   def build_catalog_params(exclude_agents: false, agents_only: false)
@@ -141,17 +162,26 @@ class Admin::CatalogConfigurationController < ApplicationController
   end
 
   def update_remote_config(config)
-    response = LinkedData::Client::HTTP.patch(CATALOG_PATH, config)
+    LinkedData::Client::HTTP.patch(CATALOG_PATH, config)
   rescue StandardError => e
-    Rails.logger.error("Config update failed: #{e.message}")
-    OpenStruct.new(status: 500, body: e.message)
+    Rails.logger.error("Config update failed: #{e.class}")
+    OpenStruct.new(status: 500, body: "Update failed: #{e.class}")
   end
 
   def sanitize_catalog_data(catalog_data)
-    catalog_data_sanitized = catalog_data
+    return {} unless catalog_data.is_a?(Hash)
+
+    catalog_data_sanitized = catalog_data.dup
     # sanitize themeTaxonomy to let only the acronyms of the ontologies
-    catalog_data_sanitized[:themeTaxonomy] = catalog_data_sanitized[:themeTaxonomy].select { |url| url.start_with?(rest_url) }.map { |url| url.split('/').last }
-    return catalog_data_sanitized
+    taxonomy = catalog_data_sanitized[:themeTaxonomy] || catalog_data_sanitized['themeTaxonomy']
+    if taxonomy.is_a?(Array)
+      r_url = rest_url.to_s
+      cleaned = taxonomy.select { |url| url.is_a?(String) && (!r_url.empty? && url.start_with?(r_url)) }.map { |url| url.split('/').last }
+      catalog_data_sanitized[:themeTaxonomy] = cleaned
+    else
+      catalog_data_sanitized[:themeTaxonomy] = []
+    end
+    catalog_data_sanitized
   end
 
   def sanitize_config_params
@@ -164,9 +194,154 @@ class Admin::CatalogConfigurationController < ApplicationController
     config['rightsHolder'] = config['rightsHolder']&.first&.presence || '' if config['rightsHolder']
 
     # rebuild themeTaxonomy as URIs
-    config['themeTaxonomy'] = config['themeTaxonomy'].map { |value| "#{rest_url.chomp('/')}/#{value}" } if config['themeTaxonomy']
-    config['themeTaxonomy'] << "http://vocabularies.unesco.org/thesaurus" if config['themeTaxonomy']
+    if config['themeTaxonomy'].is_a?(Array)
+      r_url = rest_url.to_s.chomp('/')
+      config['themeTaxonomy'] = config['themeTaxonomy'].map { |value| "#{r_url}/#{value}" }
+      config['themeTaxonomy'] << "http://vocabularies.unesco.org/thesaurus"
+    end
     config.compact
+  end
+
+  def response_successful?(response)
+    return false if response.nil?
+
+    if response.respond_to?(:status)
+      st = response.status
+      return [200, 204].include?(st.to_i) if st.is_a?(Integer) || (st.is_a?(String) && st =~ /^\d+$/)
+    end
+    false
+  end
+
+  def extract_hash_from_sdk(obj)
+    return {} if obj.nil? || obj == {} || obj == []
+
+    if obj.respond_to?(:errors) && obj.errors.present?
+      raise StandardError, "SDK response contains errors: #{obj.errors}"
+    end
+    if obj.respond_to?(:error) && obj.error.present?
+      raise StandardError, "SDK response contains error: #{obj.error}"
+    end
+
+    hash = if obj.is_a?(Hash)
+             obj
+           elsif obj.respond_to?(:to_hash) && !obj.is_a?(OpenStruct)
+             obj.to_hash
+           elsif obj.respond_to?(:to_h)
+             begin
+               obj.to_h
+             rescue StandardError
+               nil
+             end
+           end
+
+    raise StandardError, "Unsupported SDK response shape: #{obj.class}" unless hash.is_a?(Hash)
+
+    if hash[:errors].present? || hash['errors'].present? || hash[:error].present? || hash['error'].present?
+      raise StandardError, "SDK response contains errors: #{hash[:errors] || hash['errors'] || hash[:error] || hash['error']}"
+    end
+
+    hash
+  end
+
+  def build_editable_catalog_data(submitted_params)
+    known = (session[:catalog_data] || @catalog_data || {}).transform_keys(&:to_sym)
+    return known unless submitted_params.is_a?(Hash) || submitted_params.is_a?(ActionController::Parameters)
+
+    submitted = submitted_params.respond_to?(:to_unsafe_h) ? submitted_params.to_unsafe_h : submitted_params.to_h
+    retained = known.dup
+
+    cached_agents = {}
+    agents_list.each do |agent_key|
+      raw_val = known[agent_key.to_sym] || known[agent_key.to_s]
+      agent_items = case raw_val
+                    when Array then raw_val
+                    when nil then []
+                    else [raw_val]
+                    end
+
+      agent_items.each do |ag|
+        normalized = normalize_agent_representation(ag)
+        if normalized.respond_to?(:id) && normalized.id.present?
+          cached_agents[normalized.id.to_s] = normalized
+        end
+      end
+    end
+
+    submitted.each do |k, v|
+      sym_key = k.to_sym
+      if agents_list.include?(k.to_s)
+        raw_ids = case v
+                  when Hash, ActionController::Parameters
+                    vh = v.respond_to?(:to_unsafe_h) ? v.to_unsafe_h : v.to_h
+                    if vh['id'] || vh[:id]
+                      [vh['id'] || vh[:id]]
+                    else
+                      vh.values.filter_map { |item| item.is_a?(Hash) ? (item['id'] || item[:id]) : nil }
+                    end
+                  when Array
+                    v.filter_map { |item| item.is_a?(Hash) ? (item['id'] || item[:id]) : item }
+                  when String
+                    [v]
+                  else
+                    []
+                  end
+        raw_ids = raw_ids.map(&:to_s).reject(&:blank?)
+
+        restored_agents = raw_ids.map do |id|
+          cached_agents[id] || OpenStruct.new(id: id)
+        end
+
+        retained[sym_key] = if sym_key == :rightsHolder
+                              restored_agents.first
+                            else
+                              restored_agents
+                            end
+      else
+        retained[sym_key] = case v
+                            when 'true' then true
+                            when 'false' then false
+                            when Array then v.reject(&:blank?)
+                            else v
+                            end
+      end
+    end
+
+    agents_list.each do |agent_key|
+      sym_key = agent_key.to_sym
+      next if submitted.key?(agent_key.to_s) || submitted.key?(sym_key)
+
+      val = retained[sym_key]
+      if val.is_a?(Hash)
+        retained[sym_key] = normalize_agent_representation(val)
+      elsif val.is_a?(Array)
+        retained[sym_key] = val.map { |item| normalize_agent_representation(item) }
+      end
+    end
+
+    retained
+  end
+
+  def normalize_agent_representation(agent)
+    agent = agent.to_unsafe_h if agent.is_a?(ActionController::Parameters)
+    return agent unless agent.is_a?(Hash)
+
+    id = (agent['id'] || agent[:id]).to_s
+    return nil if id.blank?
+
+    attrs = agent.transform_keys(&:to_sym)
+    attrs[:id] = id
+    attrs[:name] ||= agent['name'] || agent[:name]
+    attrs[:agentType] ||= agent['agentType'] || agent[:agentType] || agent['agent_type'] || agent[:agent_type]
+    OpenStruct.new(attrs)
+  end
+
+  def extract_update_error(response)
+    status = response.respond_to?(:status) ? response.status : nil
+    if status.present? && status.to_i > 0
+      "HTTP #{status.to_i}"
+    else
+      t('admin.catalog_configuration.update_unknown_error', default: 'Remote service rejected update')
+    end
   end
 
   def sanitize_attribute_value(raw_value)

@@ -46,6 +46,9 @@
             = render(ChipsComponent.new(name: 'lemmatize', label: t('annotator.lemmatize'), checked: params[:lemmatize]))
         .annotator-page-button
           = render Buttons::RegularButtonComponent.new(id:'annotator', value: t('annotator.get_annotation'), variant: "primary", type: 'submit')
+          - if run_records_enabled? && (@results.nil? || @results.empty?)
+            .d-inline-block.ml-2
+              = render ScientificRunRecordComponent.new(tool: annotator_tool_name, run_record: nil, mode: :import_only, form_selector: 'form')
     - if @results && @results.empty?
       = empty_state(text: t('no_result_was_found'))
     - unless @results.nil? || @results.empty?
@@ -114,3 +117,6 @@
             = render Buttons::RegularButtonComponent.new(id:'annotator_api_doc', value: t('annotator.api_documentation'), variant: "secondary", href: $ANNOTATOR_API_DOC, size: "slim", target: '_blank', state: "regular") do |btn|
               - btn.icon_left do
                 = inline_svg_tag "summary/documentation.svg"
+          - if run_records_enabled?
+            .run-record-button
+              = render ScientificRunRecordComponent.new(tool: annotator_tool_name, run_record: @run_record, mode: :actions, form_selector: 'form')

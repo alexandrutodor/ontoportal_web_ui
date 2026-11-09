@@ -1,3 +1,5 @@
-Please see the 'Bioportal_UI_Deployment.rtf' file in the /doc directory for instructions on installation and deployment.
+Setup, development and test instructions are maintained in README.md at the repository root.
+
+Bioportal_UI_Deployment.rtf in this directory is archived legacy guidance (SVN, Rails 2.3-era toolchain) and does not apply to the current application.
 
 Run "rake doc:app" to generate API documentation for your models, controllers, helpers, and libraries.

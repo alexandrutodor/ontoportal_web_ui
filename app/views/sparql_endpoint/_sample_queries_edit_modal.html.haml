@@ -1,6 +1,6 @@
 = render_in_modal do
   - @title = t('admin.categories.edit.edit_category')
-  .sparql-notifications
+  .sparql-notifications{data: {success_message: t('sparql_endpoint.sample_queries_saved'), error_message: t('sparql_endpoint.sample_queries_save_error')}}
   .edit_sparql_container 
     = sparql_query_container(sample_queries: @sample_queries, graph: @graph)
   .save-button{style: "display: flex; justify-content: flex-end; width: 100%;"}

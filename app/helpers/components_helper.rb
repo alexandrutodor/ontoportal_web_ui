@@ -217,10 +217,10 @@ module ComponentsHelper
                     if Array(values).any?{|v| link?(v)}
                       horizontal_list_container(values, truncate: truncate) { |v| link?(v) ? render(LinkFieldComponent.new(value: v)) : v }
                     else
-                      Array(values).join(', ')
+                      safe_join(Array(values), ', ')
                     end
                   end
-        render FieldContainerComponent.new(label: attr_label(k, label, attr_metadata: attr_metadata(k.to_s), show_tooltip: false), value: content.to_s.html_safe)
+        render FieldContainerComponent.new(label: attr_label(k, label, attr_metadata: attr_metadata(k.to_s), show_tooltip: false), value: content)
       end
     end
 

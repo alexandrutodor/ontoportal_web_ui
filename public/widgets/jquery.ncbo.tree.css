@@ -196,7 +196,7 @@ div.tree_error {
 ----------------------------------*/
 .ncboAutocomplete .ui-widget { font-family: Arial,sans-serif; font-size: 1em; }
 .ncboAutocomplete .ui-widget .ui-widget { font-size: 1em; }
-.ncboAutocomplete .ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button { font-family: Arial,sans-serif; font-size: 1em; }
+.ncboAutocomplete .ui-widget input, .ncboAutocomplete .ui-widget select, .ncboAutocomplete .ui-widget textarea, .ncboAutocomplete .ui-widget button { font-family: Arial,sans-serif; font-size: 1em; }
 .ncboAutocomplete .ui-widget-content { border: 1px solid #B6B6B6; background: #ffffff; color: #4F4F4F; }
 .ncboAutocomplete .ui-widget-content a { color: #4F4F4F; }
 .ncboAutocomplete .ui-widget-header { border: 1px solid #B6B6B6; color: #4F4F4F; font-weight: bold; }
@@ -213,8 +213,8 @@ div.tree_error {
 
 /* Interaction states
 ----------------------------------*/
-.ncboAutocomplete .ui-state-default, .ui-widget-content .ui-state-default, .ui-widget-header .ui-state-default { border: 1px solid #B6B6B6; font-weight: normal; color: #4F4F4F; }
-.ncboAutocomplete .ui-state-default, .ui-widget-content .ui-state-default, .ui-widget-header .ui-state-default {
+.ncboAutocomplete .ui-state-default, .ncboAutocomplete .ui-widget-content .ui-state-default, .ncboAutocomplete .ui-widget-header .ui-state-default { border: 1px solid #B6B6B6; font-weight: normal; color: #4F4F4F; }
+.ncboAutocomplete .ui-state-default, .ncboAutocomplete .ui-widget-content .ui-state-default, .ncboAutocomplete .ui-widget-header .ui-state-default {
   background: #ededed 0 0 repeat-x; /* Old browsers */
     background: -moz-linear-gradient(to bottom, #ededed 0%, #c4c4c4 100%); /* FF3.6+ */
     background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ededed), color-stop(100%,#c4c4c4)); /* Chrome,Safari4+ */
@@ -226,10 +226,10 @@ div.tree_error {
   -moz-box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
   box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
 }
-.ncboAutocomplete .ui-state-default a, .ui-state-default a:link, .ui-state-default a:visited { color: #4F4F4F; text-decoration: none; }
-.ncboAutocomplete .ui-state-hover, .ui-widget-content .ui-state-hover, .ui-widget-header .ui-state-hover, .ui-state-focus, .ui-widget-content .ui-state-focus, .ui-widget-header .ui-state-focus { border: 1px solid #9D9D9D; font-weight: normal; color: #313131; }
-.ncboAutocomplete .ui-state-hover a, .ui-state-hover a:hover { color: #313131; text-decoration: none; }
-.ncboAutocomplete .ui-state-active, .ui-widget-content .ui-state-active, .ui-widget-header .ui-state-active {
+.ncboAutocomplete .ui-state-default a, .ncboAutocomplete .ui-state-default a:link, .ncboAutocomplete .ui-state-default a:visited { color: #4F4F4F; text-decoration: none; }
+.ncboAutocomplete .ui-state-hover, .ncboAutocomplete .ui-widget-content .ui-state-hover, .ncboAutocomplete .ui-widget-header .ui-state-hover, .ncboAutocomplete .ui-state-focus, .ncboAutocomplete .ui-widget-content .ui-state-focus, .ncboAutocomplete .ui-widget-header .ui-state-focus { border: 1px solid #9D9D9D; font-weight: normal; color: #313131; }
+.ncboAutocomplete .ui-state-hover a, .ncboAutocomplete .ui-state-hover a:hover { color: #313131; text-decoration: none; }
+.ncboAutocomplete .ui-state-active, .ncboAutocomplete .ui-widget-content .ui-state-active, .ncboAutocomplete .ui-widget-header .ui-state-active {
   outline: none;
   color: #1c4257; border: 1px solid #7096ab;
   background: #ededed 0 -50px repeat-x; /* Old browsers */
@@ -243,7 +243,7 @@ div.tree_error {
   -moz-box-shadow: none;
   box-shadow: none;
 }
-.ncboAutocomplete .ui-state-active a, .ui-state-active a:link, .ui-state-active a:visited { color: #313131; text-decoration: none; }
+.ncboAutocomplete .ui-state-active a, .ncboAutocomplete .ui-state-active a:link, .ncboAutocomplete .ui-state-active a:visited { color: #313131; text-decoration: none; }
 .ncboAutocomplete .ui-widget :active { outline: none; }
 
 /* Icons

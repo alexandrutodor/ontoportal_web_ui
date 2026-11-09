@@ -1,6 +1,12 @@
 class NotesController < ApplicationController
   include TurboHelper
   layout 'ontology'
+
+  prepend_before_action :authorize_admin, only: :destroy
+  # Prepended in reverse declaration order so :authorize_and_redirect runs before
+  # :verify_note_creator, and both precede ApplicationController startup callbacks.
+  prepend_before_action :verify_note_creator, only: :create
+  prepend_before_action :authorize_and_redirect, only: :create
  
   NOTES_PROPOSAL_TYPES = {
     ProposalNewClass:  t('notes.new_class_proposal'),
@@ -72,52 +78,72 @@ class NotesController < ApplicationController
     end
 
   def create
-    if params[:type].eql?("reply")
-      note = LinkedData::Client::Models::Reply.new(values: note_params)
-      new_note = note.save
-      success_message = ''
-      locals =  { note: new_note, parent_id: params[:parent]}
-      partial = 'notes/reply/reply'
+    is_reply = params[:type].eql?("reply")
+
+    if is_reply
       container_id = "#{params[:parent]}_thread_replay_container"
       alerts_container_id = "#{params[:parent]}_reply"
+      partial = 'notes/reply/reply'
+      note = LinkedData::Client::Models::Reply.new(values: note_params)
     else
+      parent_type = params[:type].eql?("ontology") ? 'ontology' : 'class'
+      container_id = "#{parent_type}_notes_table_body"
+      alerts_container_id = nil
+      partial = 'notes/note_line'
+
+      values = note_params
       if params[:proposal]
+        values[:proposal] ||= {}
         cast_to_list = [:synonym, :definition, :newRelationshipType]
         cast_to_list.each do |property|
-          params[:proposal][property] = params[:proposal][property].split(',') if params[:proposal][property]
+          prop_val = params[:proposal][property]
+          values[:proposal][property] = prop_val.is_a?(String) ? prop_val.split(',') : prop_val if prop_val.present?
         end
-        params[:subject] = "#{NOTES_PROPOSAL_TYPES[params[:proposal][:type].to_sym]}: #{params[:proposal][:reasonForChange]}"
+        proposal_type = params[:proposal][:type]
+        if proposal_type.present?
+          proposal_subject = "#{NOTES_PROPOSAL_TYPES[proposal_type.to_sym]}: #{params[:proposal][:reasonForChange]}"
+          values[:subject] = proposal_subject
+          params[:subject] = proposal_subject
+        end
       end
 
       if params[:type].eql?("ontology")
-        params[:relatedOntology] = [params.delete(:parent)]
-
+        values[:relatedOntology] = [params[:parent]]
+        values.delete(:parent)
+        values.delete('parent')
       elsif params[:type].eql?("class")
-        related_class = params.delete(:parent)
-        ontology_id = params.delete(:ontology_id)
-        params[:relatedClass] = [{ ontology: ontology_id, class: related_class }]
-        params[:relatedOntology] = [ontology_id]
+        values[:relatedClass] = [{ ontology: params[:ontology_id], class: params[:parent] }]
+        values[:relatedOntology] = [params[:ontology_id]]
+        values.delete(:parent)
+        values.delete('parent')
       end
 
-      note = LinkedData::Client::Models::Note.new(values: note_params)
-      new_note = note.save
-      parent_type = params[:type].eql?("ontology") ? 'ontology' : 'class'
-      ontology_acronym = new_note.relatedOntology.first.split('/').last
-      success_message = t('notes.new_comment_added')
-      locals =  { note: new_note, ontology_acronym: ontology_acronym, parent_type: parent_type }
-      partial = 'notes/note_line'
-      container_id = "#{parent_type}_notes_table_body"
-      alerts_container_id = nil
+      note = LinkedData::Client::Models::Note.new(values: values)
     end
 
+    new_note = nil
+    save_uncertain = false
+    begin
+      new_note = note.save
+    rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Timeout::Error, Errno::ETIMEDOUT, Errno::ECONNRESET, Errno::ECONNREFUSED => e
+      save_uncertain = true
+    end
 
-    if new_note.errors
+    if note_save_confirmed_error?(new_note)
       render_turbo_stream alert_error(id: alerts_container_id) { response_errors(new_note).to_s }
+    elsif !save_uncertain && note_save_confirmed_success?(new_note, is_reply: is_reply)
+      if is_reply
+        locals = { note: new_note, parent_id: params[:parent] }
+        render_turbo_stream prepend(container_id, partial: partial, locals: locals)
+      else
+        ontology_acronym = new_note.relatedOntology.first.to_s.split('/').last
+        locals = { note: new_note, ontology_acronym: ontology_acronym, parent_type: parent_type }
+        streams = [prepend(container_id, partial: partial, locals: locals)]
+        streams.unshift(alert_success { t('notes.new_comment_added') })
+        render_turbo_stream *streams
+      end
     else
-      streams = [prepend(container_id, partial: partial, locals: locals)]
-      streams.unshift(alert_success { success_message }) unless params[:type].eql?("reply")
-
-      render_turbo_stream *streams
+      render_turbo_stream alert_error(id: alerts_container_id) { t('notes.save_uncertain') }
     end
   end
 
@@ -126,9 +152,11 @@ class NotesController < ApplicationController
     note = LinkedData::Client::Models::Note.get(note_id)
     response = {}
     if note
-      note.delete
+      delete_response = note.delete
 
-      if note.errors
+      if response_error?(delete_response)
+        response[:errors] = response_errors(delete_response)
+      elsif note.errors
         response[:errors] = note.errors
       else
         response[:success] = t('notes.note_deleted_successfully', note_id: note_id)
@@ -139,7 +167,7 @@ class NotesController < ApplicationController
     parent_type = params[:parent_type]
     alerts_container_id = "notes_#{parent_type}_list_table_alerts"
     if response[:errors]
-      render_turbo_stream alert_error(id: alerts_container_id) { response[:errors].join(',').to_s }
+      render_turbo_stream alert_error(id: alerts_container_id) { response[:errors].respond_to?(:join) ? response[:errors].join(',').to_s : response[:errors].to_s }
     else
       render_turbo_stream(alert_success(id: alerts_container_id) { response[:success] }, remove("#{note_id}_tr_#{parent_type}"))
     end
@@ -164,18 +192,75 @@ class NotesController < ApplicationController
 
   private
 
+  def authenticated_actor_id
+    user = session[:user]
+    return nil if user.nil?
+
+    if user.respond_to?(:id)
+      user.id
+    elsif user.is_a?(Hash)
+      user[:id] || user['id']
+    end
+  end
+
+  def verify_note_creator
+    redirect_to_home if authenticated_actor_id.to_s.strip.empty?
+  end
+
   def note_params
-    p = params.permit(:parent, :type, :subject, :body, :creator, { relatedClass:[:class, :ontology] }, { relatedOntology:[] },
+    p = params.permit(:parent, :type, :subject, :body, { relatedClass:[:class, :ontology] }, { relatedOntology:[] },
                       proposal: [:type, :reasonForChange, :classId, :label, { synonym:[] }, { definition:[] },
                                  :parent, :newTarget, :oldTarget, { newRelationshipType:[] }, :propertyId,
                                  :newValue, :oldValue])
-    p.to_h
+    h = p.to_h
+    h.delete(:creator)
+    h.delete('creator')
+    h[:creator] = authenticated_actor_id
+    h
   end
 
   # Fix noteid parameters with bad prefixes (some application servers, e.g., Apache, NGINX, mangle encoded slashes).
   def clean_note_id(id)
     id = id.match(/\Ahttp:\/\w/) ? id.sub('http:/', 'http://') : id
     CGI.unescape(id)
+  end
+
+  def note_save_confirmed_error?(note_obj)
+    return false if note_obj.nil?
+
+    if note_obj.respond_to?(:errors) && note_obj.errors.present?
+      return true
+    end
+
+    if note_obj.instance_variable_defined?(:@errors) && note_obj.instance_variable_get(:@errors).present?
+      return true
+    end
+
+    if note_obj.respond_to?(:status) && note_obj.status && note_obj.status.to_i.between?(400, 499)
+      return true
+    end
+
+    if note_obj.respond_to?(:error) && note_obj.error.present?
+      return true
+    end
+
+    false
+  end
+
+  def note_save_confirmed_success?(note_obj, is_reply:)
+    return false if note_obj.nil?
+    return false if note_save_confirmed_error?(note_obj)
+    return false if note_obj.respond_to?(:status) && note_obj.status && note_obj.status.to_i >= 400
+    return false unless note_obj.respond_to?(:id) && note_obj.id.present?
+
+    if is_reply
+      true
+    else
+      note_obj.respond_to?(:relatedOntology) &&
+        note_obj.relatedOntology.is_a?(Array) &&
+        !note_obj.relatedOntology.empty? &&
+        note_obj.relatedOntology.first.present?
+    end
   end
 
 end

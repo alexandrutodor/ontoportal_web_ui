@@ -1,0 +1,4 @@
+= render_in_modal do
+  %div
+    = render_alerts_container
+    = render BulkMetadataPreviewComponent.new(receipt: receipt, all_metadata: local_assigns[:all_metadata])

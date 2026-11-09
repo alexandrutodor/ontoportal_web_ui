@@ -30,7 +30,7 @@
         - if @submission_latest&.contact
           = t("ontologies.sections.metadata.additional_information")
           %span
-            #{display_contact(@submission_latest.contact).html_safe}.
+            = safe_join([display_contact(@submission_latest.contact), "."])
 
     - unless Array(@submission_latest&.naturalLanguage).empty?
       - l.row do

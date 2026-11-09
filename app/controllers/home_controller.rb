@@ -27,13 +27,17 @@ class HomeController < ApplicationController
     end
   end
 
+  # Shared by all visitors, so always fetched with the public portal key. The versioned key
+  # retires entries cached with per-user keys; failed fetches are not cached.
+  HOME_AGENTS_CACHE_KEY = 'agents_data_home_page/v2'
+
   # Add a new action for the agents section
   def agents
     require 'net/http'
     require 'json'
 
-    @agents_data = Rails.cache.fetch("agents_data_home_page", expires_in: 1.hour) do
-      api_url = agents_rest_url(page=1, pagesize=2222, display='name,agentType,usages')  + "&apikey=#{get_apikey}"
+    @agents_data = Rails.cache.fetch(HOME_AGENTS_CACHE_KEY, expires_in: 1.hour, skip_nil: true) do
+      api_url = agents_rest_url(page=1, pagesize=2222, display='name,agentType,usages')  + "&apikey=#{API_KEY}"
       uri = URI(api_url)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true if uri.scheme == 'https'
@@ -41,12 +45,8 @@ class HomeController < ApplicationController
       request = Net::HTTP::Get.new(uri.request_uri)
       response = http.request(request)
 
-      if response.is_a?(Net::HTTPSuccess)
-        JSON.parse(response.body)
-      else
-        { "collection" => [] }
-      end
-    end
+      JSON.parse(response.body) if response.is_a?(Net::HTTPSuccess)
+    end || { "collection" => [] }
 
     respond_to do |format|
       format.html { render partial: 'agents', layout: false }
@@ -54,7 +54,7 @@ class HomeController < ApplicationController
   end
 
   def set_cookies
-    cookies.permanent[:cookies_accepted] = params[:cookies] if params[:cookies]
+    cookies.permanent[:cookies_accepted] = params[:cookies] if request.post? && params[:cookies]
     render 'cookies', layout: nil
   end
 
@@ -108,8 +108,8 @@ class HomeController < ApplicationController
 
     # We're using a hidden form field to trigger for error checking
     # If sim_submit is nil, we know the form hasn't been submitted and we should
-    # bypass form processing.
-    if params[:sim_submit].nil?
+    # bypass form processing. Only the POSTed form sends feedback; a GET link never does.
+    if params[:sim_submit].nil? || !request.post?
       render 'home/feedback/feedback', layout: feedback_layout
       return
     end
@@ -182,7 +182,7 @@ class HomeController < ApplicationController
     @key = params[:portal_name]
     @checked = params[:checked].eql?('true')
     @portal_up = federation_portal_status(portal_name: @key.downcase.to_sym)
-    render inline: helpers.federation_chip_component(@key, @name, @acronym, @checked, @portal_up)
+    render html: helpers.federation_chip_component(@key, @name, @acronym, @checked, @portal_up)
   end
 
   private

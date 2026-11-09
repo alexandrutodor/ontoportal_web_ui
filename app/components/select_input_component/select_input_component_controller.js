@@ -10,21 +10,42 @@ export default class SelectInput extends Controller {
     openAdd: { type: Boolean, default: false },
     required: { type: Boolean, default: false },
     searchable: { type: Boolean, default: true },
-    displayField: { type: String, default: SelectInput.DISPLAY_TEXT }
+    displayField: { type: String, default: SelectInput.DISPLAY_TEXT },
+    isLanguage: { type: Boolean, default: false }
   }
 
   connect () {
+    const trustedMarkupByValue = new Map()
+    if (this.isLanguageValue) {
+      for (const opt of this.element.options) {
+        const text = opt.textContent || ''
+        const markup = text.trim().startsWith('<') ? text : (opt.innerHTML || text)
+        trustedMarkupByValue.set(String(opt.value), markup)
+      }
+    }
+
+    const renderTrusted = (val) => {
+      const markup = trustedMarkupByValue.get(String(val))
+      return markup.trim().startsWith('<') ? markup : `<div> ${markup} </div>`
+    }
+
     let myOptions = {}
     myOptions = {
       render: {
-        option: (data) => {
-          return `<div> ${data.text} </div>`
+        option: (data, escape) => {
+          if (this.isLanguageValue && trustedMarkupByValue.has(String(data.value))) {
+            return renderTrusted(data.value)
+          }
+          return `<div> ${escape(data.text ?? '')} </div>`
         },
-        item: (data) => {
+        item: (data, escape) => {
+          if (this.isLanguageValue && trustedMarkupByValue.has(String(data.value)) && this.displayFieldValue === SelectInput.DISPLAY_TEXT) {
+            return renderTrusted(data.value)
+          }
           if (this.displayFieldValue === SelectInput.DISPLAY_TEXT) {
-            return `<div> ${data.text} </div>`
+            return `<div> ${escape(data.text ?? '')} </div>`
           } else {
-            return `<div> ${data.value} </div>`
+            return `<div> ${escape(data.value ?? '')} </div>`
           }
         }
       }

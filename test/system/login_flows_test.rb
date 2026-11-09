@@ -3,14 +3,16 @@ require "application_system_test_case"
 class LoginFlowsTest < ApplicationSystemTestCase
 
   setup do
-    WebMock.disable!
+    TestTargetGuard.configure_webmock!
     @user_john = fixtures(:users)[:john]
     @user_bob = fixtures(:users)[:bob]
   end
 
   teardown do
+    delete_user(@created_user) if @created_user
     delete_user(@user_bob)
     delete_user(@user_john)
+    TestResourceOwnership.reset! if defined?(TestResourceOwnership) && TestResourceOwnership.empty?
   end
 
   test "go to sign up page, save and see account details" do
@@ -19,8 +21,12 @@ class LoginFlowsTest < ApplicationSystemTestCase
 
     click_on 'Register'
 
-    new_user = @user_john
-    delete_user(new_user)
+    new_user = OpenStruct.new(@user_john.to_h)
+    # Unique per run and within the app's 20-character username rule.
+    unique_suffix = SecureRandom.hex(6)
+    new_user.username = "john#{unique_suffix}"
+    new_user.email = "john#{unique_suffix}@example.com"
+    @created_user = new_user
 
     fill_in 'user_firstName', with: new_user.firstName
     fill_in 'user_lastName', with: new_user.lastName
@@ -35,8 +41,8 @@ class LoginFlowsTest < ApplicationSystemTestCase
     # Click the save button
     click_button 'Register'
 
-
     assert_selector '.notification', text: 'Account was successfully created'
+    TestResourceOwnership.register(:user, new_user.username) if defined?(TestResourceOwnership)
 
     visit root_url + "/accounts/#{new_user.username}"
 

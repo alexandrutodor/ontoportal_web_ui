@@ -33,7 +33,24 @@ class RecommenderController < ApplicationController
           highlighted: false,
         }
         @results.push(row)
-        @results.max_by { |element| element[:final_score] }[:highlighted] = true
+      end
+      if (winner_index = recommendations.each_with_index.max_by { |rec, _idx| rec.evaluationScore.to_f }&.last)
+        @results[winner_index][:highlighted] = true
+      end
+
+      if (respond_to?(:run_records_enabled?, true) && run_records_enabled?) && @results.present?
+        # The recommender posts params unchanged (no slice filtering, no UI defaults).
+        effective_params = params.permit(:input_type, :output_type, :wc, :wa, :wd, :ws, :max_elements_set, :ontologies, ontologies: []).to_h.symbolize_keys
+
+        @run_record = ScientificRunRecord.build_recommender_record(
+          params: params,
+          effective_params: effective_params,
+          results: @results,
+          raw_recommendations: recommendations,
+          subdomain_filter: @subdomain_filter,
+          input: params[:input],
+          source_portal: portal_name
+        )
       end
     end
   end

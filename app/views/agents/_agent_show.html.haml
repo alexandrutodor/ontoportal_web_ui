@@ -3,17 +3,23 @@
 - agent_field_name = agent_id ? "#{name_prefix}[#{agent_id}]" : name_prefix
 = render TurboFrameComponent.new(id: frame_id) do
   %div.d-flex
-    - return agent if agent.is_a? String
-    - if agent.id
-      = hidden_field_tag agent_field_name(:id, agent_field_name), agent.id
+    - if agent.is_a?(String)
+      = hidden_field_tag agent_field_name(:id, agent_field_name), agent
+      = agent
+    - else
+      - if agent.respond_to?(:id) && agent.id.present?
+        = hidden_field_tag agent_field_name(:id, agent_field_name), agent.id
 
-    =  display_agent(agent, link: false)
+      - if agent.respond_to?(:agentType) && agent.agentType.present?
+        = display_agent(agent, link: false)
 
-    - if current_user_admin? || agent.creator.eql?(current_user&.id.to_s)
-      - if editable
-        - if edit_on_modal
-          = link_to_agent_edit_modal(agent, parent_id)
-        - else
-          = link_to_agent_edit(agent, parent_id, name_prefix, deletable: deletable)
-    - if deletable
-      = link_to_search_agent(agent_id, parent_id, name_prefix ,agent.agentType, editable, deletable)
+        - if current_user_admin? || (agent.respond_to?(:creator) && agent.creator.eql?(current_user&.id.to_s))
+          - if editable
+            - if edit_on_modal
+              = link_to_agent_edit_modal(agent, parent_id)
+            - else
+              = link_to_agent_edit(agent, parent_id, name_prefix, deletable: deletable)
+        - if deletable
+          = link_to_search_agent(agent_id, parent_id, name_prefix ,agent.agentType, editable, deletable)
+      - else
+        = agent.respond_to?(:id) ? agent.id : agent.to_s

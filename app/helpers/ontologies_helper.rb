@@ -1,5 +1,7 @@
 require 'iso-639'
 module OntologiesHelper
+  include ActionView::Helpers::TagHelper
+  include ActionView::Helpers::OutputSafetyHelper
   REST_URI = $REST_URL
   API_KEY = $API_KEY
   LANGUAGE_FILTERABLE_SECTIONS = %w[classes schemes collections instances properties].freeze
@@ -124,13 +126,19 @@ module OntologiesHelper
   end
 
   def display_contact(contacts)
-    contacts.map do |c|
-      next unless c.member?(:name) && c.member?(:email)
+    return nil if contacts.nil?
 
-      formatted_name = c[:name].titleize
-      formatted_email = c[:email].downcase
-      "<span class='date_creation_text'>#{formatted_name}</span> (#{formatted_email})"
-    end&.join(" and ")
+    items = contacts.map do |c|
+      next unless c.respond_to?(:member?) && (c.member?(:name) || c.member?('name')) && (c.member?(:email) || c.member?('email'))
+
+      name = c[:name] || c['name']
+      email = c[:email] || c['email']
+      formatted_name = name.html_safe? ? name : name.to_s.titleize
+      formatted_email = email.html_safe? ? email : email.to_s.downcase
+      safe_join([content_tag(:span, formatted_name, class: 'date_creation_text'), " (#{formatted_email})"])
+    end.compact
+
+    safe_join(items, " and ")
   end
 
   def count_links(ont_acronym, page_name = 'summary', count = 0)
@@ -394,9 +402,17 @@ module OntologiesHelper
   end
 
   def change_requests_enabled?(ontology_acronym)
-    return false unless Rails.configuration.change_request[:ontologies].present?
+    return false unless defined?(GitHub::Client) && GitHub::Client.present?
+    return false if ontology_acronym.nil? || ontology_acronym.to_s.strip.empty?
+    return false unless defined?(Rails) && Rails.respond_to?(:configuration) && Rails.configuration.respond_to?(:change_request)
 
-    Rails.configuration.change_request[:ontologies].include? ontology_acronym.to_sym
+    config = Rails.configuration.change_request
+    return false unless config.is_a?(Hash) && config[:ontologies].present?
+
+    ontologies = config[:ontologies]
+    ontologies.include?(ontology_acronym.to_sym) || ontologies.include?(ontology_acronym.to_s)
+  rescue StandardError
+    false
   end
 
   def current_section
@@ -617,8 +633,8 @@ module OntologiesHelper
   end
 
   def new_element_link(title, link)
-    if session[:user].nil?
-      link = "/login?redirect=#{link}"
+    if session[:user].nil? && !link.to_s.start_with?('/login')
+      link = "/login?redirect=#{escape(link)}"
     end
 
     link_to(link, title: title, class: "mx-1") do
@@ -667,10 +683,20 @@ module OntologiesHelper
     end
   end
 
+  SUBSCRIPTION_COUNTS_CACHE_KEY = 'ontology_subscription_counts/v1'
+
+  # Watchers per ontology acronym, tallied once and shared by every subscribe button.
+  # shortcut: still one full user scan per 5 minutes; narrow include to 'subscription' once the API is
+  # confirmed to embed subscriptions for it, or use a scoped count API if the backend adds one.
+  # Returns nil when the count cannot be obtained, so the button stays usable without it.
   def count_subscriptions(ontology_id)
-    ontology_id = ontology_id.split('/').last
-    users = LinkedData::Client::Models::User.all(include: 'all', display_context: false, display_links: false)
-    users.select { |u| u.subscription.find { |s| s.ontology && s.ontology.split('/').last.eql?(ontology_id) } }.count
+    counts = Rails.cache.fetch(SUBSCRIPTION_COUNTS_CACHE_KEY, expires_in: 5.minutes) do
+      users = LinkedData::Client::Models::User.all(include: 'all', display_context: false, display_links: false)
+      Array(users).flat_map { |u| Array(u.subscription).filter_map { |s| s.ontology&.split('/')&.last }.uniq }.tally
+    end
+    counts.fetch(ontology_id.split('/').last, 0)
+  rescue StandardError
+    nil
   end
 
   def new_submission_button
@@ -696,7 +722,7 @@ module OntologiesHelper
     return if read_only_enabled?
 
     href = if session[:user].nil?
-             "/login?redirect=#{new_ontology_path}"
+             "/login?redirect=#{escape(new_ontology_path)}"
            else
              new_ontology_path
            end

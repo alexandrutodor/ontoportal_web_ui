@@ -5,10 +5,11 @@
       %div
         %span{'data-subscribe-notes-target': 'text'}
           #{@sub_text}
-        (
-        %span{'data-subscribe-notes-target': 'count'}
-          #{@count}
-        )
+        - unless @count.nil?
+          (
+          %span{'data-subscribe-notes-target': 'count'}
+            #{@count}
+          )
     %span{style:"display: none;", class: 'px-1', 'data-subscribe-notes-target': 'loader'}
       = render LoaderComponent.new(small: true)
   %span.notes_sub_error{style:'color: red; display: none', 'data-subscribe-notes-target': 'error'}

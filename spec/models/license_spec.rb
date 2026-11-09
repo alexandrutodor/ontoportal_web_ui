@@ -1,4 +1,5 @@
 require 'rails_helper'
+require 'webmock/rspec'
 
 RSpec.describe License, type: :model do
 
@@ -41,6 +42,9 @@ RSpec.describe License, type: :model do
   }
 
   it do "decrypts license data"
+    stub_request(:get, %r{/admin/update_info})
+      .to_return(status: 200, body: { appliance_id: "dd212a7c-29fd-4142-8353-f59a19a79738" }.to_json, headers: { 'Content-Type' => 'application/json' })
+
     license = License.create(encrypted_key: encrypted_license_key_staging_env)
 
     expect(license.appliance_id).to eq("dd212a7c-29fd-4142-8353-f59a19a79738")
@@ -77,6 +81,9 @@ RSpec.describe License, type: :model do
   end
 
   it do "calculates days remaining"
+    stub_request(:get, %r{/admin/update_info})
+      .to_return(status: 200, body: { appliance_id: "dd212a7c-29fd-4142-8353-f59a19a79738" }.to_json, headers: { 'Content-Type' => 'application/json' })
+
     license = License.create(encrypted_key: encrypted_license_key_staging_env)
 
     travel_to(Date.parse("2021-03-21")) do
@@ -112,6 +119,9 @@ RSpec.describe License, type: :model do
     }  
 
     it "blocks malformed keys" do
+      stub_request(:get, %r{/admin/update_info})
+        .to_return(status: 200, body: { appliance_id: "dd212a7c-29fd-4142-8353-f59a19a79738" }.to_json, headers: { 'Content-Type' => 'application/json' })
+
       license = License.new(encrypted_key: encrypted_license_key_with_missing_characters)
 
       license.valid?
@@ -121,6 +131,9 @@ RSpec.describe License, type: :model do
     end
 
     it "blocks invalid keys" do
+      stub_request(:get, %r{/admin/update_info})
+        .to_return(status: 200, body: { appliance_id: "dd212a7c-29fd-4142-8353-f59a19a79738" }.to_json, headers: { 'Content-Type' => 'application/json' })
+
       license = License.create(encrypted_key: "lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua")
 
       license.valid?
@@ -139,6 +152,9 @@ RSpec.describe License, type: :model do
     end
 
     it "allows valid keys" do
+      stub_request(:get, %r{/admin/update_info})
+        .to_return(status: 200, body: { appliance_id: "dd212a7c-29fd-4142-8353-f59a19a79738" }.to_json, headers: { 'Content-Type' => 'application/json' })
+
       license = License.new(encrypted_key: encrypted_license_key_staging_env)
 
       license.valid?
@@ -148,11 +164,14 @@ RSpec.describe License, type: :model do
     end
 
     it "blocks licenses with mismatches between encoded appliance IDs and actual" do
+      stub_request(:get, %r{/admin/update_info})
+        .to_return(status: 200, body: { appliance_id: "dd212a7c-29fd-4142-8353-f59a19a79738" }.to_json, headers: { 'Content-Type' => 'application/json' })
+
       license = License.new(encrypted_key: encrypted_license_key)
 
       license.save
 
-      expect(license.errors[:encrypted_key]).to include "is an appliance ID mismatch"
+      expect(license.errors[:encrypted_key]).to include I18n.t("activerecord.errors.models.license.attributes.encrypted_key.appliance_id_mismatch")
     end
 
   end
@@ -160,6 +179,9 @@ RSpec.describe License, type: :model do
   describe ".current_license" do
 
     it "should return the latest license" do
+      stub_request(:get, %r{/admin/update_info})
+        .to_return(status: 200, body: { appliance_id: "dd212a7c-29fd-4142-8353-f59a19a79738" }.to_json, headers: { 'Content-Type' => 'application/json' })
+
       new_license = License.create(encrypted_key: encrypted_license_key_staging_env, created_at: Time.now + 1.day)
       newer_license = License.create(encrypted_key: encrypted_license_key_staging_env, created_at: Time.now + 2.days)
 

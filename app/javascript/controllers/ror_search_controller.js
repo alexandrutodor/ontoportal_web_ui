@@ -11,12 +11,22 @@ export default class extends Controller {
         apiUrl: { type: String, default: "https://api.ror.org/v2/organizations" },
         minLength: { type: Number, default: 2 },
         debounceMs: { type: Number, default: 300 },
-        namePlaceholder: { type: String, default: "" }
+        namePlaceholder: { type: String, default: "" },
+        // shortcut: lookup unavailable message is plain English, add i18n value when translations exist
+        lookupUnavailableText: { type: String, default: "Organization lookup unavailable" }
     }
 
     connect() {
+        this.requestId = 0
+        this.currentAbortController = null
+        this.lastAutoFilled = {}
         this.search = debounce(this.search.bind(this), this.debounceMsValue)
         this.updatePlaceholder()
+    }
+
+    disconnect() {
+        if (this.search?.clear) this.search.clear()
+        this.#abortCurrentRequest()
     }
 
     updatePlaceholder() {
@@ -26,27 +36,44 @@ export default class extends Controller {
 
     search() {
         if (!this.#isOrganizationMode()) {
+            this.#abortCurrentRequest()
             this.hideResults()
             return
         }
 
-        const query = this.nameInputTarget.value.trim()
+        const query = this.hasNameInputTarget ? this.nameInputTarget.value.trim() : ""
         if (query.length < this.minLengthValue) {
+            this.#abortCurrentRequest()
             this.hideResults()
             return
         }
 
         if (this.lastSelectedName && query === this.lastSelectedName) {
+            this.#abortCurrentRequest()
             this.hideResults()
             return
         }
 
-        fetch(`${this.apiUrlValue}?query=${encodeURIComponent(query)}`)
-            .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-            .then(data => this.renderResults(data.items || []))
+        this.#abortCurrentRequest()
+        const controller = new AbortController()
+        this.currentAbortController = controller
+        const requestId = ++this.requestId
+
+        fetch(`${this.apiUrlValue}?query=${encodeURIComponent(query)}`, { signal: controller.signal })
+            .then(r => r.ok ? r.json() : Promise.reject(new Error(r.statusText || "Lookup failed")))
+            .then(data => {
+                if (requestId !== this.requestId || !this.#isOrganizationMode() || !this.hasNameInputTarget || this.nameInputTarget.value.trim() !== query) {
+                    return
+                }
+                this.renderResults(data.items || [])
+            })
             .catch(err => {
+                if (err.name === "AbortError") return
+                if (requestId !== this.requestId || !this.#isOrganizationMode() || !this.hasNameInputTarget || this.nameInputTarget.value.trim() !== query) {
+                    return
+                }
                 console.error("ROR search error", err)
-                this.hideResults()
+                this.renderUnavailable()
             })
     }
 
@@ -55,14 +82,17 @@ export default class extends Controller {
     }
 
     blur() {
-        this.resultsTarget.style.display = "none"
+        if (this.hasResultsTarget) this.resultsTarget.style.display = "none"
     }
 
     hide() {
+        if (this.search?.clear) this.search.clear()
+        this.#abortCurrentRequest()
         this.hideResults()
     }
 
     renderResults(items) {
+        if (!this.hasResultsTarget) return
         if (items.length === 0) {
             this.hideResults()
             return
@@ -96,28 +126,74 @@ export default class extends Controller {
         this.resultsTarget.style.display = "block"
     }
 
+    renderUnavailable() {
+        if (!this.hasResultsTarget) return
+        this.resultsTarget.innerHTML = `
+            <div class="search-content text-muted" data-ror-error="true">
+                <small>${this.#escape(this.lookupUnavailableTextValue)}</small>
+            </div>
+        `
+        this.resultsTarget.style.display = "block"
+    }
+
     select(item) {
+        if (this.search?.clear) this.search.clear()
+        this.#abortCurrentRequest()
+
         const englishName = this.#englishName(item)
         const acronym = this.#acronym(item)
         const homepage = this.#homepage(item)
         const rorId = item.id || ""
 
         const finalName = englishName || this.#rorDisplayName(item) || acronym
-        if (finalName) {
+        if (finalName && this.hasNameInputTarget) {
             this.lastSelectedName = finalName.trim()
             this.#setValue(this.nameInputTarget, finalName)
+            if (this.search?.clear) this.search.clear()
         }
-        if (this.hasAcronymInputTarget && acronym) this.#setValue(this.acronymInputTarget, acronym)
-        if (this.hasHomepageInputTarget && homepage) this.#setValue(this.homepageInputTarget, homepage)
-        if (this.hasIdentifierInputTarget && rorId) this.#setValue(this.identifierInputTarget, rorId)
 
-        this.nameInputTarget.blur()
+        this.#updateAutoFilledField(this.hasAcronymInputTarget ? this.acronymInputTarget : null, acronym, "acronym")
+        this.#updateAutoFilledField(this.hasHomepageInputTarget ? this.homepageInputTarget : null, homepage, "homepage")
+        this.#updateAutoFilledField(this.hasIdentifierInputTarget ? this.identifierInputTarget : null, rorId, "identifier")
+
+        if (this.hasNameInputTarget) this.nameInputTarget.blur()
         this.hideResults()
     }
 
     hideResults() {
+        if (!this.hasResultsTarget) return
         this.resultsTarget.style.display = "none"
         this.resultsTarget.innerHTML = ""
+    }
+
+    #abortCurrentRequest() {
+        this.requestId = (this.requestId || 0) + 1
+        if (this.currentAbortController) {
+            this.currentAbortController.abort()
+            this.currentAbortController = null
+        }
+    }
+
+    #updateAutoFilledField(input, value, key) {
+        if (!input) return
+        this.lastAutoFilled = this.lastAutoFilled || {}
+        const current = (input.value || "").trim()
+        const previous = this.lastAutoFilled[key]
+        const canOverwrite = current === "" || (previous !== undefined && previous !== "" && current === previous)
+
+        if (canOverwrite) {
+            const nextValue = value ? value.trim() : ""
+            if (input.value !== nextValue) {
+                this.#setValue(input, nextValue)
+            }
+            if (nextValue) {
+                this.lastAutoFilled[key] = nextValue
+            } else {
+                delete this.lastAutoFilled[key]
+            }
+        } else {
+            delete this.lastAutoFilled[key]
+        }
     }
 
     #isOrganizationMode() {

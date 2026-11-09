@@ -3,12 +3,18 @@ require "application_system_test_case"
 class SubmissionFlowsTest < ApplicationSystemTestCase
 
   setup do
-    WebMock.disable!
+    TestTargetGuard.configure_webmock!
     @logged_user = fixtures(:users)[:john]
     @user_bob = fixtures(:users)[:bob]
     @new_ontology = fixtures(:ontologies)[:ontology1]
     @new_submission = fixtures(:submissions)[:submission1]
     teardown
+    # webmock/minitest's teardown also runs WebMock.reset!, which drops the external-service stubs.
+    ExternalPortalStubHelper.stub_isolated_external_services
+    if (pull_location = ENV['ISOLATED_PULL_LOCATION'].presence)
+      # An isolated API cannot fetch remote files; pull the ontology from a file server on its network.
+      fixtures(:submissions).each_pair { |_, sub| sub.pullLocation = pull_location if sub.pullLocation }
+    end
     @groups = create_groups
     @categories = create_categories
     @user_bob = create_user(@user_bob)
@@ -27,6 +33,7 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
     delete_groups
     delete_categories
     delete_agents
+    TestResourceOwnership.reset! if defined?(TestResourceOwnership) && TestResourceOwnership.empty?
   end
 
   test "create a new ontology and go to it's summary page" do
@@ -37,6 +44,7 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
     fill_ontology(@new_ontology, @new_submission)
 
     assert_selector 'h2', text: 'Ontology submitted successfully!'
+    TestResourceOwnership.register(:ontology, @new_ontology) if defined?(TestResourceOwnership)
     click_on current_url.gsub("/ontologies/success/#{@new_ontology.acronym}", '') + ontology_path(@new_ontology.acronym)
 
     assert_text "#{@new_ontology.name} (#{@new_ontology.acronym})"
@@ -486,7 +494,7 @@ class SubmissionFlowsTest < ApplicationSystemTestCase
 
     [:hasCreator, :hasContributor, :curatedBy].each do |key|
       list_inputs "#submission#{key}_from_group_input", "submission[#{key}]", [agent1, agent2] do |selector, value, index|
-        element = all("turbo-frame:last-of-type").last
+        element = all(".nested-form-wrapper").last
         within element do
           agent_id = agent_search(value.name)
           agent_fill(value, parent_id: agent_id) if agent_id

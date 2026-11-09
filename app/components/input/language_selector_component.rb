@@ -25,11 +25,14 @@ class Input::LanguageSelectorComponent < ViewComponent::Base
   end
 
   def call
+    data = @data.merge('select-input-is-language-value': true)
     render SelectInputComponent.new(id: @id, name: @name, values: languages,
                                     selected: @selected,
-                                    data: @data,
+                                    data: data,
+                                    is_language: true,
                                     required: true,
                                     open_to_add_values: false,
-                                    placeholder: t('components.select_anguage'), **@html_options)
+                                    placeholder: t('components.select_anguage'),
+                                    **@html_options.except(:data))
   end
 end

@@ -1,0 +1,37 @@
+***......=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+=> faraday caching enabled
+=> faraday cache store: ActiveSupport::Cache::MemCacheStore
+................
+
+Pending: (Failures listed here are expected and do not affect your suite's status)
+
+  1) AlertsContainerComponent add some examples to (or delete) /app/spec/components/alerts_container_component_spec.rb
+     # Not yet implemented
+     # ./spec/components/alerts_container_component_spec.rb:6
+
+  2) TurboFrameComponent add some examples to (or delete) /app/spec/components/turbo_frame_component_spec.rb
+     # Not yet implemented
+     # ./spec/components/turbo_frame_component_spec.rb:6
+
+  3) TurboModalComponent add some examples to (or delete) /app/spec/components/turbo_modal_component_spec.rb
+     # Not yet implemented
+     # ./spec/components/turbo_modal_component_spec.rb:6
+
+Finished in 0.25661 seconds (files took 1.64 seconds to load)
+25 examples, 0 failures, 3 pending
+

@@ -1,5 +1,9 @@
 require "test_helper"
 require_relative 'helpers/application_test_helpers'
+require_relative 'helpers/browse_wait'
+
+# CI runners render the submission pages slowly; Capybara's 2-second default made these flows flaky.
+Capybara.default_max_wait_time = 10
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   include ApplicationTestHelpers::Ontologies
@@ -8,6 +12,15 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   include ApplicationTestHelpers::Categories
   include ApplicationTestHelpers::Groups
   include ApplicationTestHelpers::Agents
+  include BrowseWait
+
+  setup do
+    TestTargetGuard.configure_webmock!
+    # API client responses are cached in memcached; earlier tests' deleted resources must not reappear.
+    Rails.cache.clear
+    # Remote Selenium uploads typed text that names an existing path; a single typed "." is the working directory.
+    page.driver.browser.file_detector = ->(args) { path = args.first.to_s; path if File.file?(path) }
+  end
 
   driven_by :selenium, using: ENV['CI'].present? ? :headless_chrome : :chrome, screen_size: [1400, 1400], options: {
     browser: :remote,
@@ -15,11 +28,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   }
 
   def wait_for(selector, tries = 60)
-    tries.times.each do
-      puts "waiting for #{selector}"
-      break if page.has_selector?(selector)
-      sleep 1
-    end
+    assert page.has_selector?(selector, wait: tries), "Timed out after #{tries}s waiting for #{selector} at #{page.current_url}"
   end
 
   def wait_for_text(text, tries = 60)
@@ -153,8 +162,28 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   end
 
   def agent_fill(agent, parent_id: nil, is_affiliation: false)
-    id = agent.id ? "/#{agent.id}" : ''
+    is_editing = agent.respond_to?(:id) && agent.id && !agent.id.to_s.empty?
+    id = is_editing ? "/#{agent.id}" : ''
     form = all("form[action=\"/agents#{id}\"]").first
+
+    surviving_widget = nil
+    submitted_name_prefix = nil
+    if parent_id && !is_affiliation && !is_editing && form
+      prefix_input = form.first("input[type='hidden'][name='name_prefix']", visible: false, minimum: 0)
+      submitted_name_prefix = prefix_input[:value] if prefix_input
+
+      surviving_widget = begin
+        form.first(:xpath, "ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' nested-form-wrapper ') or contains(@id, '_from_group_input')][1]")
+      rescue StandardError
+        nil
+      end
+
+      if surviving_widget.nil? && submitted_name_prefix && (m = submitted_name_prefix.match(/submission\[([^\]]+)\]/))
+        group_id = "submission#{m[1]}_from_group_input"
+        surviving_widget = first("##{group_id}", minimum: 0) rescue nil
+      end
+    end
+
     within form do
       choose "", option: agent.agentType, allow_label_click: true unless is_affiliation
       fill_in 'name', with: agent.name
@@ -186,17 +215,81 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       within '.agents-affiliations' do
         all('.delete').each { |x| x.click }
         Array(agent.affiliations).each do |aff|
-          aff = OpenStruct.new(aff)
+          aff_struct = aff.respond_to?(:agentType) ? aff : OpenStruct.new(aff)
           find('.add-another-object', text: 'Add another').click
-          agent_id = agent_search(aff.name)
-          id = parent_id && !parent_id.eql?('NEW_RECORD') ? "#{parent_id}_#{agent_id}" : agent_id
-          within "turbo-frame[id=\"#{id}\"]" do
-            agent_fill(aff, is_affiliation: true)
-            sleep 1
+          row = all('.nested-form-wrapper').last
+          agent_id = nil
+          within row do
+            agent_id = agent_search(aff_struct.name)
+            id = parent_id && !parent_id.eql?('NEW_RECORD') ? "#{parent_id}_#{agent_id}" : agent_id
+            within "turbo-frame[id=\"#{id}\"]" do
+              agent_fill(aff_struct, is_affiliation: true)
+            end
+
+            # Re-resolve acknowledged result from stable containing row after replacement.
+            # Bare editable form id is an UNSAVED input-slot placeholder, never creation proof.
+            # Successful show replacement changes frame ID and renders exact persisted show field.
+            created_aff_id = nil
+            show_hidden = first("turbo-frame:not([id=\"#{id}\"]) input[type='hidden'][name$='[id]']", visible: false) ||
+                          first("input[type='hidden'][name$='[id]']:not([name='id'])", visible: false)
+            if show_hidden && !show_hidden[:value].to_s.empty? && show_hidden[:value] != agent_id && show_hidden[:value] != 'NEW_RECORD'
+              created_aff_id = show_hidden[:value]
+            end
+
+            if (created_aff_id.nil? || created_aff_id.empty?) && has_no_selector?("form")
+              edit_link = first("a.agent-edit-icon") || first("a[href*='/agents/'][href*='/edit']")
+              if edit_link && (match = edit_link[:href].match(%r{/agents/([^/?#]+)}))
+                created_aff_id = match[1]
+              end
+            end
+
+            if created_aff_id && !created_aff_id.empty?
+              if aff.is_a?(Hash)
+                aff['id'] = created_aff_id
+                aff[:id] = created_aff_id
+              elsif aff.respond_to?(:id=)
+                aff.id = created_aff_id
+              end
+              aff_struct.id = created_aff_id if aff_struct.respond_to?(:id=)
+              TestResourceOwnership.register(:agent, created_aff_id) if defined?(TestResourceOwnership)
+            end
           end
         end
       end
       click_on "Save"
+    end
+
+    if parent_id && !is_affiliation && !is_editing
+      target_scope = surviving_widget || self
+      hidden_input = nil
+      if submitted_name_prefix && !submitted_name_prefix.empty?
+        expected_name = "#{submitted_name_prefix}[id]"
+        hidden_input = target_scope.first("input[type='hidden'][name='#{expected_name}']", visible: false)
+      else
+        hidden_input = target_scope.first("input[type='hidden'][name$='[id]']:not([name*='affiliations']):not([name='id'])", visible: false)
+      end
+
+      created_id = hidden_input[:value] if hidden_input && !hidden_input[:value].to_s.empty? && hidden_input[:value] != parent_id
+
+      if (created_id.nil? || created_id.empty?) && target_scope.has_no_selector?("form[action=\"/agents\"]")
+        edit_link = target_scope.first("a.agent-edit-icon:not([href*='affiliations'])") ||
+                    target_scope.first("a[href*='/agents/'][href*='/edit']:not([href*='affiliations'])")
+        if edit_link && (match = edit_link[:href].match(%r{/agents/([^/?#]+)}))
+          created_id = match[1]
+        end
+      end
+
+      if created_id && !created_id.empty?
+        if agent.respond_to?(:id=)
+          agent.id = created_id
+        elsif agent.is_a?(Hash)
+          agent['id'] = created_id
+          agent[:id] = created_id
+        elsif agent.respond_to?(:[]=)
+          agent[:id] = created_id
+        end
+        TestResourceOwnership.register(:agent, created_id) if defined?(TestResourceOwnership)
+      end
     end
   end
 end

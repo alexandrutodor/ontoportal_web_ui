@@ -3,7 +3,7 @@ require 'webmock/minitest'
 
 class ContentRedirectionTest < ApplicationSystemTestCase
   def setup
-    WebMock.disable!
+    TestTargetGuard.configure_webmock!
 
     @sty_url = root_url + 'ontologies/STY'
     @ontology_portal_uri = 'div.field-container p.field-description_text'
@@ -36,12 +36,14 @@ class ContentRedirectionTest < ApplicationSystemTestCase
   end
 
   test "go to STY ontology classes page and test the different format of resource" do
+    skip 'expected formats were recorded from the AgroPortal API; an isolated API serializes differently' if TestTargetGuard.isolated_marker?
     visit @sty_url
     click_link('Classes')
     assert_selector(@generate_portal_link_button, visible: true, wait: 10)
-    generated_uri = find(@generate_portal_link_button + " .clipboard.d-flex.align-items-center").find('div[data-clipboard-target="content"]', visible: :all).native.attribute('innerHTML').strip
+    # Every same-ontology URI on the page renders this span with the same id; the class ID row comes first.
+    generated_uri = find(@generate_portal_link_button + " .clipboard.d-flex.align-items-center", match: :first).find('div[data-clipboard-target="content"]', visible: :all).native.attribute('innerHTML').strip
     assert_equal "http://localhost:3000/ontologies/STY/T071", generated_uri
-    find(@generate_portal_link_button, visible: :all).click
+    find(@generate_portal_link_button, visible: :all, match: :first).click
     assert_selector(@accordion_concept_details, visible: true, wait: 10)
     find(@accordion_concept_details, visible: :all).click
     assert_selector(@resource_div_formats, visible: true)

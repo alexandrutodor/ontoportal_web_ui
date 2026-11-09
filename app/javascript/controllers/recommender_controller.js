@@ -26,21 +26,65 @@ export default class extends Controller {
   }
 
   handleHighlightedChange(){
-    let recommandations_area = this.resultTarget
-    let jsonString = document.querySelector('input[name="highlighted_recommendation"]:checked').value;
-    let jsonStringModified = jsonString.replace(/:text/g, '"text"').replace(/:link/g, '"link"').replace(/=>/g, ':');
-    let jsonArray = JSON.parse(jsonStringModified);
-    var words = recommandations_area.textContent.split(/\s+/);
-    for (var i = 0; i < words.length; i++) {
-        var word = words[i].replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '').toLowerCase(); // Remove punctuation and convert to lowercase
-        var foundItem = jsonArray.find(item => item.text.toLowerCase() === word);
+    const recommandations_area = this.resultTarget;
+    if (!recommandations_area) return;
 
-        if (foundItem) {
-          // Replace the word with <a> tag
-          words[i] = '<a style="color:var(--primary-color) !important;" href="' + foundItem.link + '">' + words[i] + '</a>';
+    const checkedRadio = document.querySelector('input[name="highlighted_recommendation"]:checked');
+    let annotations = [];
+    if (checkedRadio && checkedRadio.value) {
+      try {
+        const parsed = JSON.parse(checkedRadio.value);
+        if (Array.isArray(parsed)) {
+          annotations = parsed;
         }
+      } catch (e) {
+        // invalid JSON: fall back to empty array without throw or data loss
       }
-    recommandations_area.innerHTML = words.join(' ');
+    }
+
+    const isSafeUrl = (url) => {
+      if (typeof url !== 'string') return false;
+      const trimmed = url.trim();
+      if (!trimmed || /[\x00-\x1F\x7F]/.test(trimmed)) return false;
+      if (trimmed.startsWith('//') || trimmed.startsWith('\\\\')) return false;
+      try {
+        const base = (typeof document !== 'undefined' && document.baseURI) ||
+                     (typeof window !== 'undefined' && window.location && window.location.href) ||
+                     'http://localhost/';
+        const parsed = new URL(trimmed, base);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const text = recommandations_area.textContent;
+    const tokens = text.split(/(\s+)/);
+    const fragment = document.createDocumentFragment();
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      if (!token) continue;
+      if (/^\s+$/.test(token)) {
+        fragment.appendChild(document.createTextNode(token));
+        continue;
+      }
+      const word = token.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '').toLowerCase();
+      const foundItem = annotations.find(item => item && typeof item.text === 'string' && item.text.toLowerCase() === word);
+
+      if (foundItem && isSafeUrl(foundItem.link)) {
+        const a = document.createElement('a');
+        a.setAttribute('style', 'color:var(--primary-color) !important;');
+        a.setAttribute('href', foundItem.link);
+        a.textContent = token;
+        fragment.appendChild(a);
+      } else {
+        fragment.appendChild(document.createTextNode(token));
+      }
+    }
+
+    recommandations_area.textContent = '';
+    recommandations_area.appendChild(fragment);
   }
 
   handleInput(event){

@@ -1,5 +1,10 @@
 module MappingsHelper
 
+  def mapping_evidence_enabled?
+    user = current_user rescue (session[:user] rescue nil)
+    Flipper.enabled?('MappingEvidence', user)
+  end
+
   def mappings_rest_url(ontologies = nil, display = nil)
     url = rest_url + mappings_path
     params = []

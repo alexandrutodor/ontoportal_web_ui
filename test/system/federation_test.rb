@@ -9,6 +9,7 @@ class FederationTest < ApplicationSystemTestCase
   end
 
   test "perform federated search in search page and make sure federation is working" do
+    skip 'needs the real federated portals; isolated runs have no outside network' if TestTargetGuard.isolated_marker?
 
     visit "#{@search_path}?q=#{@query}"
     results_count_no_federation = find('.search-page-number-of-results').text.scan(/\d+/).first.to_i
@@ -26,21 +27,14 @@ class FederationTest < ApplicationSystemTestCase
 
 
   test "perform federated browse and make sure federation is working" do
+    skip 'needs the real federated portals; isolated runs have no outside network' if TestTargetGuard.isolated_marker?
     ###### Federation non activated
     visit "#{@ontologies_path}"
-    loop do # make sure page is not still loading
-      loading_element = find_all(".browse-sket").any?
-      break unless loading_element
-      page.execute_script("window.scrollBy(0, window.innerHeight)")
-      sleep 0.3
-    end
+    wait_for_browse_loaded
     results_count_no_federation = first('.browse-desc-text').text.scan(/\d+/).first.to_i
 
     find("[data-target='#browse-categories-filter']").click
-    loop do # make sure page is not still loading
-      loading_element = find_all(".browse-sket").any?
-      break unless loading_element
-    end
+    wait_for_browse_loaded(scroll: false)
 
     number_categories_no_federation = all("input", visible: :all).count
 
@@ -50,15 +44,7 @@ class FederationTest < ApplicationSystemTestCase
     visit "#{@ontologies_path}?sort_by=ontology_name&portals=agroportal"
 
 
-    loop do # Scroll all down to display all the results
-      loading_element = find_all(".browse-sket").any?
-
-      break unless loading_element
-
-      page.execute_script("window.scrollBy(0, window.innerHeight)")
-
-      sleep 0.3
-    end
+    wait_for_browse_loaded
 
     results_count_federation = first('.browse-desc-text').text.scan(/\d+/).first.to_i
 
@@ -71,10 +57,7 @@ class FederationTest < ApplicationSystemTestCase
 
     find("[data-target='#browse-categories-filter']").click
 
-    loop do
-      loading_element = find_all(".browse-sket").any?
-      break unless loading_element
-    end
+    wait_for_browse_loaded(scroll: false)
 
     number_categories_federation = all("input", visible: :all).count
 
@@ -89,15 +72,7 @@ class FederationTest < ApplicationSystemTestCase
 
   test 'federated_browse_when_portal_down' do
     visit "#{@ontologies_path}?sort_by=ontology_name&portals=testportal-down"
-    loop do
-      loading_element = find_all(".browse-sket").any?
-
-      break unless loading_element
-
-      page.execute_script("window.scrollBy(0, window.innerHeight)")
-
-      sleep 0.3
-    end
+    wait_for_browse_loaded
     assert_selector ".alert-warning-type", visible: true
   end
 end

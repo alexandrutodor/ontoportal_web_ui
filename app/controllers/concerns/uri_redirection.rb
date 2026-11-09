@@ -5,6 +5,12 @@ module UriRedirection
 
   include SearchContent
 
+  DOWNLOAD_CONNECT_TIMEOUT = 5
+  DOWNLOAD_READ_TIMEOUT = 30
+  MAX_DOWNLOAD_SIZE = 50 * 1024 * 1024 # 50 MiB
+
+  class DownloadPayloadTooLargeError < StandardError; end
+
   def find_type_by_id(id, acronym)
     type, resource_id = find_type_by_search(id, acronym)
     return type, resource_id if type
@@ -77,8 +83,62 @@ module UriRedirection
 
   def fetch_and_forward_data(url)
     uri = URI.parse(url)
-    response = Net::HTTP.get_response(uri)
-    send_data response.body, type: response.content_type, status: response.code.to_i
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = (uri.scheme == 'https')
+    http.open_timeout = DOWNLOAD_CONNECT_TIMEOUT
+    http.read_timeout = DOWNLOAD_READ_TIMEOUT
+
+    req = Net::HTTP::Get.new(uri.request_uri)
+    buffer = String.new(encoding: Encoding::BINARY)
+    status = nil
+    actual_content_type = nil
+
+    http.request(req) do |response|
+      status = response.code.to_i
+      actual_content_type = response.content_type.presence || 'application/octet-stream'
+      buffer = String.new(encoding: Encoding::BINARY)
+
+      total_bytes = 0
+      response.read_body do |chunk|
+        total_bytes += chunk.bytesize
+        if total_bytes > MAX_DOWNLOAD_SIZE
+          raise DownloadPayloadTooLargeError, "Download payload exceeds limit of #{MAX_DOWNLOAD_SIZE} bytes"
+        end
+        buffer << chunk if status >= 200 && status < 300
+      end
+    end
+
+    if status && status >= 200 && status < 300
+      send_data buffer, type: actual_content_type, status: status
+    else
+      error_status = status || 502
+      render plain: controlled_download_error_message(error_status), content_type: 'text/plain', status: error_status
+    end
+  rescue DownloadPayloadTooLargeError
+    render plain: controlled_download_error_message(413), content_type: 'text/plain', status: 413
+  rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error
+    render plain: controlled_download_error_message(504), content_type: 'text/plain', status: 504
+  rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, EOFError, IOError, OpenSSL::SSL::SSLError
+    render plain: controlled_download_error_message(502), content_type: 'text/plain', status: 502
+  rescue StandardError
+    render plain: controlled_download_error_message(502), content_type: 'text/plain', status: 502
+  end
+
+  def controlled_download_error_message(status)
+    case status.to_i
+    when 403
+      I18n.t('ontology_content_serializer.forbidden', default: 'Forbidden')
+    when 404
+      I18n.t('ontology_content_serializer.not_found', default: 'Not Found')
+    when 413
+      I18n.t('ontology_content_serializer.payload_too_large', default: 'Payload Too Large')
+    when 502
+      I18n.t('ontology_content_serializer.bad_gateway', default: 'Bad Gateway')
+    when 504
+      I18n.t('ontology_content_serializer.gateway_timeout', default: 'Gateway Timeout')
+    else
+      I18n.t('ontology_content_serializer.generic_error', default: 'Upstream Service Error')
+    end
   end
 
 

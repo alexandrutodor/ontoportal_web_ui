@@ -49,10 +49,12 @@ module SearchContent
   end
 
   def search_ontologies_content(query:, page: 1, page_size: 10, filter_by_ontologies: [], filter_by_types: [], show_ontologies: true)
+    page = page.to_i > 0 ? page.to_i : 1
+    page_size = page_size.to_i > 0 ? page_size.to_i : 10
     acronyms = filter_by_ontologies
     original_query = query
     types = filter_by_types
-    query = query.gsub(':', '\:').gsub('/', '\/') if page.eql?(1)
+    query = query.to_s.gsub(':', '\:').gsub('/', '\/')
 
     qf = [
       "ontology_t^100 resource_id^10",
@@ -85,7 +87,14 @@ module SearchContent
       query = "*#{query}*"
     end
 
-    results = search_content( q: query, qf: qf.join(' '), ontologies: acronyms.join(','), types: types.join(','))
+    results = search_content(
+      q: query,
+      qf: qf.join(' '),
+      ontologies: acronyms.join(','),
+      types: types.join(','),
+      page: page,
+      pagesize: page_size
+    )
     [search_content_result_to_json(original_query, query, results, ontologies, selected_onto, show_ontologies), results.page,results.nextPage, results.totalCount]
   end
 

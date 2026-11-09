@@ -1,5 +1,23 @@
 ---
 en:
+  metadata_comparison:
+    title: "Metadata Comparison"
+    compare_metadata: "Compare Metadata"
+    reopen_package: "Reopen Saved Package"
+    download_json: "Download JSON Package"
+    download_csv: "Download Companion CSV"
+    refresh: "Refresh Capture"
+    retrieval_timestamp: "Captured at: %{time}"
+    read_only_notice: "Read-only capture"
+    submission: "Submission"
+    ontology_level_label: "Ontology level (current at capture)"
+    submission_level_label: "Submission level"
+    status_available: "Available"
+    status_unavailable: "Unavailable"
+    state_empty: "Empty"
+    state_unknown: "Unknown"
+    invalid_package: "Invalid comparison package"
+    missing_id_error: "Submission %{id} could not be retrieved"
   activerecord:
     errors:
       models:
@@ -9,6 +27,7 @@ en:
               appliance_id_mismatch: is an appliance id mismatch.
               invalid_license_key: is an invalid license key.
               no_appliance_id_for_comparison: Could not be validated. Unable to retrieve virtual appliance ID.
+              trial_not_allowed: cannot be a trial license.
   admin:
     analytics:
       active_users: Active users
@@ -126,6 +145,9 @@ en:
       edit_button: Edit
       configuration_updated_successfully: Configuration updated successfully
       configuration_update_error: 'Problem updating the configuration: %{error}'
+      catalog_load_error: 'Problem retrieving catalog data'
+      metadata_load_error: 'Problem retrieving catalog metadata'
+      update_unknown_error: 'Remote service rejected update'
     licenses:
       create:
         success: License renewed successfully
@@ -356,6 +378,7 @@ en:
     label: Label
     submit: Submit
     type: Type
+    unavailable: Change requests are currently unavailable.
   check_resolvability:
     check_resolvability_message_1: 'The URL is resolvable and support the following
       formats: %{supported_format}'
@@ -398,7 +421,9 @@ en:
     preferred_name: Preferred name
     type: Type
   components:
+    remove_row: "Remove row"
     add_another_object: "Add another %{object_name}"
+    raw_data: Raw data
     class: "class"
     contact: "contact"
     portal: "portal"
@@ -408,6 +433,10 @@ en:
     cancel_button: Cancel
     check_resolvability: checking resolvability...
     classes: classes
+    clipboard:
+      copy: Copy
+      copied: Copied!
+      failed: Copy failed
     concepts: concepts
     copy_original_uri: Copy original URI
     copy_portal_uri: Copy %{portal_name} URI
@@ -435,7 +464,7 @@ en:
     save_button: Save
     see_less: See less...
     see_more: See more...
-    select_anguage: "/"
+    select_anguage: Select a language
     show_less: "- Show less..."
     show_more: "+ Show more ..."
     submitted: Submitted
@@ -782,14 +811,18 @@ en:
       agents : Agents
       sparql_editor: SPARQL Editor
       explore: Explore
+      toggle_navigation: "Toggle navigation"
     notices:
       at: at
       slice: Slice
       visit_the_site: visit the full site
   login:
     admin_logged_out: Logged out <b>%{old_user}</b>, returned to <b>%{user}</b>
+    admin_return_confirm: Return to administrator account (%{user}) and end impersonation of %{old_user}?
     authentication_failed: "%{provider} authentication failed"
     back_home_button: Back home
+    cancel: Cancel
+    confirm_reset_password: Confirm Password Reset
     custom_ontology_set: The display is now based on your <a href='/account#custom_ontology_set'>Custom
       Ontology Set</a>.
     email: Email
@@ -803,7 +836,13 @@ en:
     forgot_password: Forgot password?
     invalid_account_combination: Invalid account name/password combination
     invalid_login: Errors on the form
+    login_as_button: Log in as user
+    login_as_confirm_prompt: Are you sure you want to log in as %{username}?
+    login_as_confirm_title: Confirm Impersonation
     login_with_provider: Login with %{provider}
+    logout_button: Log out
+    logout_confirm_prompt: Are you sure you want to log out of %{user}?
+    logout_confirm_title: Confirm Logout
     no_account: Do not have an account?
     password: Password
     private_ontology: This ontology is private. Please login.
@@ -812,6 +851,8 @@ en:
     reset_password_again: ". Please reset your password again."
     reset_password_message: A password reset email has been sent to your email address,
       please follow the instructions to reset your password.
+    reset_password_prompt: Confirm password reset for %{username}.
+    reset_password_title: Reset Password
     send_instructions: Send instructions
     title: Login
     try_again_notice: ". Please try again."
@@ -820,6 +861,36 @@ en:
     username_or_email: Username
     welcome: Welcome <b>
   mappings:
+    evidence:
+      action: Evidence
+      class_1: Class 1
+      class_2: Class 2
+      title: Mapping Evidence
+      view_evidence: View mapping evidence
+      header: Evidence
+      class_id: Class ID
+      ontology_id: Ontology ID
+      label: Label
+      definition: Definition
+      synonyms: Synonyms
+      relation: Relation
+      direction: Direction
+      direction_unknown: Unknown
+      directed: Directed (Source → Target)
+      source: Source
+      target: Target
+      process_provenance: Process Provenance
+      source_name: Source name
+      comment: Comment
+      unavailable: Unavailable
+      remote_details_unavailable: Remote details unavailable
+      previous: Previous
+      next: Next
+      close: Close
+      retry: Retry
+      return: Return
+      loading: Loading evidence...
+      error: Unable to load mapping evidence.
     all: All
     bubble_view_legend:
       bubble_size: 'Bubble size:'
@@ -955,6 +1026,7 @@ en:
       cancel: Cancel
       comment: Comment
       save: save
+    save_uncertain: The note save status is uncertain. Please check the thread before retrying to prevent duplicate entries.
     thread:
       submitted_by: submitted by
   ontolobridge:
@@ -963,6 +1035,13 @@ en:
     new_term_instructions_saved: New term request instructions for %{acronym} saved
     problem_of_creating_new_term: 'Problem creating a new term %{endpoint}: %{class}
       - %{message}'
+  ontology_content_serializer:
+    bad_gateway: Bad Gateway
+    forbidden: Forbidden
+    gateway_timeout: Gateway Timeout
+    generic_error: Upstream Service Error
+    not_found: Not Found
+    payload_too_large: Payload Too Large
   ontologies:
     access_rights_information: Additional license and access rights information
     admin:
@@ -1290,6 +1369,38 @@ en:
     include_all_submissions: Include all submissions
     ontologies: Ontologies
     save: Save
+    preview: Preview changes
+    preview_header: Bulk Metadata Changes Preview
+    preview_badge: Review before confirmation
+    preview_notice: 'Values are compared against current submission state. Unchecking a target excludes it from update. External changes before confirmation will require a fresh preview (best-effort recheck).'
+    confirm_updates: Confirm updates
+    cancel_preview: Cancel
+    close: Close
+    target: Target
+    property: Property
+    properties: Properties
+    current_value: Current Value
+    proposed_value: Proposed Value
+    status: Status
+    status_unchanged: unchanged
+    status_added: added
+    status_replaced: replaced
+    status_cleared: cleared
+    status_omitted: omitted
+    empty_value: (empty)
+    include_target: Include
+    invalid_or_expired_preview: The preview context is invalid or expired. Please generate a fresh preview.
+    stale_preview_detected: 'Current values changed since preview for target %{target}. A fresh preview is required before confirmation (best-effort recheck).'
+    no_targets_selected: No targets selected for update.
+    review_receipt_title: Bulk Update Review Receipt
+    receipt_badge: Session Receipt
+    receipt_success: Success
+    receipt_rejected: Rejected
+    receipt_unknown: Unknown
+    receipt_unknown_reconcile: Unknown outcome requires re-read before retry
+    retry_col: Retry?
+    details: Details
+    retry_preview: Fresh preview for failed targets
     select_ontologies_and_metadata: Select ontologies and metadata properties
     start_the_bulk_edit: Select in the table submissions (rows) and metadata properties
       (columns) to start the bulk edit
@@ -1530,6 +1641,27 @@ en:
       visualize: Vizualize
     search_place_holder: Enter a term, e.g., plant height
     show_advanced_options: Show options
+  query_recipes:
+    button_label: "Saved Recipes"
+    save_recipe: "Save Recipe"
+    saved_recipes: "Saved Recipes"
+    save_current: "Save current settings"
+    recipe_name_placeholder: "Recipe name..."
+    save: "Save"
+    cancel: "Cancel"
+    reopen: "Apply"
+    rename: "Rename"
+    delete: "Delete"
+    export: "Export"
+    import: "Import"
+    clear_all: "Clear all"
+    empty_state: "No saved recipes yet on this device."
+    local_storage_notice: "Saved locally on this device. No queries or credentials are sent to servers."
+    storage_unavailable: "Local storage is unavailable in this browser. Recipes cannot be saved."
+    import_invalid: "Failed to import recipe: invalid or unsupported format."
+    import_success: "Recipe imported successfully."
+    portal_mismatch: "Originating portal: %{portal} (Current: %{current}). Review settings before applying."
+    missing_ontology: "Missing ontology: %{ontology} is not in the current catalog."
   show_advanced_options: Show advanced options
   statistics:
     agents: Agents
@@ -1556,7 +1688,7 @@ en:
     deprecated_help: An ontology with status retired shall necessarily be also deprecated, but not the opposite.
     edit_metadata_instruction: Edit the metadata of your ontology here. Some of these
       values are used by %{portal_name} functionalities, including for FAIRness assessment.
-      %{link)
+      %{link}
     edit_metadata_instruction_link: See guidelines and recommendations for metadata
       here.
     edit_ontology_title: Edit ontology
@@ -1681,6 +1813,7 @@ en:
   users:
     account_successfully_created: Account was successfully created
     account_successfully_updated: Account was successfully updated
+    cancel: Cancel
     custom_ontologies_cleared: Custom Ontologies were cleared
     custom_ontologies_saved: Custom Ontologies were saved
     edit:
@@ -1754,8 +1887,14 @@ en:
       unsubscribe: Unsubscribe
       upload_semantic_resources: Upload Ontologies
       username: 'Username:'
+    subscribe_confirm_button: Confirm Subscription
+    subscribe_confirm_prompt: Are you sure you want to subscribe %{user} to the %{list} mailing list?
+    subscribe_confirm_title: Confirm Mailing List Subscription
     subscribe_flash_message: 'You have successfully  %{action} %{to_or_from} our user
       mailing list: %{list}'
+    unsubscribe_confirm_button: Confirm Unsubscription
+    unsubscribe_confirm_prompt: Are you sure you want to unsubscribe %{email} from the %{list} mailing list?
+    unsubscribe_confirm_title: Confirm Mailing List Unsubscription
     user_deleted_successfully: User deleted successfully
     valid_email_adresse: Please enter a valid email adresse
     validate_email_address: Please enter an email address
@@ -1777,3 +1916,20 @@ en:
     title: SPARQL Query Editor
     private_ontology_warning: Make the ontology public to enable access from the SPARQL endpoint.
     edit_sample_queries: Edit sample queries
+    sample_queries_saved: Sample queries saved.
+    sample_queries_save_error: Sample queries could not be saved. Your changes are still in the editor, so you can try again.
+  scientific_run_record:
+    download: Download Run Record
+    import: Import Run Record
+    title: Scientific Run Record
+    include_input_text: Include input text
+    include_results: Include captured results
+    settings_only_note: Settings-only record requires the original input to rerun.
+    input_matched: Input text matches recorded SHA-256 digest.
+    input_mismatch: Input text does not match recorded digest.
+    loaded_for_inspection: Record loaded for inspection. Click Run to execute.
+    invalid_json: "Invalid record: file is not valid JSON."
+    unsupported_tool: "Unsupported tool: record tool '%{tool}' does not match '%{expected}'."
+    unsupported_schema: "Unsupported schema version: %{version}."
+    credentials_rejected: "Rejected: record contains credential or authentication fields."
+    foreign_url_rejected: "Rejected: record contains foreign endpoint URLs."

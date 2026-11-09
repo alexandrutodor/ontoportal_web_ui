@@ -1,7 +1,11 @@
 %div
   - if label?
-    .text-input-label
-      = @label
+    - if content
+      .text-input-label
+        = @label
+    - else
+      %label.text-input-label.d-block{for: control_id}
+        = @label
 
   - if content
     %div{'data-controller': 'tooltip', title: @tooltip ? content_tag(:div, @tooltip, style: 'max-width: 400px;') : nil}
@@ -9,15 +13,15 @@
   - else
     %input.input-field-component.text-input{  class: [
       (@disabled ? '' : 'not-disabled'),
-      (@readonly ? 'readonly' : '') ].join(' ').strip, name: @name, type: @type, placeholder: @placeholder, style: error_style, id: @id, data: @data, value: @value, disabled: @disabled, readonly: @readonly, min: @min, max: @max, step: @step, 'data-controller': 'tooltip', title: @tooltip ? content_tag(:div, @tooltip, style: 'max-width: 400px;') : nil}
+      (@readonly ? 'readonly' : '') ].join(' ').strip, name: @name, type: @type, placeholder: @placeholder, style: error_style, id: control_id, data: @data, value: @value, disabled: @disabled, readonly: @readonly, min: @min, max: @max, step: @step, 'aria-describedby': aria_describedby, 'aria-invalid': (error? ? 'true' : nil), 'data-controller': 'tooltip', title: @tooltip ? content_tag(:div, @tooltip, style: 'max-width: 400px;') : nil}
 
 
 
   - if error?
-    .text-input-error-text
+    .text-input-error-text{id: error_id}
       = @error_message
   - if help?
-    .text-input-helper-text
+    .text-input-helper-text{id: help_id}
       = raw @helper_text
 
 

@@ -56,11 +56,15 @@ class OntologiesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test 'test get STY in xml format' do
+    # Whether STY has an RDF/XML download depends on the API's copy (BioPortal's UMLS STY has none);
+    # the UI must forward the download, or the API's error status when there is none.
+    api = Net::HTTP.get_response(URI("#{$REST_URL}/ontologies/STY/download?apikey=#{$API_KEY}&download_format=rdf"))
     get '/ontologies/STY', headers: { 'Accept' => 'application/xml' }
-    if $REST_URL == "https://data.stageportal.lirmm.fr/"
+    if api.is_a?(Net::HTTPSuccess)
       assert_response :success
+      assert_includes response.body, '<rdf:RDF'
     else
-      assert_equal 500, response.status # STY does not have xml in localhost:9393
+      assert_equal api.code.to_i, response.status
     end
   end
 

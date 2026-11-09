@@ -15,6 +15,9 @@
     = form_for :submission, url: "/ontologies_metadata_curator/update", html: {method: :put}, data: { turbo: true} do
       = hidden_field_tag :active_ontology, ontology_submission_id_label(*@selected_ontologies.first), id: 'active_ontology'
       = hidden_field_tag :all_metadata, @all_metadata
+      - if bulk_metadata_preview_enabled?
+        - Array(@selected_metadata).each do |prop|
+          = hidden_field_tag 'selected_metadata[]', prop
       %div.d-flex.justify-content-between
         %ul#ontologies-pills-tab.nav.nav-pills.mb-3
           - @selected_ontologies.each_with_index do |value, index|
@@ -36,4 +39,9 @@
           .tab-pane{id: "pills-"+ onto+sub_i, class: index.zero? ? 'active' : ''}
             = render TurboFrameComponent.new(id: 'metadata_by_ontology', src: "ontologies_metadata_curator/#{onto}/submissions/#{sub_i}"+"?properties=#{@selected_metadata.join(',')}&form_id=metadata_by_ontology", loading:"lazy")
 
-      = submit_tag t("ontologies_metadata_curator.save"), class: "btn btn-primary btn-block"
+      - if bulk_metadata_preview_enabled?
+        .d-flex.justify-content-between.mt-3
+          = submit_tag t("ontologies_metadata_curator.save"), class: "btn btn-primary"
+          = submit_tag t("ontologies_metadata_curator.preview"), formaction: "/ontologies_metadata_curator/preview", formmethod: :post, class: "btn btn-outline-primary", id: "bulk_preview_btn"
+      - else
+        = submit_tag t("ontologies_metadata_curator.save"), class: "btn btn-primary btn-block"

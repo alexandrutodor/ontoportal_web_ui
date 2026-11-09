@@ -26,7 +26,7 @@ class OntologySubscribeButtonComponent < ViewComponent::Base
   def title
     if @subscribed
       t('components.resource', sub_text: @sub_text)
-    elsif @count.zero?
+    elsif @count.nil? || @count.zero?
       t('components.notified_of_all_updates')
     else
       t('components.join_the_count', count: @count)

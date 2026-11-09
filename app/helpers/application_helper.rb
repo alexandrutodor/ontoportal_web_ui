@@ -40,6 +40,29 @@ module ApplicationHelper
     Flipper.enabled?('Agents', user)
   end
 
+  def query_recipes_enabled?
+    user = current_user rescue nil
+    defined?(Flipper) && Flipper.enabled?('QueryRecipes', user)
+  end
+
+  def run_records_enabled?
+    return false unless defined?(Flipper) && Flipper.respond_to?(:enabled?)
+    user = current_user rescue (session[:user] rescue nil)
+    Flipper.enabled?('RunRecords', user)
+  end
+
+  def bulk_metadata_preview_enabled?
+    return false unless defined?(Flipper) && Flipper.respond_to?(:enabled?)
+    user = current_user rescue (session[:user] rescue nil)
+    actor = user.respond_to?(:flipper_id) ? user : nil
+    actor ? Flipper.enabled?('BulkMetadataPreview', actor) : Flipper.enabled?('BulkMetadataPreview')
+  end
+
+  def metadata_comparison_enabled?
+    user = current_user rescue nil
+    Flipper.enabled?('MetadataComparison', user)
+  end
+
   def sparql_enabled?
     user = current_user rescue nil
     Flipper.enabled?('SPARQL', user) && $SPARQL_ENDPOINT_URL
@@ -86,8 +109,10 @@ module ApplicationHelper
     $OMNIAUTH_PROVIDERS
   end
 
+  # strategy is the /auth/<segment> value: the configured name, the strategy or the provider key.
   def omniauth_provider_info(strategy)
-    omniauth_providers_info.select {|k,v| v[:strategy].eql?(strategy.to_sym) || k.eql?(strategy)}
+    segment = strategy.to_s
+    omniauth_providers_info.select { |k, v| [v[:name], v[:strategy], k].compact.map(&:to_s).include?(segment) }
   end
 
   def omniauth_token_provider(strategy)
@@ -370,14 +395,21 @@ module ApplicationHelper
         key_string = value[:key].to_s
         next if key_string.include?('metadata')
 
-        modified_key = prefix_property_url(key_string, key)
+        base_label = value[:label] || key
+        modified_key = prefix_property_url(key_string, base_label)
 
-        if modified_key
-          modified_properties[modified_key] = value
-        else
-          modified_properties[link_last_part(key_string)] = value
-        end
+        display_label = if modified_key
+                          modified_key
+                        elsif base_label.to_s.strip.empty? || base_label.to_s == key_string
+                          link_last_part(key_string)
+                        else
+                          base_label.to_s
+                        end
 
+        value_with_label = value.merge(label: display_label)
+        modified_properties[key] = value_with_label
+      else
+        modified_properties[key] = value
       end
     end
 
@@ -527,19 +559,10 @@ module ApplicationHelper
   private
 
   def append_apikey_if_rest_url(link, user = current_user)
-    return link if link.blank? 
-    rest_url = LinkedData::Client.settings.rest_url
-    fairness_url = $FAIRNESS_URL
-    if link.include?(rest_url) || (fairness_url.present? && link.include?(fairness_url))
-      uri = URI.parse(link) rescue nil
-      return link unless uri
-      params = URI.decode_www_form(uri.query || "")
-      params.reject! { |k, v| k == "apikey" }
-      params << ["apikey", get_apikey]
-      uri.query = URI.encode_www_form(params)
-      link = uri.to_s
-    end
-    link
+    return link if link.blank?
+
+    key = user&.apikey || get_apikey
+    SafeUrlPolicy.append_apikey_if_permitted(link, key)
   end
 
 end

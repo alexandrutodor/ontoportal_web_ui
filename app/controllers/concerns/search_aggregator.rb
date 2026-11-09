@@ -65,21 +65,30 @@ module SearchAggregator
     sort_results_by_string_similarity(query, search_results)
   end
 
-  def search_concept_label(label)
+  def search_concept_label(label, query = @search_query)
     label = language_hash(label)
+    label = language_hash(label) if label.is_a?(OpenStruct)
 
     if label.is_a?(Hash)
-      label = label.values.flatten
-      label = label.select do |pref_lab|
-        pref_lab.downcase.include?(@search_query.downcase) || @search_query.downcase.include?(pref_lab.downcase)
-      end.first || label.first
+      candidates = label.values.flatten.compact
+      q = query.to_s.strip.downcase
+
+      label = if q.empty?
+        candidates.find { |l| !l.to_s.strip.empty? } || candidates.first
+      else
+        candidates.find do |pref_lab|
+          lab = pref_lab.to_s.strip.downcase
+          next false if lab.empty?
+          lab.include?(q) || q.include?(lab)
+        end || candidates.find { |l| !l.to_s.strip.empty? } || candidates.first
+      end
     end
 
     label
   end
 
   def search_result_elem(class_object, ontology_id, title)
-    label = search_concept_label(class_object.prefLabel)
+    label = search_concept_label(class_object.prefLabel, @search_query)
     request_lang = helpers.request_lang&.eql?("ALL") ? '' : "&language=#{helpers.request_lang}"
     ontology_acronym = link_last_part(ontology_id)
     result = {
@@ -305,10 +314,12 @@ module SearchAggregator
   end
 
 
+  # Root entries use :portal_{name,color,light_color}; alternative entries use :name, :color, :light_color.
   def swap_portal_attributes(root_portal, new_portal)
-    [:link, :portal_name, :portal_color, :portal_light_color].each do |attribute|
-      root_portal[attribute], new_portal[attribute] = new_portal[attribute], root_portal[attribute]
-    end
+    root_portal[:link], new_portal[:link] = new_portal[:link], root_portal[:link]
+    root_portal[:portal_name], new_portal[:name] = new_portal[:name], root_portal[:portal_name]
+    root_portal[:portal_color], new_portal[:color] = new_portal[:color], root_portal[:portal_color]
+    root_portal[:portal_light_color], new_portal[:light_color] = new_portal[:light_color], root_portal[:portal_light_color]
   end
 
   def sort_results_by_string_similarity(query, search_results)

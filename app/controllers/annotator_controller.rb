@@ -10,6 +10,15 @@ class AnnotatorController < ApplicationController
   NCBO_ANNOTATOR_PLUS_URI = $NCBO_ANNOTATOR_URL
 
   before_action :initialize_options, only: [:index, :annotator_plus, :ncbo_annotator_plus]
+  helper_method :annotator_tool_name
+
+  def annotator_tool_name
+    case action_name
+    when 'annotator_plus' then 'annotatorplus'
+    when 'ncbo_annotator_plus' then 'ncbo_annotatorplus'
+    else 'annotator'
+    end
+  end
   def index
     set_annotator_info('/annotator', 'Annotator', ANNOTATOR_URI)
   end
@@ -25,6 +34,16 @@ class AnnotatorController < ApplicationController
     render 'index'
   end
 
+  def json_link(url, optional_params)
+    escaped_params = optional_params.respond_to?(:to_unsafe_h) ? optional_params.to_unsafe_h.dup : optional_params.dup
+    if escaped_params[:text]
+      escaped_params[:text] = CGI.escape(escaped_params[:text].to_s)
+    elsif escaped_params['text']
+      escaped_params['text'] = CGI.escape(escaped_params['text'].to_s)
+    end
+    super(url, escaped_params)
+  end
+
   private
   def set_annotator_info(url, page_name, uri)
     @form_url = url
@@ -37,7 +56,7 @@ class AnnotatorController < ApplicationController
     if params[:text] && !params[:text].empty?
       @init_whole_word_only = true
       api_params = {
-        text: remove_special_chars(params[:text]),
+        text: params[:text],
         ontologies: params[:ontologies],
         semantic_types: params[:semantic_types],
         semantic_groups: params[:semantic_groups],
@@ -46,8 +65,6 @@ class AnnotatorController < ApplicationController
         expand_mappings: params[:expand_mappings],
         exclude_numbers: params[:exclude_numbers],
         exclude_synonyms: params[:exclude_synonyms],
-        semantic_types: params[:semantic_types],
-        semantic_groups: params[:semantic_groups],
         class_hierarchy_max_level: params[:class_hierarchy_max_level],
         score_threshold: params[:score_threshold],
         confidence_threshold: params[:confidence_threshold],
@@ -78,7 +95,7 @@ class AnnotatorController < ApplicationController
       if at_slice?
         slice_ontologies_acronyms = @subdomain_filter[:ontologies].map{ |id| link_last_part(id)}
         if api_params[:ontologies]
-          selected_ontolgies = api_params[:ontologies].split(',')
+          selected_ontolgies = api_params[:ontologies].is_a?(Array) ? api_params[:ontologies] : api_params[:ontologies].to_s.split(',')
           filtred_ontologies = selected_ontolgies.select{ |ontology| slice_ontologies_acronyms.include?(ontology) }
         else
           filtred_ontologies = slice_ontologies_acronyms
@@ -95,7 +112,7 @@ class AnnotatorController < ApplicationController
         if annotation.annotations.empty?
           row = {
             class: annotation_class_info(annotation.annotatedClass),
-            ontology: annotation_ontology_info(annotation.annotatedClass.links),
+            ontology: annotation_ontology_info(annotation.annotatedClass.links["ontology"]),
             context: "",
             type: 'direct'
           }
@@ -159,6 +176,18 @@ class AnnotatorController < ApplicationController
         end
       end
       @advanced_options_open = !empty_advanced_options
+      if (respond_to?(:run_records_enabled?, true) && run_records_enabled?) && @results.present?
+        @run_record = ScientificRunRecord.build_annotator_record(
+          tool: annotator_tool_name,
+          params: params,
+          effective_params: api_params,
+          results: @results,
+          raw_annotations: annotations,
+          subdomain_filter: @subdomain_filter,
+          text: params[:text],
+          source_portal: portal_name
+        )
+      end
     end
   end
 
@@ -183,7 +212,8 @@ class AnnotatorController < ApplicationController
   end
   def annotation_ontology_info(ontology_url)
     {
-      text: @ontologies[ontology_url].name,
+      # Annotations can come from ontologies outside the visible list; show the acronym then.
+      text: @ontologies[ontology_url]&.name || ontology_url.to_s.split('/').last,
       link: url_to_endpoint(ontology_url)
     }
   end
@@ -215,15 +245,6 @@ class AnnotatorController < ApplicationController
       params[:confidence_threshold] == '0' &&
       params[:fast_context].nil? &&
       params[:lemmatize].nil?
-  end
-
-
-  def remove_special_chars(input)
-    regex = /^[a-zA-Z0-9\s]*$/
-    unless input.match?(regex)
-      input.gsub!(/[^\w\s]/, '')
-    end
-    input
   end
 
 end

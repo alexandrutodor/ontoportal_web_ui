@@ -25,7 +25,7 @@ class CollectionsController < ApplicationController
                                                                      filter_by_types: ['Collection'])
 
 
-      render inline: helpers.render_search_paginated_list(container_id: 'collections_sorted_list',
+      render html: helpers.render_search_paginated_list(container_id: 'collections_sorted_list',
                                                           next_page_url: "/ontologies/#{@ontology.acronym}/collections",
                                                           child_url: "/ontologies/#{@ontology.acronym}/collections/show", child_turbo_frame: 'collection',
                                                           child_param: :collectionid,
@@ -52,7 +52,7 @@ class CollectionsController < ApplicationController
 
     label = helpers.main_language_label(collection_label)
     link = collection_path(collection_id: params[:id], ontology_id: params[:ontology_id], language: request_lang)
-    render(inline: helpers.ajax_link_chip(params[:id], label, link, external: collection.blank?), layout: false)
+    render(html: helpers.ajax_link_chip(params[:id], label, link, external: collection.blank?), layout: false)
   end
 
   def show_members

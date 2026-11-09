@@ -2,7 +2,7 @@
   .d-flex.justify-content-end.mb-2
     - link, target = api_button_link_and_target(mappings_rest_url(@ontologies_param))
     = render RoundedButtonComponent.new(link: link, target: target, size: 'medium', title: t("components.go_to_api"))
-  #mappings.paginate_ajax{:style => "overflow: auto; max-height: 600px;"}
+  #mappings.paginate_ajax{:style => "overflow: auto; max-height: 600px;", :data => (mapping_evidence_enabled? ? { controller: 'mapping-evidence' } : nil)}
     #mapping_results
       .mappings-table-pagination
         = will_paginate @page_results, :update => 'mappings', :params => { :target => params[:target] }
@@ -15,7 +15,7 @@
             %th #{@target_ontology_name}
             %th Source
           - for map in @mappings
-            %tr
+            %tr{:data => (mapping_evidence_enabled? ? { mapping_evidence_target: 'row', mapping_id: map.id.to_s.split("/").last, evidence_url: mapping_evidence_path(map.id.to_s.split("/").last) } : nil)}
               - map.classes.each do |cls|
                 %td
                   - if internal_mapping?(cls)
@@ -24,5 +24,31 @@
                     = ajax_to_external_cls(cls)
               %td
                 #{map.source} #{(map.process || {})[:source_name]}
+                - if mapping_evidence_enabled?
+                  %button.btn.btn-sm.btn-link.p-0.ml-2.mapping-evidence-btn{type: 'button', title: t('mappings.evidence.view_evidence'), data: { action: 'click->mapping-evidence#open', mapping_id: map.id.to_s.split('/').last, evidence_url: mapping_evidence_path(map.id.to_s.split('/').last) }}
+                    = t('mappings.evidence.action')
       .mappings-table-pagination
         = will_paginate @page_results, :update => 'mappings', :params => { :target => params[:target] }
+    - if mapping_evidence_enabled?
+      .mapping-evidence-panel.d-none{data: { mapping_evidence_target: 'panel' }, role: 'dialog', aria: { modal: 'true', label: t('mappings.evidence.title') }}
+        .mapping-evidence-dialog.card.mt-3.p-3
+          .mapping-evidence-panel-header.d-flex.justify-content-between.align-items-center.border-bottom.pb-2
+            %h5.m-0= t('mappings.evidence.title')
+            %button.close{type: 'button', aria: { label: t('mappings.evidence.close') }, data: { action: 'click->mapping-evidence#close', mapping_evidence_target: 'closeBtn' }}
+              %span &times;
+          .mapping-evidence-nav.d-flex.justify-content-between.align-items-center.my-2
+            %button.btn.btn-sm.btn-outline-secondary{type: 'button', data: { action: 'click->mapping-evidence#prev', mapping_evidence_target: 'prevBtn' }}
+              &larr; #{t('mappings.evidence.previous')}
+            %button.btn.btn-sm.btn-outline-secondary{type: 'button', data: { action: 'click->mapping-evidence#next', mapping_evidence_target: 'nextBtn' }}
+              #{t('mappings.evidence.next')} &rarr;
+          .mapping-evidence-loading.text-center.py-4.d-none{data: { mapping_evidence_target: 'loading' }}
+            .spinner-border.spinner-border-sm{role: 'status'}
+            %span.ml-2= t('mappings.evidence.loading')
+          .mapping-evidence-error.alert.alert-danger.d-none{data: { mapping_evidence_target: 'error' }}
+            %p.m-0{data: { mapping_evidence_target: 'errorMessage' }}= t('mappings.evidence.error')
+            .mt-2
+              %button.btn.btn-sm.btn-primary.mr-2{type: 'button', data: { action: 'click->mapping-evidence#retry', mapping_evidence_target: 'retryBtn' }}
+                = t('mappings.evidence.retry')
+              %button.btn.btn-sm.btn-secondary{type: 'button', data: { action: 'click->mapping-evidence#close' }}
+                = t('mappings.evidence.return')
+          .mapping-evidence-content{data: { mapping_evidence_target: 'content' }}

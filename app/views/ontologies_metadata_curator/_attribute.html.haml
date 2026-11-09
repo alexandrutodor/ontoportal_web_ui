@@ -19,7 +19,7 @@
                 = error_message_alert
               %div
                 - if attribute == "contact"
-                  = raw submission.contact.map {|c| [c["name"], c["email"]].join(", ") if c.member?(:name) && c.member?(:email)}.join("<br/>")
+                  = safe_join(Array(submission.contact).map {|c| safe_join([c["name"] || c[:name], c["email"] || c[:email]].compact, ", ") if (c.member?(:name) || c.member?("name")) && (c.member?(:email) || c.member?("email"))}.compact, tag.br)
                 - elsif attribute == "naturalLanguage"
                   - submission.send(attribute).each do |lang|
                     = render LanguageFieldComponent.new(value: lang)

@@ -1,5 +1,23 @@
 ---
 fr:
+  metadata_comparison:
+    title: "Comparaison des métadonnées"
+    compare_metadata: "Comparer les métadonnées"
+    reopen_package: "Rouvrir un paquet enregistré"
+    download_json: "Télécharger le paquet JSON"
+    download_csv: "Télécharger le CSV associé"
+    refresh: "Actualiser la capture"
+    retrieval_timestamp: "Capturé le : %{time}"
+    read_only_notice: "Capture en lecture seule"
+    submission: "Soumission"
+    ontology_level_label: "Niveau ontologie (actuel à la capture)"
+    submission_level_label: "Niveau soumission"
+    status_available: "Disponible"
+    status_unavailable: "Indisponible"
+    state_empty: "Vide"
+    state_unknown: "Inconnu"
+    invalid_package: "Paquet de comparaison invalide"
+    missing_id_error: "La soumission %{id} n'a pas pu être récupérée"
   activerecord:
     errors:
       models:
@@ -9,6 +27,7 @@ fr:
               appliance_id_mismatch: ne correspond pas à l'ID de la machine virtuelle.
               invalid_license_key: est une clé de licence invalide.
               no_appliance_id_for_comparison: n'a pas pu être validée. Impossible de récupérer l'ID de la machine virtuelle.
+              trial_not_allowed: ne peut pas être une licence d'essai.
   admin:
     analytics:
       active_users: Utilisateurs actifs
@@ -132,6 +151,9 @@ fr:
       edit_button: Éditer
       configuration_updated_successfully: Configuration de l'API mise à jour avec succès
       configuration_update_error: 'Problème lors de la mise à jour de la configuration: %{error}'
+      catalog_load_error: 'Problème lors de la récupération des données du catalogue'
+      metadata_load_error: 'Problème lors de la récupération des métadonnées du catalogue'
+      update_unknown_error: 'Le service distant a rejeté la mise à jour'
     licenses:
       create:
         success: Licence renouvelée
@@ -364,6 +386,7 @@ fr:
     label: Libellé
     submit: Soumettre
     type: Type
+    unavailable: Les demandes de modification sont actuellement indisponibles.
   check_resolvability:
     check_resolvability_message_1: 'L''URL est résolvable et supporte les formats
       suivants : %{supported_format}'
@@ -408,7 +431,9 @@ fr:
     preferred_name: Nom préféré
     type: Type
   components:
+    remove_row: "Supprimer la ligne"
     add_another_object: "Ajouter un autre %{object_name}"
+    raw_data: Données brutes
     class: "classe"
     contact: "contact"
     portal: "portail"
@@ -418,6 +443,10 @@ fr:
     cancel_button: Annuler
     check_resolvability: vérification de la résolvabilité...
     classes: classes
+    clipboard:
+      copy: Copier
+      copied: Copié !
+      failed: Échec de la copie
     concepts: concepts
     copy_original_uri: Copier l'URI d'origine
     copy_portal_uri: Copier l'URI de %{portal_name}
@@ -806,14 +835,18 @@ fr:
       agents : Agents
       sparql_editor: Editeur SPARQL
       explore: Explorer
+      toggle_navigation: "Basculer la navigation"
     notices:
       at: à
       slice: Slice
       visit_the_site: visitez le site complet
   login:
     admin_logged_out: Déconnecté <b>%{old_user}</b>, retourné à <b>%{user}</b>
+    admin_return_confirm: Retourner au compte administrateur (%{user}) et terminer l'usurpation de %{old_user} ?
     authentication_failed: L'authentification %{provider} a échoué
     back_home_button: Retour à l'accueil
+    cancel: Annuler
+    confirm_reset_password: Confirmer la réinitialisation
     custom_ontology_set: L'affichage est maintenant basé sur votre <a href='/account#custom_ontology_set'>Ensemble
       personnalisé d'ontologies</a>.
     email: Email
@@ -828,7 +861,13 @@ fr:
     forgot_password: Mot de passe oublié ?
     invalid_account_combination: Combinaison nom de compte/mot de passe invalide
     invalid_login: Erreurs dans le formulaire
+    login_as_button: Se connecter en tant qu'utilisateur
+    login_as_confirm_prompt: Êtes-vous sûr de vouloir vous connecter en tant que %{username} ?
+    login_as_confirm_title: Confirmer l'usurpation d'identité
     login_with_provider: Se connecter avec %{provider}
+    logout_button: Se déconnecter
+    logout_confirm_prompt: Êtes-vous sûr de vouloir vous déconnecter de %{user} ?
+    logout_confirm_title: Confirmer la déconnexion
     no_account: Vous n'avez pas de compte ?
     password: Mot de passe
     private_ontology: Cette ontologie est privée. Veuillez vous connecter.
@@ -838,6 +877,8 @@ fr:
     reset_password_message: Un email de réinitialisation de mot de passe a été envoyé
       à votre adresse email, veuillez suivre les instructions pour réinitialiser votre
       mot de passe.
+    reset_password_prompt: Confirmez la réinitialisation du mot de passe pour %{username}.
+    reset_password_title: Réinitialiser le mot de passe
     send_instructions: Envoyer les instructions
     title: Connexion
     try_again_notice: ". Veuillez réessayer."
@@ -846,6 +887,36 @@ fr:
     username_or_email: Nom d'utilisateur
     welcome: Bienvenue <b>
   mappings:
+    evidence:
+      action: Preuve
+      class_1: Classe 1
+      class_2: Classe 2
+      title: Preuves du mapping
+      view_evidence: Voir les preuves du mapping
+      header: Preuve
+      class_id: Identifiant de la classe
+      ontology_id: Identifiant de l'ontologie
+      label: Libellé
+      definition: Définition
+      synonyms: Synonymes
+      relation: Relation
+      direction: Direction
+      direction_unknown: Inconnue
+      directed: Dirigé (Source → Cible)
+      source: Source
+      target: Cible
+      process_provenance: Provenance du processus
+      source_name: Nom de la source
+      comment: Commentaire
+      unavailable: Indisponible
+      remote_details_unavailable: Détails distants indisponibles
+      previous: Précédent
+      next: Suivant
+      close: Fermer
+      retry: Réessayer
+      return: Retour
+      loading: Chargement des preuves...
+      error: Impossible de charger les preuves du mapping.
     all: Tous
     bubble_view_legend:
       bubble_size: 'Taille de la bulle :'
@@ -985,6 +1056,7 @@ fr:
       cancel: Annuler
       comment: Commentaire
       save: sauvegarder
+    save_uncertain: "Le statut de l'enregistrement de la note est incertain. Veuillez vérifier le fil avant de réessayer pour éviter les doublons."
     thread:
       submitted_by: soumis par
   ontolobridge:
@@ -994,6 +1066,13 @@ fr:
       enregistrées
     problem_of_creating_new_term: 'Problème de création d''un nouveau terme %{endpoint}
       : %{class} - %{message}'
+  ontology_content_serializer:
+    bad_gateway: Passerelle incorrecte
+    forbidden: Accès refusé
+    gateway_timeout: Délai d'attente de la passerelle dépassé
+    generic_error: Erreur du service amont
+    not_found: Introuvable
+    payload_too_large: Charge utile trop volumineuse
   ontologies:
     access_rights_information: Informations supplémentaires sur la licence et les
       droits d'accès
@@ -1013,7 +1092,7 @@ fr:
         confirm_delete_selected: "Êtes-vous sûr de vouloir supprimer les soumissions sélectionnées ?"
         select_at_least_one: "Veuillez sélectionner au moins une soumission à supprimer."
         submission_deleted: "Soumission %{submission_id} supprimée"
-        submissions_deleted: "Soumissions %{submission_ids} supprimées"
+        submissions_deleted: "Soumissions mises en file d'attente pour suppression : %{submission_ids}"
         error_deleting_submissions: "Erreur lors de la suppression des soumissions: %{message}"
         loading: "Chargement des soumissions..."
       log:
@@ -1337,6 +1416,38 @@ fr:
     include_all_submissions: Inclure toutes les soumissions
     ontologies: Ontologies
     save: Sauvegarder
+    preview: Prévisualiser les modifications
+    preview_header: Prévisualisation des modifications de métadonnées
+    preview_badge: Vérification avant confirmation
+    preview_notice: 'Les valeurs sont comparées à l''état actuel des soumissions. Décocher une cible l''exclut de la mise à jour. Les modifications externes avant confirmation nécessiteront une nouvelle prévisualisation (revérification au mieux).'
+    confirm_updates: Confirmer les mises à jour
+    cancel_preview: Annuler
+    close: Fermer
+    target: Cible
+    property: Propriété
+    properties: Propriétés
+    current_value: Valeur actuelle
+    proposed_value: Valeur proposée
+    status: Statut
+    status_unchanged: inchangé
+    status_added: ajouté
+    status_replaced: remplacé
+    status_cleared: effacé
+    status_omitted: omis
+    empty_value: (vide)
+    include_target: Inclure
+    invalid_or_expired_preview: Le contexte de prévisualisation est invalide ou a expiré. Veuillez générer une nouvelle prévisualisation.
+    stale_preview_detected: 'Les valeurs actuelles ont changé depuis la prévisualisation pour la cible %{target}. Une nouvelle prévisualisation est requise avant confirmation (revérification au mieux).'
+    no_targets_selected: Aucune cible sélectionnée pour la mise à jour.
+    review_receipt_title: Reçu de révision de mise à jour groupée
+    receipt_badge: Reçu de session
+    receipt_success: Succès
+    receipt_rejected: Rejeté
+    receipt_unknown: Inconnu
+    receipt_unknown_reconcile: Le résultat inconnu nécessite une relecture avant nouvelle tentative
+    retry_col: Réessayer ?
+    details: Détails
+    retry_preview: Nouvelle prévisualisation pour les cibles échouées
     select_ontologies_and_metadata: Sélectionner les ontologies et les propriétés
       de métadonnées
     start_the_bulk_edit: Sélectionnez dans le tableau les soumissions (lignes) et
@@ -1580,6 +1691,27 @@ fr:
       visualize: Visualiser
     search_place_holder: Entrez un terme, e.g., hauteur de plante
     show_advanced_options: Afficher les options
+  query_recipes:
+    button_label: "Recettes enregistrées"
+    save_recipe: "Enregistrer la recette"
+    saved_recipes: "Recettes enregistrées"
+    save_current: "Enregistrer les filtres actuels"
+    recipe_name_placeholder: "Nom de la recette..."
+    save: "Enregistrer"
+    cancel: "Annuler"
+    reopen: "Appliquer"
+    rename: "Renommer"
+    delete: "Supprimer"
+    export: "Exporter"
+    import: "Importer"
+    clear_all: "Tout effacer"
+    empty_state: "Aucune recette enregistrée sur cet appareil."
+    local_storage_notice: "Enregistré localement sur cet appareil. Aucune requête ni identifiant n'est transmis aux serveurs."
+    storage_unavailable: "Le stockage local est indisponible dans ce navigateur. Impossible d'enregistrer les recettes."
+    import_invalid: "Échec de l'importation : format invalide ou non pris en charge."
+    import_success: "Recette importée avec succès."
+    portal_mismatch: "Portail d'origine : %{portal} (Actuel : %{current}). Vérifiez les paramètres avant d'appliquer."
+    missing_ontology: "Ontologie manquante : %{ontology} n'est pas dans le catalogue actuel."
   show_advanced_options: Afficher les options avancées
   statistics:
     agents: Agents
@@ -1730,6 +1862,7 @@ fr:
   users:
     account_successfully_created: Compte créé
     account_successfully_updated: Compte mis à jour
+    cancel: Annuler
     custom_ontologies_cleared: Ontologies personnalisées effacées
     custom_ontologies_saved: Ontologies personnalisées enregistrées
     edit:
@@ -1810,8 +1943,14 @@ fr:
       unsubscribe: Se désabonner
       upload_semantic_resources: Télécharger des ontologies
       username: 'Nom d''utilisateur :'
+    subscribe_confirm_button: Confirmer l'inscription
+    subscribe_confirm_prompt: Êtes-vous sûr de vouloir inscrire %{user} à la liste de diffusion %{list} ?
+    subscribe_confirm_title: Confirmer l'inscription à la liste de diffusion
     subscribe_flash_message: 'Vous vous êtes %{action} %{to_or_from} à notre liste
       de diffusion : %{list}'
+    unsubscribe_confirm_button: Confirmer le désabonnement
+    unsubscribe_confirm_prompt: Êtes-vous sûr de vouloir désinscrire %{email} de la liste de diffusion %{list} ?
+    unsubscribe_confirm_title: Confirmer le désabonnement de la liste de diffusion
     user_deleted_successfully: Utilisateur supprimé
     valid_email_adresse: Veuillez entrer une adresse email valide
     validate_email_address: Veuillez entrer une adresse email
@@ -1833,3 +1972,20 @@ fr:
     title: Éditeur de requêtes SPARQL
     private_ontology_warning: Rendez l'ontologie publique pour activer l'accès depuis l’endpoint SPARQL.
     edit_sample_queries: Éditer les requêtes d'exemple
+    sample_queries_saved: Requêtes d'exemple enregistrées.
+    sample_queries_save_error: Les requêtes d'exemple n'ont pas pu être enregistrées. Vos modifications sont toujours dans l'éditeur, vous pouvez réessayer.
+  scientific_run_record:
+    download: "Télécharger l'enregistrement d'exécution"
+    import: "Importer un enregistrement d'exécution"
+    title: "Enregistrement d'exécution scientifique"
+    include_input_text: "Inclure le texte d'entrée"
+    include_results: "Inclure les résultats capturés"
+    settings_only_note: "Un enregistrement avec paramètres uniquement nécessite le texte d'origine pour être réexécuté."
+    input_matched: "Le texte d'entrée correspond à l'empreinte SHA-256 enregistrée."
+    input_mismatch: "Le texte d'entrée ne correspond pas à l'empreinte enregistrée."
+    loaded_for_inspection: "Enregistrement chargé pour inspection. Cliquez sur Exécuter pour lancer."
+    invalid_json: "Enregistrement invalide : le fichier n'est pas un JSON valide."
+    unsupported_tool: "Outil non supporté : l'outil '%{tool}' ne correspond pas à '%{expected}'."
+    unsupported_schema: "Version de schéma non supportée : %{version}."
+    credentials_rejected: "Rejeté : l'enregistrement contient des identifiants ou champs d'authentification."
+    foreign_url_rejected: "Rejeté : l'enregistrement contient des URL de service externes."

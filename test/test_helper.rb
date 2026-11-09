@@ -1,27 +1,38 @@
 ENV['RAILS_ENV'] ||= 'test'
+require_relative 'coverage_helper'
 require_relative '../config/environment'
 require 'rails/test_help'
-require 'simplecov'
 require 'webmock/minitest'
+require_relative 'helpers/test_target_guard'
+require_relative 'helpers/external_portal_stub_helper'
 
-SimpleCov.start 'rails' do
-  add_filter '/bin/'
-  add_filter '/db/'
-  add_filter '/test/'
-  add_filter '/vendor/'
+# Configure explicit Capybara test server host and port before policy
+if defined?(Capybara)
+  Capybara.server_host = ENV['CAPYBARA_SERVER_HOST'] || '0.0.0.0'
+  Capybara.server_port = (ENV['CAPYBARA_SERVER_PORT'] || TestTargetGuard::DEFAULT_CAPYBARA_PORT).to_i
+  Capybara.app_host = "http://#{Socket.gethostname}:#{Capybara.server_port}"
 end
+
+# Preflight test target before suite setup; enforces default-deny WebMock except validated local API
+TestTargetGuard.enforce_isolated_test_target!
 
 class ActiveSupport::TestCase
   # Run tests in parallel with specified workers
   parallelize(workers: 1)
 
+  if defined?(Capybara)
+    Capybara.server_host = ENV['CAPYBARA_SERVER_HOST'] || '0.0.0.0'
+    Capybara.server_port ||= (ENV['CAPYBARA_SERVER_PORT'] || TestTargetGuard::DEFAULT_CAPYBARA_PORT).to_i
+    Capybara.app_host = "http://#{Socket.gethostname}:#{Capybara.server_port}"
+  end
 
-  WebMock.allow_net_connect!
+  # Default network access denied; narrowly permit the validated local API
+  TestTargetGuard.configure_webmock!
 
-  Capybara.server_host = "0.0.0.0"
-  Capybara.app_host = "http://#{Socket.gethostname}:#{Capybara.server_port}" 
   setup do
+    TestTargetGuard.enforce_isolated_test_target!
     FlipperSetup.test_configure!
+    ExternalPortalStubHelper.stub_isolated_external_services
   end
 end
 

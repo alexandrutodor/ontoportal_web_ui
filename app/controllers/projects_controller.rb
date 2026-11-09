@@ -4,6 +4,10 @@ class ProjectsController < ApplicationController
 
   layout :determine_layout
 
+  prepend_before_action :authorize_admin, only: :destroy
+  prepend_before_action :require_login, only: [:new, :create, :edit, :update]
+  before_action :authorize_owner, only: [:edit, :update]
+
   def index
     @projects = LinkedData::Client::Models::Project.all
     @projects.reject! { |p| p.name.nil? }
@@ -42,24 +46,13 @@ class ProjectsController < ApplicationController
   # GET /projects/new
   # GET /projects/new.xml
   def new
-    if session[:user].nil?
-      redirect_to :controller => 'login', :action => 'index'
-    else
-      @project = LinkedData::Client::Models::Project.new
-      @user_select_list = LinkedData::Client::Models::User.all.map {|u| [u.username, u.id]}
-      @user_select_list.sort! {|a,b| a[1].downcase <=> b[1].downcase}
-    end
+    @project = LinkedData::Client::Models::Project.new
+    @user_select_list = LinkedData::Client::Models::User.all.map {|u| [u.username, u.id]}
+    @user_select_list.sort! {|a,b| a[1].downcase <=> b[1].downcase}
   end
 
   # GET /projects/1/edit
   def edit
-    projects = LinkedData::Client::Models::Project.find_by_acronym(params[:id])
-    if projects.nil? || projects.empty?
-      flash[:notice] = flash_error(t('projects.project_not_found', id: params[:id]))
-      redirect_to projects_path
-      return
-    end
-    @project = projects.first
     @user_select_list = LinkedData::Client::Models::User.all.map {|u| [u.username, u.id]}
     @user_select_list.sort! {|a,b| a[1].downcase <=> b[1].downcase}
     @usedOntologies = @project.ontologyUsed&.map{|o| o.split('/').last}
@@ -105,13 +98,6 @@ class ProjectsController < ApplicationController
       redirect_to projects_path
       return
     end
-    projects = LinkedData::Client::Models::Project.find_by_acronym(params[:id])
-    if projects.nil? || projects.empty?
-      flash[:notice] = flash_error(t('projects.project_not_found', id: params[:id]))
-      redirect_to projects_path
-      return
-    end
-    @project = projects.first
     @project.update_from_params(project_params)
     @user_select_list = LinkedData::Client::Models::User.all.map {|u| [u.username, u.id]}
     @user_select_list.sort! {|a,b| a[1].downcase <=> b[1].downcase}
@@ -156,6 +142,41 @@ class ProjectsController < ApplicationController
   end
 
   private
+
+  def require_login
+    redirect_to controller: 'login', action: 'index' and return unless session[:user]
+  end
+
+  def authorize_owner
+    return if action_name == 'update' && params['commit'] == 'Cancel'
+
+    projects = LinkedData::Client::Models::Project.find_by_acronym(params[:id])
+    if projects.nil? || projects.empty?
+      flash[:notice] = flash_error(t('projects.project_not_found', id: params[:id]))
+      redirect_to projects_path
+      return
+    end
+
+    @project = projects.first
+    redirect_to_home and return unless project_owner?(@project, session[:user])
+  end
+
+  def project_owner?(project, user)
+    return true if current_user_admin?
+    return false if user.nil?
+
+    user_id = user.respond_to?(:id) ? user.id : nil
+    return false if user_id.nil? || user_id.to_s.strip.empty?
+
+    creator = project&.creator
+    return false if creator.nil?
+
+    if creator.respond_to?(:any?) && !creator.is_a?(String)
+      creator.any? { |c| !c.nil? && !c.to_s.strip.empty? && c == user_id }
+    else
+      !creator.to_s.strip.empty? && creator == user_id
+    end
+  end
 
   def project_params
     p = params.require(:project).permit(:name, :acronym, :institution, :contacts, { creator:[] }, :homePage,

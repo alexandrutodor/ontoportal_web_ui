@@ -9,6 +9,6 @@
       - t.add_row({th: t("collections.preferred_name")}, {td: display_in_multiple_languages(get_collection_label(@collection))})
       - t.add_row({th: t("collections.members_count")}) do |r|
         - r.td do
-          = link_to @collection["memberCount"],  "/ontologies/" + @ontology.acronym + "/?p=classes&sub_menu=list&concept_collections=" + @collection["@id"], 'data-turbo-frame':'_top'
+          = link_to @collection["memberCount"],  "/ontologies/" + @ontology.acronym + "/?p=classes&sub_menu=list&concept_collections=" + CGI.escape(@collection["@id"].to_s), 'data-turbo-frame':'_top'
       - t.add_row({th: t("collections.type")}, {td: @collection["@type"]})
 

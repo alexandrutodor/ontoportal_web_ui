@@ -41,63 +41,57 @@ class SearchController < ApplicationController
       render :plain => t('search.no_search_class_provided')
       return
     end
+
+    if params.key?(:callback) || params[:response].eql?("json")
+      unless valid_callback_name?(params[:callback])
+        render plain: "Invalid callback", status: :bad_request
+        return
+      end
+    end
+
+    query = params[:q].to_s.strip
     check_params_query(params)
     check_params_ontologies(params)  # Filter on ontology_id
     if params["id"]&.eql?('All')
       params.delete("id")
       params.delete("ontologies")
     end
-    search_page = LinkedData::Client::Models::Class.search(params[:q], params)
+
+    search_params = params[:response].eql?("rows") ? params.except(:response) : params
+    search_page = LinkedData::Client::Models::Class.search(params[:q], search_params)
 
     @results = search_page.collection
+
+    single_ontology = params[:id].present? && params[:id].to_s.split(",").length == 1
+
+    if params[:response].eql?("rows")
+      active_rows = []
+      obsolete_rows = []
+
+      for result in Array(@results)
+        row = build_json_search_row(result, query, single_ontology)
+        if result.obsolete?
+          obsolete_rows << row
+        else
+          active_rows << row
+        end
+      end
+
+      render json: (active_rows + obsolete_rows)
+      return
+    end
 
     response = ""
     obsolete_response = ""
     separator = (params[:separator].nil?) ? "~!~" : params[:separator]
 
     for result in Array(@results)
-      # TODO_REV: Format the response with type information, target information
-      # record_type = format_record_type(result[:recordType], result[:obsolete])
-      record_type = ""
-
-      label = search_concept_label(result.prefLabel)
-      target_value = label
-
-      case params[:target]
-      when "name"
-        target_value = label
-      when "shortid"
-        target_value = result.id
-      when "uri"
-        target_value = result.id
-      end
-
-      acronym =  result.links["ontology"].split('/').last
-      json = []
-      json << "#{target_value}"
-      json << " [obsolete]" if result.obsolete? # used by JS in ontologies/visualize to markup obsolete classes
-      json << "|#{result.id}"
-      json << "|#{record_type}"
-      json << "|#{acronym}"
-      json << "|#{result.id}" # Duplicated because we used to have shortId and fullId
-      json << "|#{target_value}"
-      # This is nasty, but hard to workaround unless we rewrite everything (form_autocomplete, jump_to, crossdomain_autocomplete)
-      # to use JSON from the bottom up. To avoid this, we pass a tab separated column list
-      # Columns: synonym
-      json << "|#{(result.synonym || []).join(";")}"
-      if params[:id] && params[:id].split(",").length == 1
-        json << "|#{CGI.escape((result.definition || []).join(". "))}#{separator}"
-      else
-        json << "|#{acronym}"
-        json << "|#{acronym}"
-        json << "|#{CGI.escape((result.definition || []).join(". "))}#{separator}"
-      end
-
-      # Obsolete results go at the end
+      row = build_json_search_row(result, query, single_ontology)
+      entry = row.join("|") + separator
       if result.obsolete?
-        obsolete_response << json.join
+        obsolete_response << entry
       else
-        response << json.join
+        response << entry
       end
     end
 
@@ -106,8 +100,7 @@ class SearchController < ApplicationController
 
     content_type = "text/html"
     if params[:response].eql?("json")
-      response = response.gsub("\"","'")
-      response = "#{params[:callback]}({data:\"#{response}\"})"
+      response = "#{params[:callback]}({data:#{response.to_json}})"
       content_type = "application/javascript"
     end
 
@@ -152,10 +145,10 @@ class SearchController < ApplicationController
   end
 
   def json_ontology_content_search
-    query = params[:search] || '*'
-    page = (params[:page] || 1).to_i
+    query = params[:search].presence || '*'
+    page = params[:page].to_i > 0 ? params[:page].to_i : 1
     acronyms = params[:ontologies]&.split(',') || []
-    page_size = (params[:page_size] || 10).to_i
+    page_size = params[:page_size].to_i > 0 ? params[:page_size].to_i : 10
     type = params[:types]&.split(',') || []
     show_ontologies = !params[:show_ontologies].eql?('false')
 
@@ -171,6 +164,68 @@ class SearchController < ApplicationController
   end
 
   private
+
+  JS_RESERVED_ROOTS = %w[
+    await break case catch class const continue debugger default delete do
+    else export extends false finally for function if implements import in
+    instanceof interface let new null package private protected public return
+    static super switch this throw true try typeof var void while with yield
+  ].to_set.freeze
+
+  def valid_callback_name?(callback)
+    return false unless callback.is_a?(String) && !callback.empty?
+    return false unless /\A[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*\z/.match?(callback)
+
+    root = callback.split(".", 2).first
+    !JS_RESERVED_ROOTS.include?(root)
+  end
+
+  def build_json_search_row(result, query, single_ontology)
+    record_type = ""
+    label = search_concept_label(result.prefLabel, query).to_s
+    target_value = label
+
+    case params[:target]
+    when "name"
+      target_value = label
+    when "shortid", "uri"
+      target_value = result.id.to_s
+    end
+
+    first_col = target_value.dup
+    first_col << " [obsolete]" if result.obsolete?
+
+    ontology_link = result.links && result.links["ontology"]
+    acronym = ontology_link ? ontology_link.to_s.split("/").last : ""
+    synonyms = (result.synonym || []).join(";")
+    definition = CGI.escape((result.definition || []).join(". "))
+
+    if single_ontology
+      [
+        first_col,
+        result.id.to_s,
+        record_type,
+        acronym,
+        result.id.to_s,
+        target_value,
+        synonyms,
+        definition
+      ]
+    else
+      [
+        first_col,
+        result.id.to_s,
+        record_type,
+        acronym,
+        result.id.to_s,
+        target_value,
+        synonyms,
+        acronym,
+        acronym,
+        definition
+      ]
+    end
+  end
 
   def check_params_query(params)
     params[:q] = params[:q].strip

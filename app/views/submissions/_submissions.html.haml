@@ -50,6 +50,9 @@
                     .dropdown-divider
                     = link_to_modal(nil, metadata_export_index_path(ontology: @ontology.acronym, submission_id: sub.submissionId), {class: 'dropdown-item', data: {show_modal_title_value: "#{t('submissions.download_metadata')} - #{t('submissions.submission')} #{sub.submissionId}", show_modal_size_value: 'modal-xl'}}) do
                       = t('submissions.download_metadata')
+                    - if metadata_comparison_enabled?
+                      = link_to metadata_comparison_path(ontology: @ontology.acronym, submission_ids: sub.submissionId), class: 'dropdown-item' do
+                        = t('metadata_comparison.compare_metadata')
                  
                 -# = raw download_link(sub, @ontology)
                 - if @ontology.admin?(session[:user])

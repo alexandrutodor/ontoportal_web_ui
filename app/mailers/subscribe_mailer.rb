@@ -2,9 +2,11 @@ class SubscribeMailer < ApplicationMailer
     
     def register_for_announce_list(email,firstName,lastName)
       if subscription_configs_valid?
+        # One action builds one message: a second mail() call would replace the list command, so support is bcc'd on it.
         if $ANNOUNCE_LIST_SERVICE.upcase.eql? "SYMPA"
-          mail(
+          return mail(
             :to => $ANNOUNCE_SERVICE_HOST, 
+            :bcc => $SUPPORT_EMAIL,
             :from => email, 
             :subject => "subscribe #{$ANNOUNCE_LIST} #{firstName} #{lastName}") 
           end  
@@ -19,8 +21,9 @@ class SubscribeMailer < ApplicationMailer
     def unregister_for_announce_list(email)
       if subscription_configs_valid?
         if $ANNOUNCE_LIST_SERVICE.upcase.eql? "SYMPA"
-          mail(
+          return mail(
             :to => $ANNOUNCE_SERVICE_HOST, 
+            :bcc => $SUPPORT_EMAIL,
             :from => email, 
             :subject => "unsubscribe #{$ANNOUNCE_LIST}")
         end

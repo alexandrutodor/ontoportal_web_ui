@@ -1,7 +1,5 @@
-require 'spec_helper'
+require_relative '../offline_helper'
 require_relative '../../app/helpers/sparql_helper'
-require 'active_support'
-require 'pry'
 
 describe 'change_from_clause' do
   include SparqlHelper

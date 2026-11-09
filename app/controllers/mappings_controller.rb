@@ -7,7 +7,8 @@ class MappingsController < ApplicationController
   include MappingsHelper
   include TurboHelper
   layout :determine_layout
-  before_action :authorize_and_redirect, only: [:create, :new, :destroy]
+  prepend_before_action :authorize_admin, only: [:update, :destroy]
+  before_action :authorize_and_redirect, only: [:create, :new, :loader_process]
 
   EXTERNAL_URL_PARAM_STR = "mappings:external"
   INTERPORTAL_URL_PARAM_STR = "interportal:"
@@ -99,6 +100,26 @@ class MappingsController < ApplicationController
       format.html { render 'mappings/edit', layout: false }
     end
 
+  end
+
+  def evidence
+    return head :not_found unless mapping_evidence_enabled?
+
+    @mapping = request_mapping
+    return head :not_found if @mapping.nil?
+
+    c1_data = resolve_mapping_class(@mapping.classes&.[](0))
+    c2_data = resolve_mapping_class(@mapping.classes&.[](1))
+
+    @component = MappingEvidenceComponent.new(
+      mapping: @mapping,
+      class_1: c1_data,
+      class_2: c2_data
+    )
+
+    render @component, layout: false
+  rescue ActiveRecord::RecordNotFound
+    head :not_found
   end
 
   def show_mappings
@@ -336,6 +357,88 @@ class MappingsController < ApplicationController
     mapping = LinkedData::Client::Models::Mapping.find(params[:id])
     not_found( t('mappings.mapping_not_found', id: params[:id]) ) if mapping.nil? || mapping.errors
     mapping
+  end
+
+  def resolve_mapping_class(cls)
+    return nil if cls.nil?
+
+    if same_portal_class?(cls)
+      ont_acronym = extract_ontology_acronym(cls)
+      ontology = nil
+      full_class = nil
+
+      if ont_acronym.present?
+        ontology = LinkedData::Client::Models::Ontology.find_by_acronym(ont_acronym)&.first rescue nil
+        if ontology && ontology.respond_to?(:explore) && ontology.explore.respond_to?(:single_class)
+          full_class = ontology.explore.single_class({ full: true }, cls.id) rescue nil
+        end
+      end
+
+      target_obj = full_class || cls
+      label = target_obj.respond_to?(:prefLabel) && target_obj.prefLabel.presence ||
+              target_obj.respond_to?(:label) && target_obj.label.presence
+
+      raw_def = target_obj.respond_to?(:definition) ? target_obj.definition : nil
+      definition = if raw_def.is_a?(Array)
+                     raw_def.reject(&:blank?).join('; ').presence
+                   elsif raw_def.present?
+                     raw_def.to_s
+                   end
+
+      raw_syn = target_obj.respond_to?(:synonym) ? target_obj.synonym : nil
+      synonyms = Array(raw_syn).reject(&:blank?)
+
+      ontology_id = (ontology && ontology.respond_to?(:acronym) && ontology.acronym.presence) || ont_acronym
+
+      {
+        id: cls.id,
+        ontology_id: ontology_id,
+        label: label,
+        definition: definition,
+        synonyms: synonyms,
+        external: false,
+        remote_details_unavailable: false,
+        link: (cls.respond_to?(:links) && cls.links.is_a?(Hash) && cls.links['self']) || cls.id
+      }
+    else
+      ont_id = if cls.respond_to?(:links) && cls.links.is_a?(Hash)
+                 cls.links['ontology'] || cls.links['self']
+               elsif cls.respond_to?(:ontology)
+                 cls.ontology
+               end
+
+      {
+        id: cls.id,
+        ontology_id: ont_id,
+        label: nil,
+        definition: nil,
+        synonyms: [],
+        external: true,
+        remote_details_unavailable: true,
+        link: (cls.respond_to?(:links) && cls.links.is_a?(Hash) && cls.links['self']) || cls.id
+      }
+    end
+  end
+
+  def same_portal_class?(cls)
+    return false if cls.nil?
+    return false if respond_to?(:inter_portal_mapping?) && inter_portal_mapping?(cls)
+    if respond_to?(:internal_mapping?)
+      return internal_mapping?(cls)
+    end
+    self_link = cls.respond_to?(:links) && cls.links.is_a?(Hash) && cls.links['self'].to_s
+    rest_url = LinkedData::Client.settings.rest_url.to_s rescue ''
+    self_link.present? && rest_url.present? && self_link.start_with?(rest_url)
+  rescue StandardError
+    false
+  end
+
+  def extract_ontology_acronym(cls)
+    if cls.respond_to?(:links) && cls.links.is_a?(Hash) && cls.links['ontology'].present?
+      cls.links['ontology'].to_s.split('/').last
+    elsif cls.respond_to?(:ontology)
+      cls.ontology.to_s.split('/').last
+    end
   end
 
   def valid_values?(values)

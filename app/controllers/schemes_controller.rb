@@ -22,7 +22,7 @@ class SchemesController < ApplicationController
                                                                      filter_by_types: ['ConceptScheme'])
 
 
-      render inline: helpers.render_search_paginated_list(container_id: 'schemes_sorted_list',
+      render html: helpers.render_search_paginated_list(container_id: 'schemes_sorted_list',
                                                           next_page_url: "/ontologies/#{@ontology.acronym}/schemes",
                                                           child_url: "/ontologies/#{@ontology.acronym}/schemes/show", child_turbo_frame: 'scheme',
                                                           child_param: :schemeid,
@@ -45,7 +45,7 @@ class SchemesController < ApplicationController
     scheme_label = scheme_label.nil? || scheme_label.empty? ? params[:id] : scheme_label
     label = helpers.main_language_label(scheme_label)
     link = scheme_path(scheme_id: params[:id], ontology_id: params[:ontology_id])
-    render(inline: helpers.ajax_link_chip(params[:id], label, link, external: scheme.blank?), layout: false)
+    render(html: helpers.ajax_link_chip(params[:id], label, link, external: scheme.blank?), layout: false)
   end
 
   private

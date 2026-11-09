@@ -230,11 +230,21 @@ class OntologiesController < ApplicationController
   end
 
   def content_serializer
-    @result, _ = serialize_content(ontology_acronym: params[:acronym],
-                      concept_id: params[:id],
-                      format: params[:output_format])
+    result = serialize_content(ontology_acronym: params[:acronym],
+                               concept_id: params[:id],
+                               format: params[:output_format])
 
-    render 'ontologies/content_serializer', layout: nil
+    if result.success?
+      @result = result.content
+      @format = result.format
+      @error = nil
+      render 'ontologies/content_serializer', layout: nil, status: result.status
+    else
+      @result = nil
+      @format = nil
+      @error = result.error || "Upstream Service Error"
+      render 'ontologies/content_serializer', layout: nil, status: result.status
+    end
   end
 
   # GET /ontologies/ACRONYM
@@ -404,7 +414,7 @@ class OntologiesController < ApplicationController
       user_id = user.id
     end
     count = helpers.count_subscriptions(params[:ontology_id])
-    render inline: helpers.turbo_frame_tag('subscribe_button') {
+    render html: helpers.turbo_frame_tag('subscribe_button') {
       render_to_string(OntologySubscribeButtonComponent.new(id: '', ontology_id: ontology_id, subscribed: subscribed, user_id: user_id, count: count, link: link), layout: nil)
     }
   end

@@ -3,7 +3,7 @@ require 'webmock/minitest'
 
 class AnnotatorPageTest < ApplicationSystemTestCase
     def setup
-        WebMock.disable!
+        TestTargetGuard.configure_webmock!
         @apikey = LinkedData::Client.settings.apikey
         @annotator_api = $ANNOTATOR_URL
         @host = "#{@annotator_api.split('/')[-2]}:443"
@@ -12,7 +12,7 @@ class AnnotatorPageTest < ApplicationSystemTestCase
     end
 
     def teardown
-        WebMock.disable!
+        TestTargetGuard.configure_webmock!
     end
 
     test "go to annotator page and check if all the inputs and filters are there" do

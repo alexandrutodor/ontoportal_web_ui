@@ -15,20 +15,26 @@ class AdminController < ApplicationController
 
     unless user_name.blank?
       user = LinkedData::Client::Models::User.find(user_name, {include: 'all', apikey: apikey})
-      render(inline: 'Query not permitted') && return if user.nil?
+      render(plain: 'Query not permitted', status: :forbidden) && return if user.nil?
     end
 
-    render(inline: 'Query not permitted') && return if graph.blank? && !user&.admin?
+    render(plain: 'Query not permitted', status: :forbidden) && return if graph.blank? && !user&.admin?
 
     unless graph.blank?
       acronym = graph.split('/')[-3]
       @ontology = LinkedData::Client::Models::Ontology.find_by_acronym(acronym, {apikey: apikey}).first
-      render(inline: t('admin.query_not_permitted')) && return  if @ontology.nil? || @ontology.errors
+      render(plain: t('admin.query_not_permitted'), status: :forbidden) && return if @ontology.nil? || @ontology.errors
     end
 
     response = helpers.ontology_sparql_query(params[:query], graph)
 
-    render inline:  response
+    if response.is_a?(Faraday::Response) && response.status
+      raw_content_type = response.headers ? (response.headers['content-type'] || response.headers['Content-Type']) : nil
+      content_type = helpers.validate_sparql_content_type(raw_content_type)
+      render plain: response.body, status: response.status, content_type: content_type
+    else
+      render plain: 'SPARQL query failed', status: :bad_gateway, content_type: 'text/plain; charset=utf-8'
+    end
   end
 
   def index

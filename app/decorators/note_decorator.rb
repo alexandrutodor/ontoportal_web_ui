@@ -1,5 +1,6 @@
 class NoteDecorator < BaseDecorator
   include ApplicationHelper, NotesHelper
+  include ActionView::Helpers::TagHelper, ActionView::Helpers::OutputSafetyHelper
 
   def author
     view_context.content_tag(:span, get_username(creator), class: "note_author")
@@ -15,7 +16,7 @@ class NoteDecorator < BaseDecorator
 
   def proposal_content
     if proposal
-      view_context.content_tag(:div, (proposal_html(self)).html_safe, class: "proposal")
+      view_context.content_tag(:div, proposal_html(self), class: "proposal")
     end
   end
 

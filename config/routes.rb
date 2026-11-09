@@ -8,6 +8,7 @@ Rails.application.routes.draw do
   get 'auth/:provider/callback', to: 'login#create_omniauth'
   get 'locale/:language', to: 'language#set_locale_language'
   get 'metadata_export/index'
+  get 'metadata_comparison', to: 'metadata_comparison#show', as: :metadata_comparison
   get '/config', to: 'home#portal_config'
 
   get '/notes/new_comment', to: 'notes#new_comment'
@@ -29,13 +30,14 @@ Rails.application.routes.draw do
 
   resources :users, path: :accounts, constraints: { id: /[\d\w\.\@\-\%\+ ]+/ }
 
-  get '/users/subscribe/:username', to: 'users#subscribe'
-  get '/users/un-subscribe/:email', to: 'users#un_subscribe'
+  match '/users/subscribe/:username', to: 'users#subscribe', via: [:get, :post], as: :subscribe_user, constraints: { username: /[^\/]+/ }
+  match '/users/un-subscribe/:email', to: 'users#un_subscribe', via: [:get, :post], as: :unsubscribe_user, constraints: { email: /[^\/]+/ }
 
   post '/mappings/loader', to: 'mappings#loader_process'
   get 'mappings/count/:id', to: 'mappings#count', constraints: { id: /.+/ }
   get 'mappings/show_mappings', to: 'mappings#show_mappings'
   get 'mappings/new', to: 'mappings#new'
+  get 'mappings/:id/evidence', to: 'mappings#evidence', as: :mapping_evidence, constraints: { id: /.+/ }
   get 'mappings/:id', to: 'mappings#show', constraints: { id: /.+/ }
   post 'mappings/:id', to: 'mappings#update', constraints: { id: /.+/ }
   delete 'mappings/:id', to: 'mappings#destroy', constraints: { id: /.+/ }
@@ -66,6 +68,7 @@ Rails.application.routes.draw do
 
   # user ontologies
   resources :my_ontologies, only: [:index, :new]
+  get '/my-ontologies', to: 'my_ontologies#index'
   get '/user_ontologies_filter', to: 'my_ontologies#user_ontologies_filter'
 
   resources :ontologies do
@@ -118,6 +121,7 @@ Rails.application.routes.draw do
   post 'admin/clear_goo_cache', to: 'admin#clear_goo_cache'
   post 'admin/clear_http_cache', to: 'admin#clear_http_cache'
   get 'metadata_administration', to: 'admin#metadata_administration'
+  get 'admin/metadata_administration', to: 'admin#metadata_administration'
   get 'admin/ontologies_report', to: 'admin#ontologies_report'
   post 'admin/refresh_ontologies_report', to: 'admin#refresh_ontologies_report'
   delete 'admin/ontologies', to: 'admin#delete_ontologies'
@@ -145,6 +149,8 @@ Rails.application.routes.draw do
     post '/result', to: 'ontologies_metadata_curator#result'
     post '/edit', to: 'ontologies_metadata_curator#edit'
     put '/update', to: 'ontologies_metadata_curator#update'
+    post '/preview', to: 'ontologies_metadata_curator#preview'
+    match '/confirm', to: 'ontologies_metadata_curator#confirm', via: [:post, :put]
     get '/:ontology/submissions/:submission_id/attributes/:attribute', to: 'ontologies_metadata_curator#show_metadata_value'
     get '/:ontology/submissions/:submission_id', to: 'ontologies_metadata_curator#show_metadata_by_ontology'
   end
@@ -167,6 +173,7 @@ Rails.application.routes.draw do
   get '/site_config' => 'home#site_config'
   post '/annotator_recommender_form' => 'home#annotator_recommender_form'
   match '/visits', to: 'visits#index', via: :get
+  get 'statistics', to: 'statistics#index'
   get 'statistics/index'
 
   # Error pages
@@ -184,13 +191,12 @@ Rails.application.routes.draw do
   get '/ontologies/:acronym/htaccess' => 'ontologies_redirection#generate_htaccess'
 
   get '/ontologies/success/:id' => 'ontologies#submit_success'
-  match '/ontologies/:acronym' => 'ontologies#update', via: [:get, :post]
-  match '/ontologies/:acronym/submissions/:id' => 'submissions#update', via: [:get, :post]
+  post '/ontologies/:acronym' => 'ontologies#update'
+  post '/ontologies/:acronym/submissions/:id' => 'submissions#update'
   get '/ontologies/:ontology_id/submissions/new' => 'submissions#new', :ontology_id => /.+/
   match '/ontologies/:ontology_id/submissions' => 'submissions#create', :ontology_id => /.+/, via: [:post]
   match '/ontologies/:ontology_id/submissions' => 'submissions#index', :ontology_id => /.+/, via: [:get]
   get '/ontologies/:acronym/classes/:purl_conceptid', to: 'ontologies#show', constraints: { purl_conceptid: /[^\/]+/ }
-  match '/ontologies/:acronym/submissions/:id/edit_metadata' => 'submissions#edit_metadata', via: [:get, :post]
   get '/ontologies_filter', to: 'ontologies#ontologies_filter'
 
 
@@ -206,7 +212,6 @@ Rails.application.routes.draw do
   # Ajax
   get '/ajax/class_details' => 'concepts#details'
   get '/ajax/mappings/get_concept_table' => 'mappings#get_concept_table'
-  get '/ajax/notes/delete' => 'notes#destroy'
   get '/ajax/classes/label' => 'concepts#show_label'
   get '/ajax/classes/definition' => 'concepts#show_definition'
   get '/ajax/classes/treeview' => 'concepts#show_tree'
@@ -229,12 +234,12 @@ Rails.application.routes.draw do
   get '/ajax/images/show' => 'application#show_image_modal'
 
   # User
-  get '/logout' => 'login#destroy', :as => :logout
+  match '/logout', to: 'login#destroy', via: [:get, :post, :delete], as: :logout
   get '/lost_pass' => 'login#lost_password'
   get '/lost_pass_success' => 'login#lost_password_success'
-  get '/reset_password' => 'login#reset_password'
+  match '/reset_password', to: 'login#reset_password', via: [:get, :post], as: :reset_password
   post '/accounts/:id/custom_ontologies' => 'users#custom_ontologies', :as => :custom_ontologies
-  get '/login_as/:login_as' => 'login#login_as', constraints: { login_as: /[\d\w\.\@\-\%\+ ]+/ }
+  match '/login_as/:login_as', to: 'login#login_as', via: [:get, :post], as: :login_as, constraints: { login_as: /[\d\w\.\@\-\%\+ ]+/ }
   post '/login/send_pass', to: 'login#send_pass'
 
   get '/groups' => 'taxonomy#index'
@@ -242,6 +247,7 @@ Rails.application.routes.draw do
 
   # Search
   get 'search', to: 'search#index'
+  get 'search/json_search', to: 'search#json_search'
   get 'search/json_search/:id', to: 'search#json_search'
   get 'ajax/search/ontologies/content', to: 'search#json_ontology_content_search'
   get 'ajax/search/ontologies/:ontology_acronym/classes', to: 'search#json_ontology_classes_search'
@@ -249,8 +255,10 @@ Rails.application.routes.draw do
   get 'check_resolvability' => 'check_resolvability#index'
   get 'check_url_resolvability' => 'check_resolvability#check_resolvability'
 
-  # Install the default route as the lowest priority.
-  get '/:controller(/:action(/:id))'
+  # Explicit read-only routes replacing legacy catchall route
+  get '/about', to: 'about#index'
+  get '/landscape', to: 'landscape#index'
+  get '/content_finder', to: 'content_finder#index'
 
   mount Lookbook::Engine, at: '/lookbook'
 end
