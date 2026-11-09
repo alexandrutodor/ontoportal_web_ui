@@ -2,6 +2,9 @@ require "test_helper"
 require_relative 'helpers/application_test_helpers'
 require_relative 'helpers/browse_wait'
 
+# CI runners render the submission pages slowly; Capybara's 2-second default made these flows flaky.
+Capybara.default_max_wait_time = 10
+
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   include ApplicationTestHelpers::Ontologies
   include ApplicationTestHelpers::Users
