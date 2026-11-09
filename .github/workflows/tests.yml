@@ -12,6 +12,8 @@ on:
     types: [ opened, reopened, synchronize ]
 env:
   API_URL: http://localhost:9393
+  # The API started by bin/run_api is local and owned by this job; the test target guard requires this marker.
+  ONTOPORTAL_ISOLATED_TEST: 1
   REMOTE_API_KEY: 8b5b7825-538d-40e0-9e9e-5ab9274a9aeb
   REMOTE_API_URL: https://data.bioontology.org
   AGENTS_ENABLED: true
